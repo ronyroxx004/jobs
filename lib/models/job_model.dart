@@ -3,6 +3,7 @@ class JobModel {
   final String title;
   final String companyName;
   final String companyLogo;
+  final String companyIconKey;
   final String location;
   final String jobType; // Full-time, Part-time, Contract, Remote, Internship
   final String experienceLevel; // Entry, Mid, Senior, Executive
@@ -22,6 +23,7 @@ class JobModel {
     required this.title,
     required this.companyName,
     this.companyLogo = '',
+    this.companyIconKey = '',
     required this.location,
     required this.jobType,
     required this.experienceLevel,
@@ -43,6 +45,7 @@ class JobModel {
       'title': title,
       'companyName': companyName,
       'companyLogo': companyLogo,
+      'companyIconKey': companyIconKey,
       'location': location,
       'jobType': jobType,
       'experienceLevel': experienceLevel,
@@ -65,6 +68,7 @@ class JobModel {
       title: map['title'] ?? '',
       companyName: map['companyName'] ?? '',
       companyLogo: map['companyLogo'] ?? '',
+      companyIconKey: map['companyIconKey'] ?? '',
       location: map['location'] ?? '',
       jobType: map['jobType'] ?? 'Full-time',
       experienceLevel: map['experienceLevel'] ?? 'Mid',

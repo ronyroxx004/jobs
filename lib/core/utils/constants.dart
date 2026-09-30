@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Brand Primary
-  static const Color primary = Color(0xFF2563EB); // Royal Blue
-  static const Color primaryDark = Color(0xFF1D4ED8);
-  static const Color primaryLight = Color(0xFF60A5FA);
+  static const Color primary = Color(0xFF4F46E5); // Indigo
+  static const Color primaryDark = Color(0xFF4338CA);
+  static const Color primaryLight = Color(0xFF818CF8);
 
   // Secondary & Accents
-  static const Color secondary = Color(0xFF10B981); // Emerald Green
-  static const Color accent = Color(0xFF8B5CF6); // Violet / Purple
+  static const Color secondary = Color(0xFF0F9F8F); // Teal
+  static const Color accent = Color(0xFFF97316); // Orange
   static const Color warning = Color(0xFFF59E0B); // Amber
   static const Color error = Color(0xFFEF4444); // Red
 
   // Backgrounds
-  static const Color bgLight = Color(0xFFF8FAFC);
-  static const Color bgDark = Color(0xFF0F172A);
+  static const Color bgLight = Color(0xFFF5F7FC);
+  static const Color bgDark = Color(0xFF0B1220);
   static const Color cardLight = Color(0xFFFFFFFF);
-  static const Color cardDark = Color(0xFF1E293B);
+  static const Color cardDark = Color(0xFF151F32);
 
   // Text Colors
   static const Color textPrimaryLight = Color(0xFF0F172A);
@@ -25,8 +25,8 @@ class AppColors {
   static const Color textSecondaryDark = Color(0xFF94A3B8);
 
   // Borders & Dividers
-  static const Color borderLight = Color(0xFFE2E8F0);
-  static const Color borderDark = Color(0xFF334155);
+  static const Color borderLight = Color(0xFFE4E8F1);
+  static const Color borderDark = Color(0xFF29364B);
 }
 
 enum UserRole {

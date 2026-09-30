@@ -26,54 +26,72 @@ class _SplashViewState extends State<SplashView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.4),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  )
-                ],
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF312E81),
+              AppColors.primary,
+              Color(0xFF0F9F8F),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(26),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 28,
+                      offset: const Offset(0, 12),
+                    )
+                  ],
+                ),
+                child: const Icon(
+                  Icons.work_history_rounded,
+                  size: 64,
+                  color: Colors.white,
+                ),
               ),
-              child: const Icon(
-                Icons.work_history_rounded,
-                size: 64,
-                color: Colors.white,
+              const SizedBox(height: 24),
+              Text(
+                'JOBS',
+                style: GoogleFonts.inter(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 2.0,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'JOBS',
-              style: GoogleFonts.inter(
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 2.0,
+              const SizedBox(height: 8),
+              Text(
+                'Professional Networking & Skill Ecosystem',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.78),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Professional Networking & Skill Ecosystem',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: AppColors.textSecondaryDark,
+              const SizedBox(height: 48),
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
               ),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(
-              color: AppColors.primaryLight,
-              strokeWidth: 3,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

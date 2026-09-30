@@ -25,6 +25,11 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
             onPressed: () => controller.openJobEditor(job),
             icon: const Icon(Icons.edit_outlined),
           ),
+          IconButton(
+            tooltip: 'Delete job post',
+            onPressed: () => _confirmDeleteJob(context),
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+          ),
         ],
       ),
       body: Column(
@@ -85,6 +90,53 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteJob(BuildContext context) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete job post?'),
+        content: Text(
+          '“${job.title}” will be removed from job listings. Existing application records will be kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) return;
+
+    try {
+      await controller.deleteJob(job);
+      if (context.mounted) {
+        Get.back();
+        Get.snackbar(
+          'Job post deleted',
+          'The job post has been removed.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        Get.snackbar(
+          'Could not delete job post',
+          'Please try again. $error',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
+      }
+    }
   }
 }
 

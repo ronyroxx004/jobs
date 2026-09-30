@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/job_controller.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/utils/company_icons.dart';
 import '../../core/utils/constants.dart';
 import '../../services/database_service.dart';
 
@@ -112,18 +113,16 @@ class RecruiterJobsView extends GetView<JobController> {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: companyIconForKey(job.companyIconKey)
+                                .color
+                                .withOpacity(0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            '${controller.getApplicantCountForJob(job.id)}',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                          child: Icon(
+                            companyIconForKey(job.companyIconKey).icon,
+                            color: companyIconForKey(job.companyIconKey).color,
+                            size: 25,
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -147,13 +146,44 @@ class RecruiterJobsView extends GetView<JobController> {
                                 ),
                               ),
                               const SizedBox(height: 9),
-                              Text(
-                                '${job.jobType} • ${job.salaryRange}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: AppColors.secondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      job.jobType,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: AppColors.secondary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  Flexible(
+                                    child: Text(
+                                      job.salaryRange,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.right,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: AppColors.secondary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${controller.getApplicantCountForJob(job.id)} applicants',
+                                    maxLines: 1,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

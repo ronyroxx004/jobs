@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/job_controller.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/utils/constants.dart';
 
 class PostJobView extends GetView<JobController> {
@@ -118,14 +119,46 @@ class PostJobView extends GetView<JobController> {
                   const SizedBox(height: 16),
                   _FieldLabel(text: 'Company name', required: true),
                   const SizedBox(height: 7),
-                  TextField(
-                    controller: controller.postCompanyController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      hintText: 'e.g. Infosys Limited',
-                      prefixIcon: Icon(Icons.business_outlined),
+                  Obx(() {
+                    final companies = controller.postCompanyOptions;
+                    final selected = companies
+                            .contains(controller.postCompanyController.text)
+                        ? controller.postCompanyController.text
+                        : null;
+                    return DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: selected,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.business_outlined),
+                      ),
+                      hint: const Text('Select your company'),
+                      items: companies
+                          .map(
+                            (name) => DropdownMenuItem(
+                              value: name,
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: companies.isEmpty
+                          ? null
+                          : (value) => value == null
+                              ? null
+                              : controller.selectPostCompany(value),
+                    );
+                  }),
+                  if (controller.postCompanyOptions.isEmpty) ...[
+                    const SizedBox(height: 6),
+                    TextButton.icon(
+                      onPressed: () => Get.toNamed(AppRoutes.editProfile),
+                      icon: const Icon(Icons.add_business_outlined, size: 18),
+                      label: const Text('Add company details in your profile'),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 16),
                   _FieldLabel(text: 'Work location', required: true),
                   const SizedBox(height: 7),

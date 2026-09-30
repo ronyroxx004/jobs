@@ -7,6 +7,7 @@ import '../services/database_service.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
 import '../models/resume_model.dart';
+import '../models/company_profile.dart';
 import '../core/utils/constants.dart';
 
 class ProfileController extends GetxController {
@@ -19,10 +20,13 @@ class ProfileController extends GetxController {
   final bioController = TextEditingController();
   final locationController = TextEditingController();
   final companyController = TextEditingController();
+  final companyLocationController = TextEditingController();
   final skillInputController = TextEditingController();
 
   final RxList<String> currentSkills = <String>[].obs;
+  final RxList<CompanyProfile> companies = <CompanyProfile>[].obs;
   final RxBool isUploading = false.obs;
+  final RxString companyIconKey = 'business'.obs;
 
   UserModel? get user => _authService.currentUser.value;
   List<ResumeModel> get userResumes => _dbService.resumeList;
@@ -40,6 +44,23 @@ class ProfileController extends GetxController {
       bioController.text = user!.bio;
       locationController.text = user!.location;
       companyController.text = user!.companyName;
+      companyLocationController.text = user!.companyLocation;
+      companyIconKey.value =
+          user!.companyIconKey.isNotEmpty ? user!.companyIconKey : 'business';
+      if (user!.companies.isNotEmpty) {
+        companies.assignAll(user!.companies);
+      } else if (user!.companyName.trim().isNotEmpty) {
+        companies.assignAll([
+          CompanyProfile(
+            id: 'company_${user!.id}',
+            name: user!.companyName,
+            location: user!.companyLocation,
+            iconKey: user!.companyIconKey.isNotEmpty
+                ? user!.companyIconKey
+                : 'business',
+          ),
+        ]);
+      }
       currentSkills.assignAll(user!.skills);
     }
   }
@@ -56,15 +77,51 @@ class ProfileController extends GetxController {
     currentSkills.remove(skill);
   }
 
+  bool saveCompany(CompanyProfile company) {
+    final index = companies.indexWhere((item) => item.id == company.id);
+    if (index == -1) {
+      final duplicate = companies.any(
+        (item) => item.name.toLowerCase() == company.name.toLowerCase(),
+      );
+      if (duplicate) {
+        Get.snackbar('Company already added', 'Use a different company name.');
+        return false;
+      }
+      companies.add(company);
+    } else {
+      final duplicate = companies.any(
+        (item) =>
+            item.id != company.id &&
+            item.name.toLowerCase() == company.name.toLowerCase(),
+      );
+      if (duplicate) {
+        Get.snackbar('Company already added', 'Use a different company name.');
+        return false;
+      }
+      companies[index] = company;
+    }
+    return true;
+  }
+
+  void removeCompany(String companyId) {
+    companies.removeWhere((company) => company.id == companyId);
+  }
+
   Future<void> saveProfile() async {
     if (user == null) return;
 
+    final savedCompanies = companies.toList();
+    final primaryCompany =
+        savedCompanies.isNotEmpty ? savedCompanies.first : null;
     final updated = user!.copyWith(
       name: nameController.text.trim(),
       headline: headlineController.text.trim(),
       bio: bioController.text.trim(),
       location: locationController.text.trim(),
-      companyName: companyController.text.trim(),
+      companyName: primaryCompany?.name ?? '',
+      companyLocation: primaryCompany?.location ?? '',
+      companyIconKey: primaryCompany?.iconKey ?? 'business',
+      companies: savedCompanies,
       skills: currentSkills.toList(),
     );
 
@@ -195,6 +252,7 @@ class ProfileController extends GetxController {
     bioController.dispose();
     locationController.dispose();
     companyController.dispose();
+    companyLocationController.dispose();
     skillInputController.dispose();
     super.onClose();
   }

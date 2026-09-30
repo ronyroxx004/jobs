@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/utils/company_icons.dart';
 
 class JobListView extends GetView<JobController> {
   const JobListView({super.key});
@@ -130,26 +131,13 @@ class JobListView extends GetView<JobController> {
                 },
                 child: ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: jobs.length + 1,
+                  itemCount: jobs.length,
                   itemBuilder: (context, index) {
-                    if (index == jobs.length) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                "You've reached the end of job listings",
-                                style: GoogleFonts.inter(
-                                    fontSize: 13, color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
                     final job = jobs[index];
+                    final application = controller.getApplicationForJob(job.id);
+                    final showCandidateApplicationState =
+                        authService.isLoggedIn &&
+                            authService.currentRole == UserRole.candidate;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: InkWell(
@@ -172,24 +160,92 @@ class JobListView extends GetView<JobController> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      job.companyLogo,
+                                  if (showCandidateApplicationState)
+                                    Container(
+                                      constraints:
+                                          const BoxConstraints(minWidth: 48),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 9,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: (application?.status.color ??
+                                                Colors.blueGrey)
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            application?.status ==
+                                                    ApplicationStatus.applied
+                                                ? Icons.check_circle_rounded
+                                                : application == null
+                                                    ? Icons
+                                                        .radio_button_unchecked_rounded
+                                                    : Icons
+                                                        .pending_actions_rounded,
+                                            color: application?.status.color ??
+                                                Colors.blueGrey,
+                                            size: 19,
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            application?.status.label ??
+                                                'Not applied',
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              color:
+                                                  application?.status.color ??
+                                                      Colors.blueGrey,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  else if (job.companyIconKey.isNotEmpty)
+                                    Container(
                                       width: 48,
                                       height: 48,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
+                                      decoration: BoxDecoration(
+                                        color: companyIconForKey(
+                                          job.companyIconKey,
+                                        ).color.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        companyIconForKey(job.companyIconKey)
+                                            .icon,
+                                        color: companyIconForKey(
+                                                job.companyIconKey)
+                                            .color,
+                                      ),
+                                    )
+                                  else
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        job.companyLogo,
                                         width: 48,
                                         height: 48,
-                                        color:
-                                            AppColors.primary.withOpacity(0.1),
-                                        child: const Icon(
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          width: 48,
+                                          height: 48,
+                                          color: AppColors.primary
+                                              .withValues(alpha: 0.1),
+                                          child: const Icon(
                                             Icons.business_rounded,
-                                            color: AppColors.primary),
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
@@ -237,90 +293,75 @@ class JobListView extends GetView<JobController> {
                                 ],
                               ),
                               const SizedBox(height: 12),
-
-                              // Skills Chips
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: job.skills.map((skill) {
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? AppColors.bgDark
-                                          : AppColors.bgLight,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: isDark
-                                            ? AppColors.borderDark
-                                            : AppColors.borderLight,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      skill,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 11,
-                                        color: isDark
-                                            ? AppColors.textSecondaryDark
-                                            : AppColors.textSecondaryLight,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                              const SizedBox(height: 12),
-
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    job.salaryRange,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.secondary,
-                                    ),
-                                  ),
-                                  authService.currentRole !=
-                                              UserRole.recruiter &&
-                                          controller.hasAppliedForJob(job.id)
-                                      ? Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.secondary
-                                                .withOpacity(0.15),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.check_circle,
-                                                  size: 14,
-                                                  color: AppColors.secondary),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Applied',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: AppColors.secondary,
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: job.skills
+                                            .map(
+                                              (skill) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                    right: 6),
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: isDark
+                                                        ? AppColors.bgDark
+                                                        : AppColors.bgLight,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                    border: Border.all(
+                                                      color: isDark
+                                                          ? AppColors.borderDark
+                                                          : AppColors
+                                                              .borderLight,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    skill,
+                                                    maxLines: 1,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 11,
+                                                      color: isDark
+                                                          ? AppColors
+                                                              .textSecondaryDark
+                                                          : AppColors
+                                                              .textSecondaryLight,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                        )
-                                      : Text(
-                                          '${controller.getApplicantCountForJob(job.id)} applicants',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 12,
-                                            color: isDark
-                                                ? AppColors.textSecondaryDark
-                                                : AppColors.textSecondaryLight,
-                                          ),
-                                        ),
+                                            )
+                                            .toList(),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
+                                              0.4,
+                                    ),
+                                    child: Text(
+                                      job.salaryRange,
+                                      textAlign: TextAlign.right,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],

@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../models/job_model.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/utils/company_icons.dart';
 import 'apply_job_modal.dart';
 
 class JobDetailView extends GetView<JobController> {
@@ -62,21 +63,40 @@ class JobDetailView extends GetView<JobController> {
                     // Header Card
                     Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.network(
-                            job.companyLogo,
+                        if (job.companyIconKey.isNotEmpty)
+                          Container(
                             width: 64,
                             height: 64,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            decoration: BoxDecoration(
+                              color: companyIconForKey(job.companyIconKey)
+                                  .color
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Icon(
+                              companyIconForKey(job.companyIconKey).icon,
+                              color:
+                                  companyIconForKey(job.companyIconKey).color,
+                              size: 32,
+                            ),
+                          )
+                        else
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.network(
+                              job.companyLogo,
                               width: 64,
                               height: 64,
-                              color: AppColors.primary.withOpacity(0.1),
-                              child: const Icon(Icons.business_rounded, color: AppColors.primary, size: 32),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 64,
+                                height: 64,
+                                color: AppColors.primary.withOpacity(0.1),
+                                child: const Icon(Icons.business_rounded,
+                                    color: AppColors.primary, size: 32),
+                              ),
                             ),
                           ),
-                        ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Column(
@@ -112,15 +132,27 @@ class JobDetailView extends GetView<JobController> {
                         color: isDark ? AppColors.cardDark : AppColors.bgLight,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Wrap(
+                        spacing: 20,
+                        runSpacing: 16,
+                        alignment: WrapAlignment.spaceBetween,
                         children: [
-                          _buildSpecItem(Icons.location_on_outlined, 'Location', job.location),
-                          _buildSpecItem(Icons.work_outline_rounded, 'Type', job.jobType),
-                          _buildSpecItem(Icons.attach_money_rounded, 'Salary', job.salaryRange),
+                          _buildSpecItem(Icons.location_on_outlined, 'Location',
+                              job.location),
+                          _buildSpecItem(
+                              Icons.work_outline_rounded, 'Type', job.jobType),
+                          _buildSpecItem(Icons.attach_money_rounded, 'Salary',
+                              job.salaryRange),
+                          _buildSpecItem(
+                            Icons.people_outline_rounded,
+                            'Applicants',
+                            '${controller.getApplicantCountForJob(job.id)}',
+                          ),
                         ],
                       ),
                     ),
@@ -140,7 +172,9 @@ class JobDetailView extends GetView<JobController> {
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         height: 1.6,
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -160,7 +194,8 @@ class JobDetailView extends GetView<JobController> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.check_circle_rounded, color: AppColors.secondary, size: 18),
+                            const Icon(Icons.check_circle_rounded,
+                                color: AppColors.secondary, size: 18),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -223,7 +258,9 @@ class JobDetailView extends GetView<JobController> {
                 final alreadyApplied = controller.hasAppliedForJob(job.id);
                 return ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: alreadyApplied ? Colors.grey.shade400 : AppColors.primary,
+                    backgroundColor: alreadyApplied
+                        ? Colors.grey.shade400
+                        : AppColors.primary,
                   ),
                   onPressed: alreadyApplied
                       ? null
@@ -248,7 +285,8 @@ class JobDetailView extends GetView<JobController> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (alreadyApplied) ...[
-                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                        const Icon(Icons.check_circle_rounded,
+                            color: Colors.white, size: 18),
                         const SizedBox(width: 8),
                       ],
                       Text(alreadyApplied ? 'Already Applied' : 'Apply Now'),
@@ -270,7 +308,9 @@ class JobDetailView extends GetView<JobController> {
         const SizedBox(height: 4),
         Text(title, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
         const SizedBox(height: 2),
-        Text(value, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(value,
+            style:
+                GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
       ],
     );
   }

@@ -1,4 +1,5 @@
 import '../core/utils/constants.dart';
+import 'company_profile.dart';
 
 class UserModel {
   final String id;
@@ -13,6 +14,9 @@ class UserModel {
   final String avatarIconKey;
   final List<String> skills;
   final String companyName;
+  final String companyLocation;
+  final String companyIconKey;
+  final List<CompanyProfile> companies;
   final String designation;
   final int experienceYears;
   final double rating;
@@ -33,6 +37,9 @@ class UserModel {
     this.avatarIconKey = '',
     this.skills = const [],
     this.companyName = '',
+    this.companyLocation = '',
+    this.companyIconKey = '',
+    this.companies = const [],
     this.designation = '',
     this.experienceYears = 0,
     this.rating = 5.0,
@@ -55,6 +62,9 @@ class UserModel {
       'avatarIconKey': avatarIconKey,
       'skills': skills,
       'companyName': companyName,
+      'companyLocation': companyLocation,
+      'companyIconKey': companyIconKey,
+      'companies': companies.map((company) => company.toMap()).toList(),
       'designation': designation,
       'experienceYears': experienceYears,
       'rating': rating,
@@ -81,6 +91,9 @@ class UserModel {
       avatarIconKey: map['avatarIconKey'] ?? '',
       skills: List<String>.from(map['skills'] ?? []),
       companyName: map['companyName'] ?? '',
+      companyLocation: map['companyLocation'] ?? '',
+      companyIconKey: map['companyIconKey'] ?? '',
+      companies: _parseCompanies(map['companies']),
       designation: map['designation'] ?? '',
       experienceYears: map['experienceYears'] ?? 0,
       rating: (map['rating'] ?? 5.0).toDouble(),
@@ -90,6 +103,15 @@ class UserModel {
           ? DateTime.tryParse(map['createdAt']) ?? DateTime.now()
           : DateTime.now(),
     );
+  }
+
+  static List<CompanyProfile> _parseCompanies(dynamic rawCompanies) {
+    final entries = switch (rawCompanies) {
+      List<dynamic> values => values,
+      Map<dynamic, dynamic> values => values.values.toList(),
+      _ => const <dynamic>[],
+    };
+    return entries.whereType<Map>().map(CompanyProfile.fromMap).toList();
   }
 
   UserModel copyWith({
@@ -104,6 +126,9 @@ class UserModel {
     String? avatarIconKey,
     List<String>? skills,
     String? companyName,
+    String? companyLocation,
+    String? companyIconKey,
+    List<CompanyProfile>? companies,
     String? designation,
     int? experienceYears,
     double? rating,
@@ -123,6 +148,9 @@ class UserModel {
       avatarIconKey: avatarIconKey ?? this.avatarIconKey,
       skills: skills ?? this.skills,
       companyName: companyName ?? this.companyName,
+      companyLocation: companyLocation ?? this.companyLocation,
+      companyIconKey: companyIconKey ?? this.companyIconKey,
+      companies: companies ?? this.companies,
       designation: designation ?? this.designation,
       experienceYears: experienceYears ?? this.experienceYears,
       rating: rating ?? this.rating,

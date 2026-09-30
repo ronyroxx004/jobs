@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../models/job_model.dart';
 import '../models/application_model.dart';
 import '../models/resume_model.dart';
+import '../models/company_profile.dart';
 import '../core/utils/constants.dart';
 import '../core/routes/app_routes.dart';
 
@@ -31,6 +32,7 @@ class JobController extends GetxController {
   final RxList<String> postSkills = <String>[].obs;
   final RxString postJobType = 'Full-time'.obs;
   final Rx<JobModel?> editingJob = Rx<JobModel?>(null);
+  final RxList<String> postCompanyOptions = <String>[].obs;
 
   // Selected Resume for Application
   final Rx<ResumeModel?> selectedResumeForApply = Rx<ResumeModel?>(null);
@@ -48,6 +50,14 @@ class JobController extends GetxController {
     final candidateId = _authService.currentUser.value?.id ?? '';
     return _dbService.applicationsList
         .any((a) => a.candidateId == candidateId && a.jobId == jobId);
+  }
+
+  ApplicationModel? getApplicationForJob(String jobId) {
+    final candidateId = _authService.currentUser.value?.id ?? '';
+    return _dbService.applicationsList.firstWhereOrNull(
+      (application) =>
+          application.candidateId == candidateId && application.jobId == jobId,
+    );
   }
 
   List<ApplicationModel> get recruiterApplicants {
@@ -147,11 +157,37 @@ class JobController extends GetxController {
     postSkills.remove(skill);
   }
 
+  void selectPostCompany(String companyName) {
+    postCompanyController.text = companyName;
+    final profileCompany = _authService.currentUser.value?.companies
+        .firstWhereOrNull((company) => company.name == companyName);
+    if (profileCompany != null) {
+      postLocationController.text = profileCompany.location;
+    }
+  }
+
   void openJobEditor([JobModel? job]) {
     editingJob.value = job;
+    final user = _authService.currentUser.value;
+    final profileCompanies = user?.companies ?? [];
+    final companyNames = profileCompanies.isNotEmpty
+        ? profileCompanies.map((company) => company.name.trim()).toList()
+        : [user?.companyName.trim() ?? ''];
+    postCompanyOptions.assignAll({
+      ...companyNames.where((name) => name.isNotEmpty),
+      if (job?.companyName.isNotEmpty == true) job!.companyName,
+    });
     postTitleController.text = job?.title ?? '';
-    postCompanyController.text = job?.companyName ?? '';
+    postCompanyController.text = job?.companyName ??
+        (postCompanyOptions.isNotEmpty ? postCompanyOptions.first : '');
     postLocationController.text = job?.location ?? '';
+    if (job == null && postLocationController.text.isEmpty) {
+      final selectedCompany = profileCompanies.firstWhereOrNull(
+        (company) => company.name == postCompanyController.text,
+      );
+      postLocationController.text =
+          selectedCompany?.location ?? user?.companyLocation ?? '';
+    }
     postSalaryController.text = job?.salaryRange == 'As per company standards'
         ? ''
         : job?.salaryRange ?? '';
@@ -172,6 +208,15 @@ class JobController extends GetxController {
     postJobType.value =
         jobTypes.contains(job?.jobType) ? job!.jobType : 'Full-time';
     Get.toNamed(AppRoutes.postJob);
+  }
+
+  Future<void> deleteJob(JobModel job) async {
+    final recruiterId = _authService.currentUser.value?.id;
+    if (recruiterId == null || recruiterId != job.recruiterId) {
+      throw StateError('You can only delete your own job posts');
+    }
+
+    await _dbService.deleteJob(job.id);
   }
 
   Future<void> submitJobApplication(JobModel job) async {
@@ -277,15 +322,29 @@ class JobController extends GetxController {
       );
       return;
     }
+    final selectedCompany = recruiter?.companies.firstWhereOrNull(
+          (profile) => profile.name == company,
+        ) ??
+        (recruiter?.companyName == company
+            ? CompanyProfile(
+                id: 'legacy_${recruiter!.id}',
+                name: recruiter.companyName,
+                location: recruiter.companyLocation,
+                iconKey: recruiter.companyIconKey,
+              )
+            : null);
 
     final updatedJob = JobModel(
       id: existingJob?.id ?? 'job_${DateTime.now().millisecondsSinceEpoch}',
       title: title,
       companyName: company,
-      companyLogo: existingJob?.companyLogo.isNotEmpty == true
-          ? existingJob!.companyLogo
-          : 'https://picsum.photos/seed/$company/200/200',
-      location: location,
+      companyLogo: existingJob?.companyLogo ?? '',
+      companyIconKey: selectedCompany?.iconKey ??
+          existingJob?.companyIconKey ??
+          recruiter?.companyIconKey ??
+          '',
+      location:
+          location.isNotEmpty ? location : selectedCompany?.location ?? '',
       jobType: postJobType.value,
       experienceLevel: postExperienceController.text.trim().isNotEmpty
           ? postExperienceController.text.trim()

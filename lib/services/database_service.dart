@@ -102,9 +102,13 @@ class DatabaseService extends GetxService {
 
   // --- JOBS ---
   Future<void> createJob(JobModel job) async {
-    try {
-      await _db?.ref(DatabaseKeys.jobs).child(job.id).set(job.toMap());
-    } catch (_) {}
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available');
+    }
+
+    await db.ref(DatabaseKeys.jobs).child(job.id).set(job.toMap());
+    jobsList.removeWhere((existing) => existing.id == job.id);
     jobsList.insert(0, job);
   }
 
@@ -121,6 +125,16 @@ class DatabaseService extends GetxService {
     } else {
       jobsList[index] = job;
     }
+  }
+
+  Future<void> deleteJob(String jobId) async {
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available');
+    }
+
+    await db.ref(DatabaseKeys.jobs).child(jobId).remove();
+    jobsList.removeWhere((job) => job.id == jobId);
   }
 
   Future<List<JobModel>> fetchJobs() async {

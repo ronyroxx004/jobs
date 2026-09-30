@@ -5,7 +5,9 @@ import '../../controllers/profile_controller.dart';
 import '../../controllers/job_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/utils/company_icons.dart';
 import '../../services/database_service.dart';
+import '../../models/company_profile.dart';
 
 class CandidateProfileView extends GetView<ProfileController> {
   const CandidateProfileView({super.key});
@@ -175,6 +177,85 @@ class CandidateProfileView extends GetView<ProfileController> {
                 ),
               );
             }),
+
+            if (controller.user?.role == UserRole.recruiter) ...[
+              const SizedBox(height: 12),
+              Obx(() {
+                final user = controller.user;
+                final companies = user?.companies.isNotEmpty == true
+                    ? user!.companies
+                    : (user?.companyName.isNotEmpty == true
+                        ? [
+                            CompanyProfile(
+                              id: 'company_${user!.id}',
+                              name: user.companyName,
+                              location: user.companyLocation,
+                              iconKey: user.companyIconKey.isNotEmpty
+                                  ? user.companyIconKey
+                                  : 'business',
+                            ),
+                          ]
+                        : <CompanyProfile>[]);
+
+                if (companies.isEmpty) {
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.add_business_outlined,
+                          color: AppColors.primary),
+                      title: const Text('Add your companies'),
+                      subtitle:
+                          const Text('Manage the companies you recruit for.'),
+                      onTap: () => Get.toNamed(AppRoutes.editProfile),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: companies.map((company) {
+                    final icon = companyIconForKey(company.iconKey);
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: icon.color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(icon.icon, color: icon.color),
+                        ),
+                        title: Text(
+                          company.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          company.location.isEmpty
+                              ? 'Company place not added'
+                              : company.location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: IconButton(
+                          tooltip: 'Edit companies',
+                          onPressed: () => Get.toNamed(AppRoutes.editProfile),
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              }),
+            ],
 
             const SizedBox(height: 16),
 
