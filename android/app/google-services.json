@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "661848855589",
+    "firebase_url": "https://jobs-37214-default-rtdb.firebaseio.com",
+    "project_id": "jobs-37214",
+    "storage_bucket": "jobs-37214.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:661848855589:android:701265b3e45099ba419bcc",
+        "android_client_info": {
+          "package_name": "com.portal.jobs"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7KI9loWQJw4k-HIJZLhpkW9_LJzsX43o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
