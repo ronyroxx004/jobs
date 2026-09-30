@@ -11,6 +11,7 @@ abstract class AppRoutes {
   static const mentorDetails = '/mentor-details';
   static const bookSession = '/book-session';
   static const courseDetails = '/course-details';
+  static const postCourse = '/post-course';
   static const lessonView = '/lesson-view';
   static const chatDetail = '/chat-detail';
 }

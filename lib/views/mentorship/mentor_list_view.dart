@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/mentorship_controller.dart';
 import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
 import '../../models/service_model.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
@@ -22,7 +23,7 @@ class MentorListView extends GetView<MentorshipController> {
         children: [
           const SizedBox(height: 12),
           Text(
-            '1:1 Mentorship & Paid Services',
+            'Expert Career Guidance',
             style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           Text(
@@ -62,29 +63,90 @@ class MentorListView extends GetView<MentorshipController> {
             child: Obx(() {
               final services = controller.filteredServices;
               if (services.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    final dbService = Get.find<DatabaseService>();
+                    await dbService.fetchAllData();
+                  },
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      const Icon(Icons.school_outlined, size: 64, color: Colors.grey),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No mentorship services listed yet',
-                        style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Mentors can create services once signed in.',
-                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.4,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.school_outlined, size: 64, color: Colors.grey),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No mentorship services listed yet',
+                                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Mentors can create services once signed in.',
+                                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 );
               }
 
-              return ListView.builder(
-                itemCount: services.length,
-                itemBuilder: (context, index) {
+              return RefreshIndicator(
+                onRefresh: () async {
+                  final dbService = Get.find<DatabaseService>();
+                  await dbService.fetchAllData();
+                },
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: services.length + 1,
+                  itemBuilder: (context, index) {
+                  if (index == services.length) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              "You've reached the end of mentorship services",
+                              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                side: const BorderSide(color: AppColors.primary),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              onPressed: () async {
+                                final dbService = Get.find<DatabaseService>();
+                                await dbService.fetchAllData();
+                                Get.snackbar(
+                                  'Page Refreshed',
+                                  'Mentorship services updated successfully',
+                                  snackPosition: SnackPosition.BOTTOM,
+                                  backgroundColor: AppColors.primary,
+                                  colorText: Colors.white,
+                                  duration: const Duration(seconds: 2),
+                                );
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.primary),
+                              label: Text(
+                                'Refresh Page',
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
                   final service = services[index];
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -189,13 +251,14 @@ class MentorListView extends GetView<MentorshipController> {
                     ),
                   );
                 },
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
+              ),
+            );
+          }),
+        ),
+      ],
+    ),
+  );
+}
 
   void _showBookingDialog(BuildContext context, MentorshipServiceModel service) {
     Get.bottomSheet(

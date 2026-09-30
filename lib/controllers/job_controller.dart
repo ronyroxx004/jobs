@@ -44,15 +44,41 @@ class JobController extends GetxController {
 
   List<ApplicationModel> get recruiterApplicants {
     final recruiterId = _authService.currentUser.value?.id ?? '';
-    if (recruiterId.isEmpty) return _dbService.applicationsList.toList();
+    if (recruiterId.isEmpty || _dbService.jobsList.isEmpty) {
+      return _dbService.applicationsList.toList();
+    }
 
     final myJobIds = _dbService.jobsList
-        .where((j) => j.recruiterId == recruiterId)
+        .where((j) => j.recruiterId == recruiterId || j.recruiterName.isNotEmpty)
         .map((j) => j.id)
         .toSet();
 
-    final filtered = _dbService.applicationsList.where((a) => myJobIds.contains(a.jobId)).toList();
+    final filtered = _dbService.applicationsList.where((a) => myJobIds.contains(a.jobId) || myJobIds.isEmpty).toList();
     return filtered.isNotEmpty ? filtered : _dbService.applicationsList.toList();
+  }
+
+  // Recruiter's posted jobs
+  List<JobModel> get recruiterJobs {
+    final recruiterId = _authService.currentUser.value?.id;
+
+    if (recruiterId == null) {
+      return allJobs;
+    }
+
+    final jobs = allJobs.where((job) => job.recruiterId == recruiterId).toList();
+    return jobs.isNotEmpty ? jobs : allJobs;
+  }
+
+  int getApplicantCountForJob(String jobId) {
+    return _dbService.applicationsList
+        .where((app) => app.jobId == jobId)
+        .length;
+  }
+
+  List<ApplicationModel> getApplicantsForJob(String jobId) {
+    return _dbService.applicationsList
+        .where((app) => app.jobId == jobId)
+        .toList();
   }
 
   List<JobModel> get filteredJobs {

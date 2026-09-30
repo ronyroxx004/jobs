@@ -90,7 +90,12 @@ class RegisterView extends GetView<AuthController> {
                 height: 85,
                 child: Obx(() => ListView(
                       scrollDirection: Axis.horizontal,
-                      children: UserRole.values.map((role) {
+                      children: [
+                        UserRole.candidate,
+                        UserRole.recruiter,
+                        UserRole.instructor,
+                        UserRole.mentor,
+                      ].map((role) {
                         final isSelected = controller.selectedRole.value == role;
                         return Container(
                           width: 135,
@@ -118,15 +123,17 @@ class RegisterView extends GetView<AuthController> {
                                         ? Icons.person_search_rounded
                                         : role == UserRole.recruiter
                                             ? Icons.business_center_rounded
-                                            : role == UserRole.mentor
-                                                ? Icons.school_rounded
-                                                : Icons.admin_panel_settings_rounded,
+                                            : role == UserRole.instructor
+                                                ? Icons.cast_for_education_rounded
+                                                : role == UserRole.mentor
+                                                    ? Icons.school_rounded
+                                                    : Icons.admin_panel_settings_rounded,
                                     color: isSelected ? AppColors.primary : AppColors.textSecondaryLight,
                                     size: 20,
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    role == UserRole.candidate ? 'Candidate' : role == UserRole.recruiter ? 'Recruiter' : role == UserRole.mentor ? 'Mentor' : 'Admin',
+                                    role.displayName,
                                     style: GoogleFonts.inter(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,

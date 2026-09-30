@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/job_controller.dart';
 import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
 
@@ -67,40 +68,101 @@ class JobListView extends GetView<JobController> {
             child: Obx(() {
               final jobs = controller.filteredJobs;
               if (jobs.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.work_off_outlined, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No job listings available',
-                          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Recruiters can log in to publish active job postings.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 16),
-                        if (!authService.isLoggedIn)
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.login),
-                            label: const Text('Sign In or Register'),
-                            onPressed: () => Get.toNamed(AppRoutes.login),
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    final dbService = Get.find<DatabaseService>();
+                    await dbService.fetchAllData();
+                  },
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.5,
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.work_off_outlined, size: 64, color: Colors.grey),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No job listings available',
+                                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Recruiters can log in to publish active job postings.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+                                ),
+                                const SizedBox(height: 16),
+                                if (!authService.isLoggedIn)
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.login),
+                                    label: const Text('Log in'),
+                                    onPressed: () => Get.toNamed(AppRoutes.login),
+                                  ),
+                              ],
+                            ),
                           ),
-                      ],
-                    ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }
 
-              return ListView.builder(
-                itemCount: jobs.length,
-                itemBuilder: (context, index) {
+              return RefreshIndicator(
+                onRefresh: () async {
+                  final dbService = Get.find<DatabaseService>();
+                  await dbService.fetchAllData();
+                },
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: jobs.length + 1,
+                  itemBuilder: (context, index) {
+                  if (index == jobs.length) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              "You've reached the end of job listings",
+                              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                side: const BorderSide(color: AppColors.primary),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              onPressed: () async {
+                                final dbService = Get.find<DatabaseService>();
+                                await dbService.fetchAllData();
+                                Get.snackbar(
+                                  'Page Refreshed',
+                                  'Job listings updated successfully',
+                                  snackPosition: SnackPosition.BOTTOM,
+                                  backgroundColor: AppColors.primary,
+                                  colorText: Colors.white,
+                                  duration: const Duration(seconds: 2),
+                                );
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.primary),
+                              label: Text(
+                                'Refresh Page',
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
                   final job = jobs[index];
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -247,11 +309,12 @@ class JobListView extends GetView<JobController> {
                     ),
                   );
                 },
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
+              ),
+            );
+          }),
+        ),
+      ],
+    ),
+  );
+}
 }

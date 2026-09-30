@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/theme_controller.dart';
+import '../../services/database_service.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
 import '../jobs/job_list_view.dart';
@@ -13,9 +14,25 @@ import '../chat/chat_list_view.dart';
 import '../profile/candidate_profile_view.dart';
 import '../admin/admin_dashboard_view.dart';
 import '../recruiter/recruiter_dashboard_view.dart';
+import '../instructor/instructor_dashboard_view.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
+
+  IconData _getRoleIcon(UserRole r) {
+    switch (r) {
+      case UserRole.candidate:
+        return Icons.person;
+      case UserRole.recruiter:
+        return Icons.business_center;
+      case UserRole.instructor:
+        return Icons.cast_for_education;
+      case UserRole.mentor:
+        return Icons.school;
+      case UserRole.admin:
+        return Icons.admin_panel_settings;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,12 +52,15 @@ class HomeView extends GetView<HomeController> {
                 const AdminDashboardView()
               else if (role == UserRole.recruiter)
                 const RecruiterDashboardView()
+              else if (role == UserRole.instructor)
+                const InstructorDashboardView()
               else
                 const CandidateProfileView(),
             ]
           : [
               const JobListView(),
-              const CourseListView(),
+              const RecruiterDashboardView(),
+              const InstructorDashboardView(),
               const MentorListView(),
             ];
 
@@ -49,29 +69,38 @@ class HomeView extends GetView<HomeController> {
         controller.currentIndex.value = 0;
       }
 
+      final currentIndex = controller.currentIndex.value;
+      String getTitle() {
+        if (isLoggedIn) {
+          if (currentIndex == 0) return 'Jobs';
+          if (currentIndex == 1) return 'Courses';
+          if (currentIndex == 2) return 'Mentors';
+          if (currentIndex == 3) return 'Chats';
+          if (currentIndex == 4) {
+            if (role == UserRole.admin) return 'Admin Dashboard';
+            if (role == UserRole.recruiter) return 'Recruiter Portal';
+            if (role == UserRole.instructor) return 'Instructor Portal';
+            return 'Candidate Profile';
+          }
+        } else {
+          if (currentIndex == 0) return 'Candidate Portal';
+          if (currentIndex == 1) return 'Recruiter Portal';
+          if (currentIndex == 2) return 'Instructor Portal';
+          if (currentIndex == 3) return 'Mentor Portal';
+        }
+        return 'Jobs';
+      }
+
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.work_rounded, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'JOBS',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
+          title: Text(
+            getTitle(),
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
           ),
           actions: isLoggedIn
               ? [
@@ -88,13 +117,7 @@ class HomeView extends GetView<HomeController> {
                       child: Row(
                         children: [
                           Icon(
-                            role == UserRole.candidate
-                                ? Icons.person
-                                : role == UserRole.recruiter
-                                    ? Icons.business_center
-                                    : role == UserRole.mentor
-                                        ? Icons.school
-                                        : Icons.admin_panel_settings,
+                            _getRoleIcon(role),
                             size: 16,
                             color: AppColors.primary,
                           ),
@@ -120,13 +143,7 @@ class HomeView extends GetView<HomeController> {
                         child: Row(
                           children: [
                             Icon(
-                              r == UserRole.candidate
-                                  ? Icons.person
-                                  : r == UserRole.recruiter
-                                      ? Icons.business_center
-                                      : r == UserRole.mentor
-                                          ? Icons.school
-                                          : Icons.admin_panel_settings,
+                              _getRoleIcon(r),
                               size: 18,
                               color: r == role ? AppColors.primary : Colors.grey,
                             ),
@@ -146,6 +163,33 @@ class HomeView extends GetView<HomeController> {
                       tooltip: 'Post New Job',
                       onPressed: () => Get.toNamed(AppRoutes.postJob),
                     ),
+
+                  // Post Course Button for Instructors
+                  if (role == UserRole.instructor)
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline, color: AppColors.primary, size: 28),
+                      tooltip: 'Post New Course',
+                      onPressed: () => Get.toNamed(AppRoutes.postCourse),
+                    ),
+
+                  // Manual Page Refresh Action Button
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, color: AppColors.primary, size: 22),
+                    tooltip: 'Refresh Page',
+                    onPressed: () async {
+                      final dbService = Get.find<DatabaseService>();
+                      await dbService.fetchAllData();
+                      Get.snackbar(
+                        'Page Refreshed',
+                        'Page data updated successfully',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: AppColors.primary,
+                        colorText: Colors.white,
+                        duration: const Duration(seconds: 2),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 4),
 
                   // Theme Toggle Button (Light / Dark Mode) placed on the left side of Logout button
                   IconButton(
@@ -170,6 +214,25 @@ class HomeView extends GetView<HomeController> {
                   const SizedBox(width: 8),
                 ]
               : [
+                  // Manual Page Refresh Action Button for Guest
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, color: AppColors.primary, size: 22),
+                    tooltip: 'Refresh Page',
+                    onPressed: () async {
+                      final dbService = Get.find<DatabaseService>();
+                      await dbService.fetchAllData();
+                      Get.snackbar(
+                        'Page Refreshed',
+                        'Page data updated successfully',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: AppColors.primary,
+                        colorText: Colors.white,
+                        duration: const Duration(seconds: 2),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 4),
+
                   // Theme Toggle Button for Guest
                   IconButton(
                     icon: Obx(() => Icon(
@@ -184,32 +247,15 @@ class HomeView extends GetView<HomeController> {
                   ),
                   const SizedBox(width: 4),
 
-                  // Guest State Actions: Sign In & Register Buttons
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      side: const BorderSide(color: AppColors.primary),
+                  // Guest State Action: Log in Button
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       minimumSize: Size.zero,
                     ),
                     onPressed: () => Get.toNamed(AppRoutes.login),
                     child: Text(
-                      'Sign In',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      minimumSize: Size.zero,
-                    ),
-                    onPressed: () => Get.toNamed(AppRoutes.register),
-                    child: Text(
-                      'Register',
+                      'Log in',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -253,24 +299,33 @@ class HomeView extends GetView<HomeController> {
                         ? Icons.dashboard_outlined 
                         : role == UserRole.recruiter 
                             ? Icons.business_center_outlined 
-                            : Icons.person_outline_rounded),
+                            : role == UserRole.instructor
+                                ? Icons.cast_for_education_outlined
+                                : Icons.person_outline_rounded),
                     selectedIcon: Icon(role == UserRole.admin 
                         ? Icons.dashboard_rounded 
                         : role == UserRole.recruiter 
                             ? Icons.business_center_rounded 
-                            : Icons.person_rounded, color: AppColors.primary),
+                            : role == UserRole.instructor
+                                ? Icons.cast_for_education_rounded
+                                : Icons.person_rounded, color: AppColors.primary),
                     label: '',
                   ),
                 ]
               : [
                   const NavigationDestination(
-                    icon: Icon(Icons.work_outline_rounded),
-                    selectedIcon: Icon(Icons.work_rounded, color: AppColors.primary),
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(Icons.person_rounded, color: AppColors.primary),
                     label: '',
                   ),
                   const NavigationDestination(
-                    icon: Icon(Icons.local_library_outlined),
-                    selectedIcon: Icon(Icons.local_library_rounded, color: AppColors.primary),
+                    icon: Icon(Icons.business_center_outlined),
+                    selectedIcon: Icon(Icons.business_center_rounded, color: AppColors.primary),
+                    label: '',
+                  ),
+                  const NavigationDestination(
+                    icon: Icon(Icons.cast_for_education_outlined),
+                    selectedIcon: Icon(Icons.cast_for_education_rounded, color: AppColors.primary),
                     label: '',
                   ),
                   const NavigationDestination(

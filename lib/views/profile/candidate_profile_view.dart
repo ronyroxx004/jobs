@@ -5,6 +5,7 @@ import '../../controllers/profile_controller.dart';
 import '../../controllers/job_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
+import '../../services/database_service.dart';
 
 class CandidateProfileView extends GetView<ProfileController> {
   const CandidateProfileView({super.key});
@@ -14,9 +15,15 @@ class CandidateProfileView extends GetView<ProfileController> {
     final jobController = Get.find<JobController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return RefreshIndicator(
+      onRefresh: () async {
+        final dbService = Get.find<DatabaseService>();
+        await dbService.fetchAllData();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Profile Header Card
@@ -238,8 +245,48 @@ class CandidateProfileView extends GetView<ProfileController> {
               },
             );
           }),
+
+          const SizedBox(height: 24),
+          // End of page refresh section
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  "You've reached the bottom of profile page",
+                  style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  onPressed: () async {
+                    final dbService = Get.find<DatabaseService>();
+                    await dbService.fetchAllData();
+                    Get.snackbar(
+                      'Page Refreshed',
+                      'Profile and applications updated successfully',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: AppColors.primary,
+                      colorText: Colors.white,
+                      duration: const Duration(seconds: 2),
+                    );
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.primary),
+                  label: Text(
+                    'Refresh Page',
+                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

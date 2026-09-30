@@ -47,6 +47,9 @@ class AuthService extends GetxService {
             if (user.email?.toLowerCase().contains('recruiter') == true ||
                 user.email?.toLowerCase().contains('hr') == true) {
               detectedRole = UserRole.recruiter;
+            } else if (user.email?.toLowerCase().contains('instructor') == true ||
+                user.email?.toLowerCase().contains('course') == true) {
+              detectedRole = UserRole.instructor;
             } else if (user.email?.toLowerCase().contains('mentor') == true) {
               detectedRole = UserRole.mentor;
             } else if (user.email?.toLowerCase().contains('admin') == true) {
@@ -91,6 +94,8 @@ class AuthService extends GetxService {
               final cleanEmail = email.toLowerCase();
               if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
                 detectedRole = UserRole.recruiter;
+              } else if (cleanEmail.contains('instructor') || cleanEmail.contains('course')) {
+                detectedRole = UserRole.instructor;
               } else if (cleanEmail.contains('mentor')) {
                 detectedRole = UserRole.mentor;
               } else if (cleanEmail.contains('admin')) {
@@ -112,6 +117,8 @@ class AuthService extends GetxService {
           final cleanEmail = email.toLowerCase();
           if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
             detectedRole = UserRole.recruiter;
+          } else if (cleanEmail.contains('instructor') || cleanEmail.contains('course')) {
+            detectedRole = UserRole.instructor;
           } else if (cleanEmail.contains('mentor')) {
             detectedRole = UserRole.mentor;
           } else if (cleanEmail.contains('admin')) {
@@ -133,6 +140,8 @@ class AuthService extends GetxService {
         final cleanEmail = email.toLowerCase();
         if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
           detectedRole = UserRole.recruiter;
+        } else if (cleanEmail.contains('instructor') || cleanEmail.contains('course')) {
+          detectedRole = UserRole.instructor;
         } else if (cleanEmail.contains('mentor')) {
           detectedRole = UserRole.mentor;
         } else if (cleanEmail.contains('admin')) {

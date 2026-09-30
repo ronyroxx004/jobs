@@ -32,6 +32,7 @@ class AppColors {
 enum UserRole {
   candidate,
   recruiter,
+  instructor,
   mentor,
   admin;
 
@@ -41,6 +42,8 @@ enum UserRole {
         return 'Candidate';
       case UserRole.recruiter:
         return 'Recruiter';
+      case UserRole.instructor:
+        return 'Instructor';
       case UserRole.mentor:
         return 'Mentor';
       case UserRole.admin:

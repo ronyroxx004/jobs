@@ -64,6 +64,50 @@ class CourseController extends GetxController {
     );
   }
 
+  Future<void> publishCourse({
+    required String title,
+    required String instructorName,
+    required String thumbnail,
+    required String category,
+    required double price,
+    required String description,
+  }) async {
+    final newCourse = CourseModel(
+      id: 'crs_${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      instructorName: instructorName,
+      thumbnail: thumbnail,
+      category: category,
+      price: price,
+      description: description,
+      lessons: [
+        LessonModel(
+          id: 'lsn_1',
+          title: 'Introduction & Overview',
+          duration: '15m',
+          videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+          isFreePreview: true,
+        ),
+        LessonModel(
+          id: 'lsn_2',
+          title: 'Core Concepts & Architecture',
+          duration: '25m',
+          videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+        ),
+      ],
+    );
+
+    await _dbService.createCourse(newCourse);
+    Get.back();
+    Get.snackbar(
+      'Course Published! 🚀',
+      'Your course "$title" is now live on the marketplace',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: AppColors.primary,
+      colorText: Colors.white,
+    );
+  }
+
   @override
   void onClose() {
     searchController.dispose();

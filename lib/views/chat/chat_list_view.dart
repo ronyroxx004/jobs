@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/chat_controller.dart';
+import '../../services/database_service.dart';
 import '../../core/utils/constants.dart';
 import 'chat_detail_view.dart';
 
@@ -27,40 +28,88 @@ class ChatListView extends GetView<ChatController> {
           const SizedBox(height: 16),
 
           Expanded(
-            child: ListView.builder(
-              itemCount: controller.rooms.length,
-              itemBuilder: (context, index) {
-                final room = controller.rooms[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      radius: 22,
-                      backgroundColor: AppColors.primary.withOpacity(0.12),
-                      backgroundImage: room.otherUserAvatar.isNotEmpty ? NetworkImage(room.otherUserAvatar) : null,
-                      child: room.otherUserAvatar.isEmpty ? Text(room.otherUserName[0]) : null,
-                    ),
-                    title: Text(
-                      room.otherUserName,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    subtitle: Text(
-                      room.lastMessage,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(fontSize: 12),
-                    ),
-                    trailing: Text(
-                      '${room.lastMessageTime.hour}:${room.lastMessageTime.minute.toString().padLeft(2, '0')}',
-                      style: GoogleFonts.inter(fontSize: 10, color: Colors.grey),
-                    ),
-                    onTap: () {
-                      controller.loadRoomMessages(room.id);
-                      Get.to(() => ChatDetailView(room: room));
-                    },
-                  ),
-                );
+            child: RefreshIndicator(
+              onRefresh: () async {
+                final dbService = Get.find<DatabaseService>();
+                await dbService.fetchAllData();
               },
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: controller.rooms.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == controller.rooms.length) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              "You've reached the end of messages",
+                              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                side: const BorderSide(color: AppColors.primary),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              onPressed: () async {
+                                final dbService = Get.find<DatabaseService>();
+                                await dbService.fetchAllData();
+                                Get.snackbar(
+                                  'Page Refreshed',
+                                  'Chat conversations updated successfully',
+                                  snackPosition: SnackPosition.BOTTOM,
+                                  backgroundColor: AppColors.primary,
+                                  colorText: Colors.white,
+                                  duration: const Duration(seconds: 2),
+                                );
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.primary),
+                              label: Text(
+                                'Refresh Page',
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final room = controller.rooms[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: AppColors.primary.withOpacity(0.12),
+                        backgroundImage: room.otherUserAvatar.isNotEmpty ? NetworkImage(room.otherUserAvatar) : null,
+                        child: room.otherUserAvatar.isEmpty ? Text(room.otherUserName[0]) : null,
+                      ),
+                      title: Text(
+                        room.otherUserName,
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      subtitle: Text(
+                        room.lastMessage,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(fontSize: 12),
+                      ),
+                      trailing: Text(
+                        '${room.lastMessageTime.hour}:${room.lastMessageTime.minute.toString().padLeft(2, '0')}',
+                        style: GoogleFonts.inter(fontSize: 10, color: Colors.grey),
+                      ),
+                      onTap: () {
+                        controller.loadRoomMessages(room.id);
+                        Get.to(() => ChatDetailView(room: room));
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ],

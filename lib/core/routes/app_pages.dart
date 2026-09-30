@@ -6,6 +6,7 @@ import '../../views/auth/register_view.dart';
 import '../../views/home/home_view.dart';
 import '../../views/jobs/job_detail_view.dart';
 import '../../views/jobs/post_job_view.dart';
+import '../../views/courses/post_course_view.dart';
 import '../../views/profile/edit_profile_view.dart';
 import '../../views/profile/resume_manager_view.dart';
 
@@ -36,6 +37,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.postJob,
       page: () => const PostJobView(),
+    ),
+    GetPage(
+      name: AppRoutes.postCourse,
+      page: () => const PostCourseView(),
     ),
     GetPage(
       name: AppRoutes.editProfile,

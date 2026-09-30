@@ -6,6 +6,8 @@ import '../../services/auth_service.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/application_model.dart';
+import '../../models/job_model.dart';
+import '../../services/database_service.dart';
 
 class RecruiterDashboardView extends GetView<JobController> {
   const RecruiterDashboardView({super.key});
@@ -16,9 +18,15 @@ class RecruiterDashboardView extends GetView<JobController> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final recruiter = authService.currentUser.value;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return RefreshIndicator(
+      onRefresh: () async {
+        final dbService = Get.find<DatabaseService>();
+        await dbService.fetchAllData();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Recruiter Welcome Card
@@ -65,6 +73,9 @@ class RecruiterDashboardView extends GetView<JobController> {
           ),
           const SizedBox(height: 20),
 
+          // Job Postings & Applicants Section
+          Obx(() => _buildJobPostingsSection(context, isDark)),
+
           // Applicants Section Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -83,7 +94,264 @@ class RecruiterDashboardView extends GetView<JobController> {
 
           // Applicants List
           Obx(() => _buildApplicantsList(context, isDark)),
+
+          const SizedBox(height: 24),
+          // End of page refresh section
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  "You've reached the end of recruiter portal",
+                  style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  onPressed: () async {
+                    final dbService = Get.find<DatabaseService>();
+                    await dbService.fetchAllData();
+                    Get.snackbar(
+                      'Page Refreshed',
+                      'Recruiter portal data refreshed successfully',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: AppColors.primary,
+                      colorText: Colors.white,
+                      duration: const Duration(seconds: 2),
+                    );
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.primary),
+                  label: Text(
+                    'Refresh Page',
+                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
         ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildJobPostingsSection(BuildContext context, bool isDark) {
+    final jobs = controller.recruiterJobs;
+    if (jobs.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'My Job Postings & Applicants',
+              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              '${jobs.length} Posted',
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: jobs.length,
+          itemBuilder: (context, index) {
+            final job = jobs[index];
+            final applicantCount = controller.getApplicantCountForJob(job.id);
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: InkWell(
+                onTap: () {
+                  _showJobApplicantsDialog(context, job, isDark);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.work_rounded, color: AppColors.primary, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              job.title,
+                              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${job.companyName} • ${job.location}',
+                              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${job.jobType} • ${job.salaryRange}',
+                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Applicant Count Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$applicantCount',
+                              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            ),
+                            Text(
+                              applicantCount == 1 ? 'Applicant' : 'Applicants',
+                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  void _showJobApplicantsDialog(BuildContext context, JobModel job, bool isDark) {
+    final jobApplicants = controller.getApplicantsForJob(job.id);
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 500,
+          constraints: const BoxConstraints(maxHeight: 650),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Applicants for ${job.title}',
+                          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Total: ${jobApplicants.length} candidates applied',
+                          style: GoogleFonts.inter(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Get.back(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 10),
+              Expanded(
+                child: jobApplicants.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.people_outline, size: 48, color: Colors.grey),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No candidates have applied for this post yet.',
+                              style: GoogleFonts.inter(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: jobApplicants.length,
+                        itemBuilder: (context, index) {
+                          final app = jobApplicants[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                backgroundImage: app.candidateAvatar.isNotEmpty ? NetworkImage(app.candidateAvatar) : null,
+                                child: app.candidateAvatar.isEmpty ? Text(app.candidateName[0], style: const TextStyle(fontWeight: FontWeight.bold)) : null,
+                              ),
+                              title: Text(app.candidateName, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(app.candidateEmail, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: app.status.color.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(app.status.label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: app.status.color)),
+                                  ),
+                                ],
+                              ),
+                              trailing: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                ),
+                                onPressed: () {
+                                  _showCandidateDetailsDialog(context, app, isDark);
+                                },
+                                child: const Text('Full Profile', style: TextStyle(fontSize: 12)),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
