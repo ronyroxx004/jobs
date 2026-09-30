@@ -8,6 +8,7 @@ import '../models/job_model.dart';
 import '../models/application_model.dart';
 import '../models/resume_model.dart';
 import '../core/utils/constants.dart';
+import '../core/routes/app_routes.dart';
 
 class JobController extends GetxController {
   final DatabaseService _dbService = Get.find<DatabaseService>();
@@ -23,11 +24,13 @@ class JobController extends GetxController {
   final postCompanyController = TextEditingController();
   final postLocationController = TextEditingController();
   final postSalaryController = TextEditingController();
+  final postExperienceController = TextEditingController();
   final postDescriptionController = TextEditingController();
   final postRequirementsController = TextEditingController();
-  final postSkillsController = TextEditingController();
+  final postSkillInputController = TextEditingController();
+  final RxList<String> postSkills = <String>[].obs;
   final RxString postJobType = 'Full-time'.obs;
-  final RxString postExperienceLevel = 'Mid-Level'.obs;
+  final Rx<JobModel?> editingJob = Rx<JobModel?>(null);
 
   // Selected Resume for Application
   final Rx<ResumeModel?> selectedResumeForApply = Rx<ResumeModel?>(null);
@@ -130,6 +133,47 @@ class JobController extends GetxController {
     selectedResumeForApply.value = resume;
   }
 
+  void addPostSkill() {
+    final skill = postSkillInputController.text.trim();
+    if (skill.isNotEmpty &&
+        !postSkills
+            .any((existing) => existing.toLowerCase() == skill.toLowerCase())) {
+      postSkills.add(skill);
+      postSkillInputController.clear();
+    }
+  }
+
+  void removePostSkill(String skill) {
+    postSkills.remove(skill);
+  }
+
+  void openJobEditor([JobModel? job]) {
+    editingJob.value = job;
+    postTitleController.text = job?.title ?? '';
+    postCompanyController.text = job?.companyName ?? '';
+    postLocationController.text = job?.location ?? '';
+    postSalaryController.text = job?.salaryRange == 'As per company standards'
+        ? ''
+        : job?.salaryRange ?? '';
+    postExperienceController.text = job?.experienceLevel == 'Not specified'
+        ? ''
+        : job?.experienceLevel ?? '';
+    postDescriptionController.text = job?.description ?? '';
+    postRequirementsController.text = job?.requirements.join('\n') ?? '';
+    postSkillInputController.clear();
+    postSkills.assignAll(job?.skills ?? []);
+    const jobTypes = [
+      'Full-time',
+      'Part-time',
+      'Contract',
+      'Remote',
+      'Internship',
+    ];
+    postJobType.value =
+        jobTypes.contains(job?.jobType) ? job!.jobType : 'Full-time';
+    Get.toNamed(AppRoutes.postJob);
+  }
+
   Future<void> submitJobApplication(JobModel job) async {
     final user = _authService.currentUser.value;
     if (user == null) {
@@ -222,44 +266,70 @@ class JobController extends GetxController {
     }
 
     final recruiter = _authService.currentUser.value;
-    final newJob = JobModel(
-      id: 'job_${DateTime.now().millisecondsSinceEpoch}',
+    final existingJob = editingJob.value;
+    if (existingJob != null && existingJob.recruiterId != recruiter?.id) {
+      Get.snackbar(
+        'Unable to edit job',
+        'You can only edit job posts created by your account.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    final updatedJob = JobModel(
+      id: existingJob?.id ?? 'job_${DateTime.now().millisecondsSinceEpoch}',
       title: title,
       companyName: company,
-      companyLogo: 'https://picsum.photos/seed/$company/200/200',
+      companyLogo: existingJob?.companyLogo.isNotEmpty == true
+          ? existingJob!.companyLogo
+          : 'https://picsum.photos/seed/$company/200/200',
       location: location,
       jobType: postJobType.value,
-      experienceLevel: postExperienceLevel.value,
-      salaryRange: salary.isNotEmpty ? salary : '\$90k - \$120k',
+      experienceLevel: postExperienceController.text.trim().isNotEmpty
+          ? postExperienceController.text.trim()
+          : 'Not specified',
+      salaryRange: salary.isNotEmpty ? salary : 'As per company standards',
       description: description,
       requirements: postRequirementsController.text
           .split('\n')
           .where((s) => s.trim().isNotEmpty)
           .toList(),
-      skills: postSkillsController.text
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList(),
-      recruiterId: recruiter?.id ?? 'rec_1',
-      recruiterName: recruiter?.name ?? 'Recruiter',
+      skills: postSkills.toList(),
+      recruiterId: existingJob?.recruiterId ?? recruiter?.id ?? 'rec_1',
+      recruiterName:
+          existingJob?.recruiterName ?? recruiter?.name ?? 'Recruiter',
+      applicantCount: existingJob?.applicantCount ?? 0,
+      isFeatured: existingJob?.isFeatured ?? false,
+      isActive: existingJob?.isActive ?? true,
+      postedAt: existingJob?.postedAt,
     );
 
-    await _dbService.createJob(newJob);
+    if (existingJob == null) {
+      await _dbService.createJob(updatedJob);
+    } else {
+      await _dbService.updateJob(updatedJob);
+    }
 
     // Clear fields
     postTitleController.clear();
     postCompanyController.clear();
     postLocationController.clear();
     postSalaryController.clear();
+    postExperienceController.clear();
     postDescriptionController.clear();
     postRequirementsController.clear();
-    postSkillsController.clear();
+    postSkillInputController.clear();
+    postSkills.clear();
+    editingJob.value = null;
 
     Get.back();
     Get.snackbar(
-      'Job Posted! 🚀',
-      'Your job listing is now live for candidates',
+      existingJob == null ? 'Job Posted!' : 'Job Updated',
+      existingJob == null
+          ? 'Your job listing is now live for candidates'
+          : 'Your job listing changes have been saved.',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.primary,
       colorText: Colors.white,
@@ -285,9 +355,10 @@ class JobController extends GetxController {
     postCompanyController.dispose();
     postLocationController.dispose();
     postSalaryController.dispose();
+    postExperienceController.dispose();
     postDescriptionController.dispose();
     postRequirementsController.dispose();
-    postSkillsController.dispose();
+    postSkillInputController.dispose();
     coverLetterController.dispose();
     super.onClose();
   }

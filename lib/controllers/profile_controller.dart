@@ -94,10 +94,17 @@ class ProfileController extends GetxController {
           id: 'res_${DateTime.now().millisecondsSinceEpoch}',
           userId: user?.id ?? 'user_1',
           fileName: file.name,
-          fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+          fileUrl:
+              'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
           fileSize: '${(file.size / (1024 * 1024)).toStringAsFixed(1)} MB',
           isPrimary: userResumes.isEmpty,
-          extractedSkills: ['Flutter', 'Dart', 'GetX', 'Firebase', 'State Management'],
+          extractedSkills: [
+            'Flutter',
+            'Dart',
+            'GetX',
+            'Firebase',
+            'State Management'
+          ],
         );
 
         await _dbService.addResume(newResume);
@@ -122,8 +129,9 @@ class ProfileController extends GetxController {
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        final mockUrl = 'https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/300/300';
-        
+        final mockUrl =
+            'https://picsum.photos/seed/${DateTime.now().millisecondsSinceEpoch}/300/300';
+
         // Save image reference to Cloud Firestore as requested
         if (user != null) {
           await _firestoreService.saveImageRecord(
@@ -133,7 +141,7 @@ class ProfileController extends GetxController {
             imageType: 'avatar',
           );
 
-          final updated = user!.copyWith(avatarUrl: mockUrl);
+          final updated = user!.copyWith(avatarUrl: mockUrl, avatarIconKey: '');
           await _authService.updateUserProfile(updated);
           Get.snackbar(
             'Avatar Updated',
@@ -147,6 +155,26 @@ class ProfileController extends GetxController {
     } catch (e) {
       Get.snackbar('Image Error', 'Failed to pick profile image');
     }
+  }
+
+  Future<void> setProfileAvatarIcon(String iconKey) async {
+    final currentUser = user;
+    if (currentUser == null) {
+      Get.snackbar('Profile unavailable', 'Please sign in and try again.');
+      return;
+    }
+
+    await _authService.updateUserProfile(
+      currentUser.copyWith(avatarUrl: '', avatarIconKey: iconKey),
+    );
+    Get.back();
+    Get.snackbar(
+      'Profile icon updated',
+      'Your new profile icon has been saved.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: AppColors.secondary,
+      colorText: Colors.white,
+    );
   }
 
   Future<void> deleteResume(String resumeId) async {

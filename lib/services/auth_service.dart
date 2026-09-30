@@ -47,7 +47,8 @@ class AuthService extends GetxService {
             if (user.email?.toLowerCase().contains('recruiter') == true ||
                 user.email?.toLowerCase().contains('hr') == true) {
               detectedRole = UserRole.recruiter;
-            } else if (user.email?.toLowerCase().contains('instructor') == true ||
+            } else if (user.email?.toLowerCase().contains('instructor') ==
+                    true ||
                 user.email?.toLowerCase().contains('course') == true) {
               detectedRole = UserRole.instructor;
             } else if (user.email?.toLowerCase().contains('mentor') == true) {
@@ -92,9 +93,11 @@ class AuthService extends GetxService {
               // Identify role from email if missing in DB
               UserRole detectedRole = UserRole.candidate;
               final cleanEmail = email.toLowerCase();
-              if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
+              if (cleanEmail.contains('recruiter') ||
+                  cleanEmail.contains('hr')) {
                 detectedRole = UserRole.recruiter;
-              } else if (cleanEmail.contains('instructor') || cleanEmail.contains('course')) {
+              } else if (cleanEmail.contains('instructor') ||
+                  cleanEmail.contains('course')) {
                 detectedRole = UserRole.instructor;
               } else if (cleanEmail.contains('mentor')) {
                 detectedRole = UserRole.mentor;
@@ -117,7 +120,8 @@ class AuthService extends GetxService {
           final cleanEmail = email.toLowerCase();
           if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
             detectedRole = UserRole.recruiter;
-          } else if (cleanEmail.contains('instructor') || cleanEmail.contains('course')) {
+          } else if (cleanEmail.contains('instructor') ||
+              cleanEmail.contains('course')) {
             detectedRole = UserRole.instructor;
           } else if (cleanEmail.contains('mentor')) {
             detectedRole = UserRole.mentor;
@@ -140,7 +144,8 @@ class AuthService extends GetxService {
         final cleanEmail = email.toLowerCase();
         if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
           detectedRole = UserRole.recruiter;
-        } else if (cleanEmail.contains('instructor') || cleanEmail.contains('course')) {
+        } else if (cleanEmail.contains('instructor') ||
+            cleanEmail.contains('course')) {
           detectedRole = UserRole.instructor;
         } else if (cleanEmail.contains('mentor')) {
           detectedRole = UserRole.mentor;
@@ -162,14 +167,6 @@ class AuthService extends GetxService {
         currentUser.value = profile;
         final dbService = Get.find<DatabaseService>();
         await dbService.fetchAllData();
-        Get.snackbar(
-          'Welcome Back! 👋',
-          'Automatically Identified Role: ${profile.role.displayName}',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: AppColors.secondary,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-        );
         return true;
       }
 

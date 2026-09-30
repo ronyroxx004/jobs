@@ -29,8 +29,11 @@ class HomeController extends GetxController {
   bool get isLoggedIn => _authService.isLoggedIn;
   UserRole get currentRole => _authService.currentRole;
   int get pageCount {
-    if (!isLoggedIn || currentRole == UserRole.candidate) {
+    if (!isLoggedIn) {
       return 3;
+    }
+    if (currentRole == UserRole.candidate) {
+      return 4;
     }
     if (currentRole == UserRole.admin) {
       return 5;

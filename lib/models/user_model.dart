@@ -10,6 +10,7 @@ class UserModel {
   final String bio;
   final String location;
   final String avatarUrl;
+  final String avatarIconKey;
   final List<String> skills;
   final String companyName;
   final String designation;
@@ -29,6 +30,7 @@ class UserModel {
     this.bio = '',
     this.location = '',
     this.avatarUrl = '',
+    this.avatarIconKey = '',
     this.skills = const [],
     this.companyName = '',
     this.designation = '',
@@ -50,6 +52,7 @@ class UserModel {
       'bio': bio,
       'location': location,
       'avatarUrl': avatarUrl,
+      'avatarIconKey': avatarIconKey,
       'skills': skills,
       'companyName': companyName,
       'designation': designation,
@@ -75,6 +78,7 @@ class UserModel {
       bio: map['bio'] ?? '',
       location: map['location'] ?? '',
       avatarUrl: map['avatarUrl'] ?? '',
+      avatarIconKey: map['avatarIconKey'] ?? '',
       skills: List<String>.from(map['skills'] ?? []),
       companyName: map['companyName'] ?? '',
       designation: map['designation'] ?? '',
@@ -97,6 +101,7 @@ class UserModel {
     String? bio,
     String? location,
     String? avatarUrl,
+    String? avatarIconKey,
     List<String>? skills,
     String? companyName,
     String? designation,
@@ -115,6 +120,7 @@ class UserModel {
       bio: bio ?? this.bio,
       location: location ?? this.location,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      avatarIconKey: avatarIconKey ?? this.avatarIconKey,
       skills: skills ?? this.skills,
       companyName: companyName ?? this.companyName,
       designation: designation ?? this.designation,

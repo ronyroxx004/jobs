@@ -108,6 +108,21 @@ class DatabaseService extends GetxService {
     jobsList.insert(0, job);
   }
 
+  Future<void> updateJob(JobModel job) async {
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available');
+    }
+
+    await db.ref(DatabaseKeys.jobs).child(job.id).update(job.toMap());
+    final index = jobsList.indexWhere((item) => item.id == job.id);
+    if (index == -1) {
+      jobsList.insert(0, job);
+    } else {
+      jobsList[index] = job;
+    }
+  }
+
   Future<List<JobModel>> fetchJobs() async {
     try {
       final snapshot = await _db?.ref(DatabaseKeys.jobs).get();

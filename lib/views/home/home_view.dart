@@ -94,13 +94,6 @@ class _HomeViewState extends State<HomeView> {
 
             return Row(
               children: [
-                if (role == UserRole.recruiter)
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline,
-                        color: AppColors.primary, size: 28),
-                    tooltip: 'Post New Job',
-                    onPressed: () => Get.toNamed(AppRoutes.postJob),
-                  ),
                 if (role == UserRole.instructor)
                   IconButton(
                     icon: const Icon(Icons.add_circle_outline,
@@ -172,7 +165,7 @@ class _HomeViewState extends State<HomeView> {
   static const String _profileTitle = '__profile__';
 
   List<_HomeTab> _tabsFor(bool isLoggedIn, UserRole role) {
-    if (!isLoggedIn || role == UserRole.candidate) {
+    if (!isLoggedIn) {
       return const [
         _HomeTab('Jobs', Icons.work_outline_rounded, Icons.work_rounded,
             JobListView()),
@@ -180,6 +173,18 @@ class _HomeViewState extends State<HomeView> {
             MentorListView()),
         _HomeTab('Courses', Icons.local_library_outlined,
             Icons.local_library_rounded, CourseListView()),
+      ];
+    }
+    if (role == UserRole.candidate) {
+      return const [
+        _HomeTab('Jobs', Icons.work_outline_rounded, Icons.work_rounded,
+            JobListView()),
+        _HomeTab('Mentors', Icons.groups_outlined, Icons.groups_rounded,
+            MentorListView()),
+        _HomeTab('Courses', Icons.local_library_outlined,
+            Icons.local_library_rounded, CourseListView()),
+        _HomeTab(_profileTitle, Icons.person_outline_rounded,
+            Icons.person_rounded, CandidateProfileView()),
       ];
     }
     switch (role) {
@@ -225,6 +230,8 @@ class _HomeViewState extends State<HomeView> {
               MentorListView()),
           _HomeTab('Courses', Icons.local_library_outlined,
               Icons.local_library_rounded, CourseListView()),
+          _HomeTab(_profileTitle, Icons.person_outline_rounded,
+              Icons.person_rounded, CandidateProfileView()),
         ];
     }
   }

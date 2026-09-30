@@ -42,7 +42,7 @@ class RecruiterJobsView extends GetView<JobController> {
               const SizedBox(height: 20),
               Center(
                 child: ElevatedButton.icon(
-                  onPressed: () => Get.toNamed(AppRoutes.postJob),
+                  onPressed: controller.openJobEditor,
                   icon: const Icon(Icons.add),
                   label: const Text('Post a Job'),
                 ),
@@ -80,7 +80,7 @@ class RecruiterJobsView extends GetView<JobController> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => Get.toNamed(AppRoutes.postJob),
+                  onPressed: controller.openJobEditor,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Post Job'),
                 ),
@@ -115,9 +115,15 @@ class RecruiterJobsView extends GetView<JobController> {
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
-                            Icons.work_outline_rounded,
-                            color: AppColors.primary,
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${controller.getApplicantCountForJob(job.id)}',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -135,8 +141,6 @@ class RecruiterJobsView extends GetView<JobController> {
                               const SizedBox(height: 5),
                               Text(
                                 '${job.companyName} • ${job.location}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
                                   color: Colors.grey,
@@ -145,8 +149,6 @@ class RecruiterJobsView extends GetView<JobController> {
                               const SizedBox(height: 9),
                               Text(
                                 '${job.jobType} • ${job.salaryRange}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   color: AppColors.secondary,
@@ -156,28 +158,6 @@ class RecruiterJobsView extends GetView<JobController> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Column(
-                          children: [
-                            Text(
-                              '${controller.getApplicantCountForJob(job.id)}',
-                              style: GoogleFonts.inter(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            ),
-                            Text(
-                              'Applicants',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right, color: Colors.grey),
                       ],
                     ),
                   ),

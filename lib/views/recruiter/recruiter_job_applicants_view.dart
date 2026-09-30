@@ -17,7 +17,16 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Job Applicants')),
+      appBar: AppBar(
+        title: const Text('Job Applicants'),
+        actions: [
+          IconButton(
+            tooltip: 'Edit job post',
+            onPressed: () => controller.openJobEditor(job),
+            icon: const Icon(Icons.edit_outlined),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Obx(
