@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
+import '../../widgets/jobs_loading_icon.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -85,10 +86,7 @@ class _SplashViewState extends State<SplashView> {
               const SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2.5,
-                ),
+                child: JobsLoadingIcon(size: 24, color: Colors.white),
               ),
             ],
           ),

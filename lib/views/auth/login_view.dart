@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
+import '../../widgets/jobs_loading_icon.dart';
 
 class LoginView extends GetView<AuthController> {
   const LoginView({super.key});
@@ -99,11 +100,7 @@ class LoginView extends GetView<AuthController> {
               Obx(() => ElevatedButton(
                     onPressed: controller.isLoading ? null : controller.login,
                     child: controller.isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
+                        ? const JobsLoadingIcon(size: 20, color: Colors.white)
                         : const Text('Sign In'),
                   )),
               const SizedBox(height: 24),
