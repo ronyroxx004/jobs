@@ -37,8 +37,22 @@ class JobController extends GetxController {
     return _dbService.applicationsList.where((a) => a.candidateId == candidateId).toList();
   }
 
+  bool hasAppliedForJob(String jobId) {
+    final candidateId = _authService.currentUser.value?.id ?? '';
+    return _dbService.applicationsList.any((a) => a.candidateId == candidateId && a.jobId == jobId);
+  }
+
   List<ApplicationModel> get recruiterApplicants {
-    return _dbService.applicationsList.toList();
+    final recruiterId = _authService.currentUser.value?.id ?? '';
+    if (recruiterId.isEmpty) return _dbService.applicationsList.toList();
+
+    final myJobIds = _dbService.jobsList
+        .where((j) => j.recruiterId == recruiterId)
+        .map((j) => j.id)
+        .toSet();
+
+    final filtered = _dbService.applicationsList.where((a) => myJobIds.contains(a.jobId)).toList();
+    return filtered.isNotEmpty ? filtered : _dbService.applicationsList.toList();
   }
 
   List<JobModel> get filteredJobs {
@@ -102,6 +116,12 @@ class JobController extends GetxController {
       candidateId: user.id,
       candidateName: user.name,
       candidateEmail: user.email,
+      candidatePhone: user.phone,
+      candidateHeadline: user.headline,
+      candidateBio: user.bio,
+      candidateLocation: user.location,
+      candidateExperienceYears: user.experienceYears,
+      candidateSkills: user.skills,
       candidateAvatar: user.avatarUrl,
       resumeUrl: selectedResume.fileUrl,
       resumeName: selectedResume.fileName,

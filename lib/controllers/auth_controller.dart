@@ -7,12 +7,20 @@ import '../core/routes/app_routes.dart';
 class AuthController extends GetxController {
   final AuthService _authService = Get.find<AuthService>();
 
-  final nameController = TextEditingController();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
+  late TextEditingController nameController;
+  late TextEditingController emailController;
+  late TextEditingController passwordController;
   
   final Rx<UserRole> selectedRole = UserRole.candidate.obs;
   final RxBool isPasswordVisible = false.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    nameController = TextEditingController();
+    emailController = TextEditingController();
+    passwordController = TextEditingController();
+  }
 
   bool get isLoading => _authService.isLoading.value;
 
@@ -86,14 +94,10 @@ class AuthController extends GetxController {
 
   void logout() async {
     await _authService.logout();
+    emailController.clear();
+    passwordController.clear();
+    nameController.clear();
+    selectedRole.value = UserRole.candidate;
     Get.offAllNamed(AppRoutes.login);
-  }
-
-  @override
-  void onClose() {
-    nameController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
-    super.onClose();
   }
 }

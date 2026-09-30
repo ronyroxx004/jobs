@@ -219,26 +219,43 @@ class JobDetailView extends GetView<JobController> {
                   )
                 ],
               ),
-              child: ElevatedButton(
-                onPressed: () {
-                  if (!authService.isLoggedIn) {
-                    Get.snackbar(
-                      'Sign In Required',
-                      'Please sign in or register to apply for jobs',
-                      snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: AppColors.primary,
-                      colorText: Colors.white,
-                    );
-                    Get.toNamed(AppRoutes.login);
-                    return;
-                  }
-                  Get.bottomSheet(
-                    ApplyJobModal(job: job),
-                    isScrollControlled: true,
-                  );
-                },
-                child: const Text('Apply Now'),
-              ),
+              child: Obx(() {
+                final alreadyApplied = controller.hasAppliedForJob(job.id);
+                return ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: alreadyApplied ? Colors.grey.shade400 : AppColors.primary,
+                  ),
+                  onPressed: alreadyApplied
+                      ? null
+                      : () {
+                          if (!authService.isLoggedIn) {
+                            Get.snackbar(
+                              'Sign In Required',
+                              'Please sign in or register to apply for jobs',
+                              snackPosition: SnackPosition.BOTTOM,
+                              backgroundColor: AppColors.primary,
+                              colorText: Colors.white,
+                            );
+                            Get.toNamed(AppRoutes.login);
+                            return;
+                          }
+                          Get.bottomSheet(
+                            ApplyJobModal(job: job),
+                            isScrollControlled: true,
+                          );
+                        },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (alreadyApplied) ...[
+                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(alreadyApplied ? 'Already Applied' : 'Apply Now'),
+                    ],
+                  ),
+                );
+              }),
             ),
           ],
         ),

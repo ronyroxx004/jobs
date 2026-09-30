@@ -38,13 +38,13 @@ enum UserRole {
   String get displayName {
     switch (this) {
       case UserRole.candidate:
-        return 'Job Seeker / Candidate';
+        return 'Candidate';
       case UserRole.recruiter:
-        return 'Recruiter / Employer';
+        return 'Recruiter';
       case UserRole.mentor:
-        return 'Professional / Mentor';
+        return 'Mentor';
       case UserRole.admin:
-        return 'Platform Administrator';
+        return 'Admin';
     }
   }
 }

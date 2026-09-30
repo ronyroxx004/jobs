@@ -10,6 +10,7 @@ import '../controllers/mentorship_controller.dart';
 import '../controllers/course_controller.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/admin_controller.dart';
+import '../controllers/theme_controller.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -20,6 +21,7 @@ class InitialBinding extends Bindings {
     Get.put<AuthService>(AuthService(), permanent: true);
 
     // Controllers
+    Get.put<ThemeController>(ThemeController(), permanent: true);
     Get.lazyPut<AuthController>(() => AuthController(), fenix: true);
     Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
     Get.lazyPut<JobController>(() => JobController(), fenix: true);

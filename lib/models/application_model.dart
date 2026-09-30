@@ -8,6 +8,12 @@ class ApplicationModel {
   final String candidateId;
   final String candidateName;
   final String candidateEmail;
+  final String candidatePhone;
+  final String candidateHeadline;
+  final String candidateBio;
+  final String candidateLocation;
+  final int candidateExperienceYears;
+  final List<String> candidateSkills;
   final String candidateAvatar;
   final String resumeUrl;
   final String resumeName;
@@ -23,6 +29,12 @@ class ApplicationModel {
     required this.candidateId,
     required this.candidateName,
     required this.candidateEmail,
+    this.candidatePhone = '',
+    this.candidateHeadline = '',
+    this.candidateBio = '',
+    this.candidateLocation = '',
+    this.candidateExperienceYears = 0,
+    this.candidateSkills = const [],
     this.candidateAvatar = '',
     required this.resumeUrl,
     this.resumeName = 'Resume.pdf',
@@ -40,6 +52,12 @@ class ApplicationModel {
       'candidateId': candidateId,
       'candidateName': candidateName,
       'candidateEmail': candidateEmail,
+      'candidatePhone': candidatePhone,
+      'candidateHeadline': candidateHeadline,
+      'candidateBio': candidateBio,
+      'candidateLocation': candidateLocation,
+      'candidateExperienceYears': candidateExperienceYears,
+      'candidateSkills': candidateSkills,
       'candidateAvatar': candidateAvatar,
       'resumeUrl': resumeUrl,
       'resumeName': resumeName,
@@ -58,6 +76,12 @@ class ApplicationModel {
       candidateId: map['candidateId'] ?? '',
       candidateName: map['candidateName'] ?? '',
       candidateEmail: map['candidateEmail'] ?? '',
+      candidatePhone: map['candidatePhone'] ?? '',
+      candidateHeadline: map['candidateHeadline'] ?? '',
+      candidateBio: map['candidateBio'] ?? '',
+      candidateLocation: map['candidateLocation'] ?? '',
+      candidateExperienceYears: map['candidateExperienceYears'] ?? 0,
+      candidateSkills: List<String>.from(map['candidateSkills'] ?? []),
       candidateAvatar: map['candidateAvatar'] ?? '',
       resumeUrl: map['resumeUrl'] ?? '',
       resumeName: map['resumeName'] ?? 'Resume.pdf',

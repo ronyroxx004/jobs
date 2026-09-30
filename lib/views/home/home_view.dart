@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/theme_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
 import '../jobs/job_list_view.dart';
@@ -146,6 +147,20 @@ class HomeView extends GetView<HomeController> {
                       onPressed: () => Get.toNamed(AppRoutes.postJob),
                     ),
 
+                  // Theme Toggle Button (Light / Dark Mode) placed on the left side of Logout button
+                  IconButton(
+                    icon: Obx(() => Icon(
+                          Get.find<ThemeController>().isDarkMode.value
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
+                          color: AppColors.primary,
+                          size: 22,
+                        )),
+                    tooltip: 'Toggle Light/Dark Mode',
+                    onPressed: () => Get.find<ThemeController>().toggleTheme(),
+                  ),
+                  const SizedBox(width: 4),
+
                   // Logout Action Button
                   IconButton(
                     icon: const Icon(Icons.logout_rounded, color: Colors.grey, size: 22),
@@ -155,6 +170,20 @@ class HomeView extends GetView<HomeController> {
                   const SizedBox(width: 8),
                 ]
               : [
+                  // Theme Toggle Button for Guest
+                  IconButton(
+                    icon: Obx(() => Icon(
+                          Get.find<ThemeController>().isDarkMode.value
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
+                          color: AppColors.primary,
+                          size: 22,
+                        )),
+                    tooltip: 'Toggle Light/Dark Mode',
+                    onPressed: () => Get.find<ThemeController>().toggleTheme(),
+                  ),
+                  const SizedBox(width: 4),
+
                   // Guest State Actions: Sign In & Register Buttons
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
@@ -196,27 +225,28 @@ class HomeView extends GetView<HomeController> {
           selectedIndex: controller.currentIndex.value,
           onDestinationSelected: controller.changeTab,
           indicatorColor: AppColors.primary.withOpacity(0.15),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
           destinations: isLoggedIn
               ? [
                   const NavigationDestination(
                     icon: Icon(Icons.work_outline_rounded),
                     selectedIcon: Icon(Icons.work_rounded, color: AppColors.primary),
-                    label: 'Jobs',
+                    label: '',
                   ),
                   const NavigationDestination(
                     icon: Icon(Icons.local_library_outlined),
                     selectedIcon: Icon(Icons.local_library_rounded, color: AppColors.primary),
-                    label: 'Courses',
+                    label: '',
                   ),
                   const NavigationDestination(
                     icon: Icon(Icons.groups_outlined),
                     selectedIcon: Icon(Icons.groups_rounded, color: AppColors.primary),
-                    label: 'Mentors',
+                    label: '',
                   ),
                   const NavigationDestination(
                     icon: Icon(Icons.chat_bubble_outline_rounded),
                     selectedIcon: Icon(Icons.chat_bubble_rounded, color: AppColors.primary),
-                    label: 'Messages',
+                    label: '',
                   ),
                   NavigationDestination(
                     icon: Icon(role == UserRole.admin 
@@ -229,28 +259,24 @@ class HomeView extends GetView<HomeController> {
                         : role == UserRole.recruiter 
                             ? Icons.business_center_rounded 
                             : Icons.person_rounded, color: AppColors.primary),
-                    label: role == UserRole.admin 
-                        ? 'Admin' 
-                        : role == UserRole.recruiter 
-                            ? 'Applicants' 
-                            : 'Profile',
+                    label: '',
                   ),
                 ]
               : [
                   const NavigationDestination(
                     icon: Icon(Icons.work_outline_rounded),
                     selectedIcon: Icon(Icons.work_rounded, color: AppColors.primary),
-                    label: 'Jobs',
+                    label: '',
                   ),
                   const NavigationDestination(
                     icon: Icon(Icons.local_library_outlined),
                     selectedIcon: Icon(Icons.local_library_rounded, color: AppColors.primary),
-                    label: 'Courses',
+                    label: '',
                   ),
                   const NavigationDestination(
                     icon: Icon(Icons.groups_outlined),
                     selectedIcon: Icon(Icons.groups_rounded, color: AppColors.primary),
-                    label: 'Mentors',
+                    label: '',
                   ),
                 ],
         ),

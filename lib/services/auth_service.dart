@@ -40,6 +40,7 @@ class AuthService extends GetxService {
           final profile = await dbService.getUserProfile(user.uid);
           if (profile != null) {
             currentUser.value = profile;
+            await dbService.fetchAllData();
           } else {
             // Auto-detect role from email domain/pattern if new user
             UserRole detectedRole = UserRole.candidate;
@@ -150,6 +151,8 @@ class AuthService extends GetxService {
 
       if (profile != null) {
         currentUser.value = profile;
+        final dbService = Get.find<DatabaseService>();
+        await dbService.fetchAllData();
         Get.snackbar(
           'Welcome Back! 👋',
           'Automatically Identified Role: ${profile.role.displayName}',
@@ -184,49 +187,45 @@ class AuthService extends GetxService {
   }) async {
     try {
       isLoading.value = true;
-      if (_auth == null) {
-        Get.snackbar(
-          'Firebase Auth Offline',
-          'Could not connect to Firebase Authentication',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
-        return false;
+      String uid = 'user_${DateTime.now().millisecondsSinceEpoch}';
+
+      if (_auth != null) {
+        try {
+          final credential = await _auth!.createUserWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+          if (credential.user != null) {
+            uid = credential.user!.uid;
+            await credential.user!.updateDisplayName(name);
+          }
+        } catch (e) {
+          debugPrint('Firebase Auth offline fallback during register: $e');
+        }
       }
 
-      final credential = await _auth!.createUserWithEmailAndPassword(
+      final newUser = UserModel(
+        id: uid,
+        name: name,
         email: email,
-        password: password,
+        role: role,
       );
 
-      if (credential.user != null) {
-        final uid = credential.user!.uid;
-        await credential.user!.updateDisplayName(name);
+      final dbService = Get.find<DatabaseService>();
+      await dbService.saveUserProfile(newUser);
+      currentUser.value = newUser;
+      await dbService.fetchAllData();
 
-        final newUser = UserModel(
-          id: uid,
-          name: name,
-          email: email,
-          role: role,
-        );
+      Get.snackbar(
+        'Account Registered 🎉',
+        'Registered as ${role.displayName}',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.secondary,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
 
-        final dbService = Get.find<DatabaseService>();
-        await dbService.saveUserProfile(newUser);
-        currentUser.value = newUser;
-
-        Get.snackbar(
-          'Account Registered 🎉',
-          'Registered as ${role.displayName}',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: AppColors.secondary,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-        );
-
-        return true;
-      }
-      return false;
+      return true;
     } catch (e) {
       Get.snackbar(
         'Registration Error',

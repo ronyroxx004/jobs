@@ -35,12 +35,41 @@ class DatabaseService extends GetxService {
   void onInit() {
     super.onInit();
     fetchAllData();
+    _setupRealtimeListeners();
+  }
+
+  void _setupRealtimeListeners() {
+    try {
+      _db?.ref(DatabaseKeys.jobs).onValue.listen((event) {
+        if (event.snapshot.exists && event.snapshot.value != null) {
+          final Map<dynamic, dynamic> map = event.snapshot.value as Map;
+          final list = <JobModel>[];
+          map.forEach((key, value) {
+            list.add(JobModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+          });
+          jobsList.assignAll(list);
+        }
+      });
+
+      _db?.ref(DatabaseKeys.applications).onValue.listen((event) {
+        if (event.snapshot.exists && event.snapshot.value != null) {
+          final Map<dynamic, dynamic> map = event.snapshot.value as Map;
+          final list = <ApplicationModel>[];
+          map.forEach((key, value) {
+            list.add(ApplicationModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+          });
+          applicationsList.assignAll(list);
+        }
+      });
+    } catch (_) {}
   }
 
   Future<void> fetchAllData() async {
     await fetchJobs();
     await fetchCourses();
     await fetchServices();
+    await fetchResumes();
+    await fetchApplications();
   }
 
   // --- USER PROFILE ---
@@ -92,6 +121,21 @@ class DatabaseService extends GetxService {
   }
 
   // --- RESUMES ---
+  Future<List<ResumeModel>> fetchResumes() async {
+    try {
+      final snapshot = await _db?.ref(DatabaseKeys.resumes).get();
+      if (snapshot != null && snapshot.exists && snapshot.value != null) {
+        final Map<dynamic, dynamic> map = snapshot.value as Map;
+        final list = <ResumeModel>[];
+        map.forEach((key, value) {
+          list.add(ResumeModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+        });
+        resumeList.assignAll(list);
+      }
+    } catch (_) {}
+    return resumeList;
+  }
+
   Future<void> addResume(ResumeModel resume) async {
     try {
       await _db?.ref(DatabaseKeys.resumes).child(resume.id).set(resume.toMap());
@@ -126,6 +170,21 @@ class DatabaseService extends GetxService {
   }
 
   // --- APPLICATIONS ---
+  Future<List<ApplicationModel>> fetchApplications() async {
+    try {
+      final snapshot = await _db?.ref(DatabaseKeys.applications).get();
+      if (snapshot != null && snapshot.exists && snapshot.value != null) {
+        final Map<dynamic, dynamic> map = snapshot.value as Map;
+        final list = <ApplicationModel>[];
+        map.forEach((key, value) {
+          list.add(ApplicationModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+        });
+        applicationsList.assignAll(list);
+      }
+    } catch (_) {}
+    return applicationsList;
+  }
+
   Future<void> submitApplication(ApplicationModel application) async {
     try {
       await _db?.ref(DatabaseKeys.applications).child(application.id).set(application.toMap());

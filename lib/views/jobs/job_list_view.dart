@@ -210,13 +210,35 @@ class JobListView extends GetView<JobController> {
                                     color: AppColors.secondary,
                                   ),
                                 ),
-                                Text(
-                                  '${job.applicantCount} applicants',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                  ),
-                                ),
+                                controller.hasAppliedForJob(job.id)
+                                    ? Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.secondary.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.check_circle, size: 14, color: AppColors.secondary),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Applied',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.secondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : Text(
+                                        '${job.applicantCount} applicants',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        ),
+                                      ),
                               ],
                             ),
                           ],

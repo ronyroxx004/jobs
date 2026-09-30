@@ -68,7 +68,7 @@ class LoginView extends GetView<AuthController> {
                 controller: controller.emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  hintText: 'e.g. candidate@jobs.com or recruiter@jobs.com',
+                  hintText: 'e.g. rohit@jobs.com',
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
@@ -93,52 +93,6 @@ class LoginView extends GetView<AuthController> {
                       ),
                     ),
                   )),
-              const SizedBox(height: 12),
-
-              // Quick Auto-Identify Role Presets
-              Text(
-                'Quick Role Presets (Auto-Identified on Login):',
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ActionChip(
-                    avatar: const Icon(Icons.person, size: 16),
-                    label: const Text('Candidate'),
-                    onPressed: () {
-                      controller.emailController.text = 'candidate@jobs.com';
-                      controller.passwordController.text = 'password123';
-                    },
-                  ),
-                  ActionChip(
-                    avatar: const Icon(Icons.business_center, size: 16),
-                    label: const Text('Recruiter'),
-                    onPressed: () {
-                      controller.emailController.text = 'recruiter@jobs.com';
-                      controller.passwordController.text = 'password123';
-                    },
-                  ),
-                  ActionChip(
-                    avatar: const Icon(Icons.school, size: 16),
-                    label: const Text('Mentor'),
-                    onPressed: () {
-                      controller.emailController.text = 'mentor@jobs.com';
-                      controller.passwordController.text = 'password123';
-                    },
-                  ),
-                  ActionChip(
-                    avatar: const Icon(Icons.admin_panel_settings, size: 16),
-                    label: const Text('Admin'),
-                    onPressed: () {
-                      controller.emailController.text = 'admin@jobs.com';
-                      controller.passwordController.text = 'password123';
-                    },
-                  ),
-                ],
-              ),
               const SizedBox(height: 28),
 
               // Submit Button
@@ -150,7 +104,7 @@ class LoginView extends GetView<AuthController> {
                             width: 20,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : const Text('Sign In & Detect Role'),
+                        : const Text('Sign In'),
                   )),
               const SizedBox(height: 24),
 
