@@ -11,6 +11,7 @@ import '../mentorship/mentor_list_view.dart';
 import '../chat/chat_list_view.dart';
 import '../profile/candidate_profile_view.dart';
 import '../admin/admin_dashboard_view.dart';
+import '../recruiter/recruiter_dashboard_view.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
@@ -29,7 +30,12 @@ class HomeView extends GetView<HomeController> {
               const CourseListView(),
               const MentorListView(),
               const ChatListView(),
-              if (role == UserRole.admin) const AdminDashboardView() else const CandidateProfileView(),
+              if (role == UserRole.admin)
+                const AdminDashboardView()
+              else if (role == UserRole.recruiter)
+                const RecruiterDashboardView()
+              else
+                const CandidateProfileView(),
             ]
           : [
               const JobListView(),
@@ -213,9 +219,21 @@ class HomeView extends GetView<HomeController> {
                     label: 'Messages',
                   ),
                   NavigationDestination(
-                    icon: Icon(role == UserRole.admin ? Icons.dashboard_outlined : Icons.person_outline_rounded),
-                    selectedIcon: Icon(role == UserRole.admin ? Icons.dashboard_rounded : Icons.person_rounded, color: AppColors.primary),
-                    label: role == UserRole.admin ? 'Admin' : 'Profile',
+                    icon: Icon(role == UserRole.admin 
+                        ? Icons.dashboard_outlined 
+                        : role == UserRole.recruiter 
+                            ? Icons.business_center_outlined 
+                            : Icons.person_outline_rounded),
+                    selectedIcon: Icon(role == UserRole.admin 
+                        ? Icons.dashboard_rounded 
+                        : role == UserRole.recruiter 
+                            ? Icons.business_center_rounded 
+                            : Icons.person_rounded, color: AppColors.primary),
+                    label: role == UserRole.admin 
+                        ? 'Admin' 
+                        : role == UserRole.recruiter 
+                            ? 'Applicants' 
+                            : 'Profile',
                   ),
                 ]
               : [

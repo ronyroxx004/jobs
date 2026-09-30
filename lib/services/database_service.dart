@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../models/user_model.dart';
@@ -45,8 +46,15 @@ class DatabaseService extends GetxService {
   // --- USER PROFILE ---
   Future<void> saveUserProfile(UserModel user) async {
     try {
-      await _db?.ref(DatabaseKeys.users).child(user.id).set(user.toMap());
-    } catch (_) {}
+      if (_db != null) {
+        await _db!.ref(DatabaseKeys.users).child(user.id).set(user.toMap());
+      } else {
+        throw Exception('Firebase Realtime Database is not connected');
+      }
+    } catch (e) {
+      debugPrint('Error saving user profile: $e');
+      rethrow;
+    }
   }
 
   Future<UserModel?> getUserProfile(String userId) async {

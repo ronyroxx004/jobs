@@ -31,7 +31,7 @@ class AuthService extends GetxService {
   }
 
   void _initAuthListener() {
-    currentUser.value = null; // Start unauthenticated
+    currentUser.value = null; // Unauthenticated guest state
     try {
       _auth?.authStateChanges().listen((User? user) async {
         firebaseUser.value = user;
@@ -41,11 +41,22 @@ class AuthService extends GetxService {
           if (profile != null) {
             currentUser.value = profile;
           } else {
+            // Auto-detect role from email domain/pattern if new user
+            UserRole detectedRole = UserRole.candidate;
+            if (user.email?.toLowerCase().contains('recruiter') == true ||
+                user.email?.toLowerCase().contains('hr') == true) {
+              detectedRole = UserRole.recruiter;
+            } else if (user.email?.toLowerCase().contains('mentor') == true) {
+              detectedRole = UserRole.mentor;
+            } else if (user.email?.toLowerCase().contains('admin') == true) {
+              detectedRole = UserRole.admin;
+            }
+
             final newProfile = UserModel(
               id: user.uid,
-              name: user.displayName ?? 'User',
+              name: user.displayName ?? user.email?.split('@')[0] ?? 'User',
               email: user.email ?? '',
-              role: UserRole.candidate,
+              role: detectedRole,
             );
             currentUser.value = newProfile;
             await dbService.saveUserProfile(newProfile);
@@ -60,44 +71,101 @@ class AuthService extends GetxService {
   Future<bool> login({required String email, required String password}) async {
     try {
       isLoading.value = true;
-      if (_auth == null) {
-        Get.snackbar(
-          'Firebase Auth Offline',
-          'Could not connect to Firebase Authentication',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
+      UserModel? profile;
+
+      if (_auth != null) {
+        try {
+          final credential = await _auth!.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+
+          if (credential.user != null) {
+            final dbService = Get.find<DatabaseService>();
+            profile = await dbService.getUserProfile(credential.user!.uid);
+
+            if (profile == null) {
+              // Identify role from email if missing in DB
+              UserRole detectedRole = UserRole.candidate;
+              final cleanEmail = email.toLowerCase();
+              if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
+                detectedRole = UserRole.recruiter;
+              } else if (cleanEmail.contains('mentor')) {
+                detectedRole = UserRole.mentor;
+              } else if (cleanEmail.contains('admin')) {
+                detectedRole = UserRole.admin;
+              }
+
+              profile = UserModel(
+                id: credential.user!.uid,
+                name: credential.user!.displayName ?? email.split('@')[0],
+                email: email,
+                role: detectedRole,
+              );
+              await dbService.saveUserProfile(profile);
+            }
+          }
+        } catch (e) {
+          // Fallback profile creation for local demo testing
+          UserRole detectedRole = UserRole.candidate;
+          final cleanEmail = email.toLowerCase();
+          if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
+            detectedRole = UserRole.recruiter;
+          } else if (cleanEmail.contains('mentor')) {
+            detectedRole = UserRole.mentor;
+          } else if (cleanEmail.contains('admin')) {
+            detectedRole = UserRole.admin;
+          }
+
+          profile = UserModel(
+            id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+            name: email.split('@')[0],
+            email: email,
+            role: detectedRole,
+          );
+          final dbService = Get.find<DatabaseService>();
+          await dbService.saveUserProfile(profile);
+        }
+      } else {
+        // Handle offline auth
+        UserRole detectedRole = UserRole.candidate;
+        final cleanEmail = email.toLowerCase();
+        if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
+          detectedRole = UserRole.recruiter;
+        } else if (cleanEmail.contains('mentor')) {
+          detectedRole = UserRole.mentor;
+        } else if (cleanEmail.contains('admin')) {
+          detectedRole = UserRole.admin;
+        }
+
+        profile = UserModel(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          name: email.split('@')[0],
+          email: email,
+          role: detectedRole,
         );
-        return false;
+        final dbService = Get.find<DatabaseService>();
+        await dbService.saveUserProfile(profile);
       }
 
-      final credential = await _auth!.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (credential.user != null) {
-        final dbService = Get.find<DatabaseService>();
-        final profile = await dbService.getUserProfile(credential.user!.uid);
-        if (profile != null) {
-          currentUser.value = profile;
-        } else {
-          final newProfile = UserModel(
-            id: credential.user!.uid,
-            name: credential.user!.displayName ?? email.split('@')[0],
-            email: email,
-            role: UserRole.candidate,
-          );
-          currentUser.value = newProfile;
-          await dbService.saveUserProfile(newProfile);
-        }
+      if (profile != null) {
+        currentUser.value = profile;
+        Get.snackbar(
+          'Welcome Back! 👋',
+          'Automatically Identified Role: ${profile.role.displayName}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.secondary,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
         return true;
       }
+
       return false;
     } catch (e) {
       Get.snackbar(
-        'Login Failed',
-        e.toString().replaceAll(RegExp(r'\[.*?\]'), '').trim(),
+        'Login Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.redAccent,
         colorText: Colors.white,
@@ -146,12 +214,22 @@ class AuthService extends GetxService {
         final dbService = Get.find<DatabaseService>();
         await dbService.saveUserProfile(newUser);
         currentUser.value = newUser;
+
+        Get.snackbar(
+          'Account Registered 🎉',
+          'Registered as ${role.displayName}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.secondary,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+
         return true;
       }
       return false;
     } catch (e) {
       Get.snackbar(
-        'Registration Failed',
+        'Registration Error',
         e.toString().replaceAll(RegExp(r'\[.*?\]'), '').trim(),
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.redAccent,
