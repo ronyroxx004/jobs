@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/profile_controller.dart';
 import '../../core/utils/constants.dart';
+import '../../core/routes/app_routes.dart';
 
 class EditProfileView extends GetView<ProfileController> {
   const EditProfileView({super.key});
@@ -10,14 +11,24 @@ class EditProfileView extends GetView<ProfileController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      appBar: AppBar(
+        title: const Text('Edit Profile'),
+        actions: [
+          IconButton(
+            tooltip: 'Manage resumes',
+            icon: const Icon(Icons.description_outlined),
+            onPressed: () => Get.toNamed(AppRoutes.resumeManager),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Full Name', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              Text('Full Name',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
                 controller: controller.nameController,
@@ -25,40 +36,49 @@ class EditProfileView extends GetView<ProfileController> {
               ),
               const SizedBox(height: 16),
 
-              Text('Professional Headline', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              Text('Professional Headline',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
                 controller: controller.headlineController,
-                decoration: const InputDecoration(hintText: 'e.g. Senior Flutter Developer'),
+                decoration: const InputDecoration(
+                    hintText: 'e.g. Senior Flutter Developer'),
               ),
               const SizedBox(height: 16),
 
-              Text('Location', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              Text('Location',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
                 controller: controller.locationController,
-                decoration: const InputDecoration(hintText: 'e.g. San Francisco, CA'),
+                decoration:
+                    const InputDecoration(hintText: 'e.g. San Francisco, CA'),
               ),
               const SizedBox(height: 16),
 
-              Text('Bio / Overview', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              Text('Bio / Overview',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
                 controller: controller.bioController,
                 maxLines: 3,
-                decoration: const InputDecoration(hintText: 'Describe your background, achievements, and career goals...'),
+                decoration: const InputDecoration(
+                    hintText:
+                        'Describe your background, achievements, and career goals...'),
               ),
               const SizedBox(height: 20),
 
               // Add Skills Section
-              Text('Manage Technical Skills', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              Text('Manage Technical Skills',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: controller.skillInputController,
-                      decoration: const InputDecoration(hintText: 'e.g. Flutter, Dart, Firebase'),
+                      decoration: const InputDecoration(
+                          hintText: 'e.g. Flutter, Dart, Firebase'),
                     ),
                   ),
                   const SizedBox(width: 10),

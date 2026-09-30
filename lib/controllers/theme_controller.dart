@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeController extends GetxController {
-  final RxBool isDarkMode = false.obs;
+  final RxBool isDarkMode = true.obs;
 
   @override
   void onInit() {
@@ -13,8 +13,7 @@ class ThemeController extends GetxController {
 
   void loadThemeFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('is_dark_mode') ?? 
-        (WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark);
+    final isDark = prefs.getBool('is_dark_mode') ?? true;
     isDarkMode.value = isDark;
     Get.changeThemeMode(isDark ? ThemeMode.dark : ThemeMode.light);
   }

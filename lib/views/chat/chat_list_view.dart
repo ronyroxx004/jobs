@@ -47,31 +47,6 @@ class ChatListView extends GetView<ChatController> {
                               "You've reached the end of messages",
                               style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
                             ),
-                            const SizedBox(height: 10),
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                side: const BorderSide(color: AppColors.primary),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              ),
-                              onPressed: () async {
-                                final dbService = Get.find<DatabaseService>();
-                                await dbService.fetchAllData();
-                                Get.snackbar(
-                                  'Page Refreshed',
-                                  'Chat conversations updated successfully',
-                                  snackPosition: SnackPosition.BOTTOM,
-                                  backgroundColor: AppColors.primary,
-                                  colorText: Colors.white,
-                                  duration: const Duration(seconds: 2),
-                                );
-                              },
-                              icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.primary),
-                              label: Text(
-                                'Refresh Page',
-                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
-                              ),
-                            ),
                           ],
                         ),
                       ),

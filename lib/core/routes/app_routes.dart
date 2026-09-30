@@ -5,6 +5,7 @@ abstract class AppRoutes {
   static const roleSelection = '/role-selection';
   static const home = '/home';
   static const jobDetails = '/job-details';
+  static const recruiterApplicants = '/recruiter-applicants';
   static const postJob = '/post-job';
   static const editProfile = '/edit-profile';
   static const resumeManager = '/resume-manager';

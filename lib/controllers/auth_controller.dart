@@ -98,6 +98,6 @@ class AuthController extends GetxController {
     passwordController.clear();
     nameController.clear();
     selectedRole.value = UserRole.candidate;
-    Get.offAllNamed(AppRoutes.login);
+    Get.offAllNamed(AppRoutes.home);
   }
 }

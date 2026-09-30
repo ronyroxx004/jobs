@@ -26,7 +26,8 @@ class DatabaseService extends GetxService {
   final RxList<JobModel> jobsList = <JobModel>[].obs;
   final RxList<ResumeModel> resumeList = <ResumeModel>[].obs;
   final RxList<ApplicationModel> applicationsList = <ApplicationModel>[].obs;
-  final RxList<MentorshipServiceModel> servicesList = <MentorshipServiceModel>[].obs;
+  final RxList<MentorshipServiceModel> servicesList =
+      <MentorshipServiceModel>[].obs;
   final RxList<BookingModel> bookingsList = <BookingModel>[].obs;
   final RxList<CourseModel> coursesList = <CourseModel>[].obs;
   final RxList<ChatRoomModel> chatRoomsList = <ChatRoomModel>[].obs;
@@ -45,7 +46,8 @@ class DatabaseService extends GetxService {
           final Map<dynamic, dynamic> map = event.snapshot.value as Map;
           final list = <JobModel>[];
           map.forEach((key, value) {
-            list.add(JobModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+            list.add(JobModel.fromMap(
+                Map<String, dynamic>.from(value), key.toString()));
           });
           jobsList.assignAll(list);
         }
@@ -56,7 +58,8 @@ class DatabaseService extends GetxService {
           final Map<dynamic, dynamic> map = event.snapshot.value as Map;
           final list = <ApplicationModel>[];
           map.forEach((key, value) {
-            list.add(ApplicationModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+            list.add(ApplicationModel.fromMap(
+                Map<String, dynamic>.from(value), key.toString()));
           });
           applicationsList.assignAll(list);
         }
@@ -112,7 +115,8 @@ class DatabaseService extends GetxService {
         final Map<dynamic, dynamic> map = snapshot.value as Map;
         final list = <JobModel>[];
         map.forEach((key, value) {
-          list.add(JobModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+          list.add(JobModel.fromMap(
+              Map<String, dynamic>.from(value), key.toString()));
         });
         jobsList.assignAll(list);
       }
@@ -128,7 +132,8 @@ class DatabaseService extends GetxService {
         final Map<dynamic, dynamic> map = snapshot.value as Map;
         final list = <ResumeModel>[];
         map.forEach((key, value) {
-          list.add(ResumeModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+          list.add(ResumeModel.fromMap(
+              Map<String, dynamic>.from(value), key.toString()));
         });
         resumeList.assignAll(list);
       }
@@ -177,7 +182,8 @@ class DatabaseService extends GetxService {
         final Map<dynamic, dynamic> map = snapshot.value as Map;
         final list = <ApplicationModel>[];
         map.forEach((key, value) {
-          list.add(ApplicationModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+          list.add(ApplicationModel.fromMap(
+              Map<String, dynamic>.from(value), key.toString()));
         });
         applicationsList.assignAll(list);
       }
@@ -186,39 +192,50 @@ class DatabaseService extends GetxService {
   }
 
   Future<void> submitApplication(ApplicationModel application) async {
-    try {
-      await _db?.ref(DatabaseKeys.applications).child(application.id).set(application.toMap());
-    } catch (_) {}
-    applicationsList.insert(0, application);
-
-    final jobIdx = jobsList.indexWhere((j) => j.id == application.jobId);
-    if (jobIdx != -1) {
-      final j = jobsList[jobIdx];
-      jobsList[jobIdx] = JobModel(
-        id: j.id,
-        title: j.title,
-        companyName: j.companyName,
-        companyLogo: j.companyLogo,
-        location: j.location,
-        jobType: j.jobType,
-        experienceLevel: j.experienceLevel,
-        salaryRange: j.salaryRange,
-        description: j.description,
-        requirements: j.requirements,
-        skills: j.skills,
-        recruiterId: j.recruiterId,
-        recruiterName: j.recruiterName,
-        applicantCount: j.applicantCount + 1,
-        isFeatured: j.isFeatured,
-        isActive: j.isActive,
-        postedAt: j.postedAt,
-      );
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available');
     }
+
+    final jobRef = db.ref(DatabaseKeys.jobs).child(application.jobId);
+    final jobSnapshot = await jobRef.get();
+    if (!jobSnapshot.exists) {
+      throw StateError('The job listing could not be found');
+    }
+
+    final applicationRef =
+        db.ref(DatabaseKeys.applications).child(application.id);
+    final applicationResult =
+        await applicationRef.runTransaction((currentData) {
+      if (currentData != null) {
+        return Transaction.abort();
+      }
+      return Transaction.success(application.toMap());
+    });
+    if (!applicationResult.committed) {
+      throw StateError('An application for this job already exists');
+    }
+
+    final countResult =
+        await jobRef.child('applicantCount').runTransaction((value) {
+      final currentCount = (value as num?)?.toInt() ?? 0;
+      return Transaction.success(currentCount + 1);
+    });
+    if (!countResult.committed) {
+      throw StateError('The applicant count could not be updated');
+    }
+
+    applicationsList.removeWhere((item) => item.id == application.id);
+    applicationsList.insert(0, application);
   }
 
-  Future<void> updateApplicationStatus(String appId, ApplicationStatus status) async {
+  Future<void> updateApplicationStatus(
+      String appId, ApplicationStatus status) async {
     try {
-      await _db?.ref(DatabaseKeys.applications).child(appId).update({'status': status.name});
+      await _db
+          ?.ref(DatabaseKeys.applications)
+          .child(appId)
+          .update({'status': status.name});
     } catch (_) {}
     final idx = applicationsList.indexWhere((a) => a.id == appId);
     if (idx != -1) {
@@ -231,6 +248,12 @@ class DatabaseService extends GetxService {
         candidateId: a.candidateId,
         candidateName: a.candidateName,
         candidateEmail: a.candidateEmail,
+        candidatePhone: a.candidatePhone,
+        candidateHeadline: a.candidateHeadline,
+        candidateBio: a.candidateBio,
+        candidateLocation: a.candidateLocation,
+        candidateExperienceYears: a.candidateExperienceYears,
+        candidateSkills: a.candidateSkills,
         candidateAvatar: a.candidateAvatar,
         resumeUrl: a.resumeUrl,
         resumeName: a.resumeName,
@@ -244,7 +267,10 @@ class DatabaseService extends GetxService {
   // --- MENTORSHIP SERVICES & BOOKINGS ---
   Future<void> createMentorshipService(MentorshipServiceModel service) async {
     try {
-      await _db?.ref(DatabaseKeys.mentorshipServices).child(service.id).set(service.toMap());
+      await _db
+          ?.ref(DatabaseKeys.mentorshipServices)
+          .child(service.id)
+          .set(service.toMap());
     } catch (_) {}
     servicesList.insert(0, service);
   }
@@ -256,7 +282,8 @@ class DatabaseService extends GetxService {
         final Map<dynamic, dynamic> map = snapshot.value as Map;
         final list = <MentorshipServiceModel>[];
         map.forEach((key, value) {
-          list.add(MentorshipServiceModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+          list.add(MentorshipServiceModel.fromMap(
+              Map<String, dynamic>.from(value), key.toString()));
         });
         servicesList.assignAll(list);
       }
@@ -266,7 +293,10 @@ class DatabaseService extends GetxService {
 
   Future<void> createBooking(BookingModel booking) async {
     try {
-      await _db?.ref(DatabaseKeys.bookings).child(booking.id).set(booking.toMap());
+      await _db
+          ?.ref(DatabaseKeys.bookings)
+          .child(booking.id)
+          .set(booking.toMap());
     } catch (_) {}
     bookingsList.insert(0, booking);
   }
@@ -286,7 +316,8 @@ class DatabaseService extends GetxService {
         final Map<dynamic, dynamic> map = snapshot.value as Map;
         final list = <CourseModel>[];
         map.forEach((key, value) {
-          list.add(CourseModel.fromMap(Map<String, dynamic>.from(value), key.toString()));
+          list.add(CourseModel.fromMap(
+              Map<String, dynamic>.from(value), key.toString()));
         });
         coursesList.assignAll(list);
       }
@@ -297,7 +328,11 @@ class DatabaseService extends GetxService {
   // --- CHAT MESSAGES ---
   Future<void> sendMessage(String roomId, ChatMessageModel message) async {
     try {
-      await _db?.ref(DatabaseKeys.messages).child(roomId).child(message.id).set(message.toMap());
+      await _db
+          ?.ref(DatabaseKeys.messages)
+          .child(roomId)
+          .child(message.id)
+          .set(message.toMap());
       await _db?.ref(DatabaseKeys.chats).child(roomId).update({
         'lastMessage': message.text,
         'lastMessageTime': message.timestamp.toIso8601String(),

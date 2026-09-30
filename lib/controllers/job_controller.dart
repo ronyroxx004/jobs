@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../services/database_service.dart';
@@ -34,27 +36,31 @@ class JobController extends GetxController {
   List<JobModel> get allJobs => _dbService.jobsList;
   List<ApplicationModel> get myApplications {
     final candidateId = _authService.currentUser.value?.id ?? '';
-    return _dbService.applicationsList.where((a) => a.candidateId == candidateId).toList();
+    return _dbService.applicationsList
+        .where((a) => a.candidateId == candidateId)
+        .toList();
   }
 
   bool hasAppliedForJob(String jobId) {
     final candidateId = _authService.currentUser.value?.id ?? '';
-    return _dbService.applicationsList.any((a) => a.candidateId == candidateId && a.jobId == jobId);
+    return _dbService.applicationsList
+        .any((a) => a.candidateId == candidateId && a.jobId == jobId);
   }
 
   List<ApplicationModel> get recruiterApplicants {
     final recruiterId = _authService.currentUser.value?.id ?? '';
     if (recruiterId.isEmpty || _dbService.jobsList.isEmpty) {
-      return _dbService.applicationsList.toList();
+      return [];
     }
 
     final myJobIds = _dbService.jobsList
-        .where((j) => j.recruiterId == recruiterId || j.recruiterName.isNotEmpty)
+        .where((j) => j.recruiterId == recruiterId)
         .map((j) => j.id)
         .toSet();
 
-    final filtered = _dbService.applicationsList.where((a) => myJobIds.contains(a.jobId) || myJobIds.isEmpty).toList();
-    return filtered.isNotEmpty ? filtered : _dbService.applicationsList.toList();
+    return _dbService.applicationsList
+        .where((a) => myJobIds.contains(a.jobId))
+        .toList();
   }
 
   // Recruiter's posted jobs
@@ -62,17 +68,20 @@ class JobController extends GetxController {
     final recruiterId = _authService.currentUser.value?.id;
 
     if (recruiterId == null) {
-      return allJobs;
+      return [];
     }
 
-    final jobs = allJobs.where((job) => job.recruiterId == recruiterId).toList();
-    return jobs.isNotEmpty ? jobs : allJobs;
+    return allJobs.where((job) => job.recruiterId == recruiterId).toList();
   }
 
   int getApplicantCountForJob(String jobId) {
-    return _dbService.applicationsList
-        .where((app) => app.jobId == jobId)
-        .length;
+    final countFromApps =
+        _dbService.applicationsList.where((app) => app.jobId == jobId).length;
+    final job = _dbService.jobsList.firstWhereOrNull((j) => j.id == jobId);
+    if (job != null && job.applicantCount > countFromApps) {
+      return job.applicantCount;
+    }
+    return countFromApps > 0 ? countFromApps : (job?.applicantCount ?? 0);
   }
 
   List<ApplicationModel> getApplicantsForJob(String jobId) {
@@ -85,14 +94,21 @@ class JobController extends GetxController {
     return allJobs.where((job) {
       final matchesSearch = searchQuery.value.isEmpty ||
           job.title.toLowerCase().contains(searchQuery.value.toLowerCase()) ||
-          job.companyName.toLowerCase().contains(searchQuery.value.toLowerCase()) ||
-          job.skills.any((s) => s.toLowerCase().contains(searchQuery.value.toLowerCase()));
+          job.companyName
+              .toLowerCase()
+              .contains(searchQuery.value.toLowerCase()) ||
+          job.skills.any(
+              (s) => s.toLowerCase().contains(searchQuery.value.toLowerCase()));
 
       final matchesType = selectedTypeFilter.value == 'All' ||
-          job.jobType.toLowerCase().contains(selectedTypeFilter.value.toLowerCase());
+          job.jobType
+              .toLowerCase()
+              .contains(selectedTypeFilter.value.toLowerCase());
 
       final matchesExp = selectedExperienceFilter.value == 'All' ||
-          job.experienceLevel.toLowerCase().contains(selectedExperienceFilter.value.toLowerCase());
+          job.experienceLevel
+              .toLowerCase()
+              .contains(selectedExperienceFilter.value.toLowerCase());
 
       return matchesSearch && matchesType && matchesExp;
     }).toList();
@@ -121,6 +137,11 @@ class JobController extends GetxController {
       return;
     }
 
+    if (hasAppliedForJob(job.id)) {
+      Get.snackbar('Already Applied', 'You have already applied for this job');
+      return;
+    }
+
     final selectedResume = selectedResumeForApply.value ??
         (_dbService.resumeList.isNotEmpty ? _dbService.resumeList.first : null);
 
@@ -135,7 +156,7 @@ class JobController extends GetxController {
     }
 
     final application = ApplicationModel(
-      id: 'app_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'app_${base64Url.encode(utf8.encode('${job.id}:${user.id}')).replaceAll('=', '')}',
       jobId: job.id,
       jobTitle: job.title,
       companyName: job.companyName,
@@ -154,7 +175,20 @@ class JobController extends GetxController {
       coverLetter: coverLetterController.text.trim(),
     );
 
-    await _dbService.submitApplication(application);
+    try {
+      await _dbService.submitApplication(application);
+    } catch (e) {
+      debugPrint('Failed to save job application: $e');
+      Get.snackbar(
+        'Application Not Saved',
+        'Your application could not be saved. Please check your connection and try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
     coverLetterController.clear();
     Get.back(); // close modal
     Get.snackbar(
@@ -173,7 +207,10 @@ class JobController extends GetxController {
     final salary = postSalaryController.text.trim();
     final description = postDescriptionController.text.trim();
 
-    if (title.isEmpty || company.isEmpty || location.isEmpty || description.isEmpty) {
+    if (title.isEmpty ||
+        company.isEmpty ||
+        location.isEmpty ||
+        description.isEmpty) {
       Get.snackbar(
         'Incomplete Fields',
         'Please fill in all required job posting details',
@@ -195,8 +232,15 @@ class JobController extends GetxController {
       experienceLevel: postExperienceLevel.value,
       salaryRange: salary.isNotEmpty ? salary : '\$90k - \$120k',
       description: description,
-      requirements: postRequirementsController.text.split('\n').where((s) => s.trim().isNotEmpty).toList(),
-      skills: postSkillsController.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
+      requirements: postRequirementsController.text
+          .split('\n')
+          .where((s) => s.trim().isNotEmpty)
+          .toList(),
+      skills: postSkillsController.text
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList(),
       recruiterId: recruiter?.id ?? 'rec_1',
       recruiterName: recruiter?.name ?? 'Recruiter',
     );
@@ -222,7 +266,8 @@ class JobController extends GetxController {
     );
   }
 
-  Future<void> updateApplicantStage(String appId, ApplicationStatus status) async {
+  Future<void> updateApplicantStage(
+      String appId, ApplicationStatus status) async {
     await _dbService.updateApplicationStatus(appId, status);
     Get.snackbar(
       'Status Updated',
