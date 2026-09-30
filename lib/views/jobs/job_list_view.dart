@@ -31,40 +31,9 @@ class JobListView extends GetView<JobController> {
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.tune_rounded),
-                onPressed: () {},
+                tooltip: 'Filter jobs',
+                onPressed: () => _showFilters(context, authService),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: ['All', 'Full-time', 'Remote', 'Senior', 'Contract']
-                  .map((filter) {
-                return Obx(() {
-                  final isSelected =
-                      controller.selectedTypeFilter.value == filter;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(filter),
-                      selected: isSelected,
-                      selectedColor: AppColors.primary.withOpacity(0.15),
-                      checkmarkColor: AppColors.primary,
-                      labelStyle: GoogleFonts.inter(
-                        color: isSelected
-                            ? AppColors.primary
-                            : (isDark ? Colors.white70 : Colors.black87),
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                      onSelected: (_) => controller.setTypeFilter(filter),
-                    ),
-                  );
-                });
-              }).toList(),
             ),
           ),
           const SizedBox(height: 12),
@@ -134,10 +103,6 @@ class JobListView extends GetView<JobController> {
                   itemCount: jobs.length,
                   itemBuilder: (context, index) {
                     final job = jobs[index];
-                    final application = controller.getApplicationForJob(job.id);
-                    final showCandidateApplicationState =
-                        authService.isLoggedIn &&
-                            authService.currentRole == UserRole.candidate;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: InkWell(
@@ -160,55 +125,7 @@ class JobListView extends GetView<JobController> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (showCandidateApplicationState)
-                                    Container(
-                                      constraints:
-                                          const BoxConstraints(minWidth: 48),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 9,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: (application?.status.color ??
-                                                Colors.blueGrey)
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            application?.status ==
-                                                    ApplicationStatus.applied
-                                                ? Icons.check_circle_rounded
-                                                : application == null
-                                                    ? Icons
-                                                        .radio_button_unchecked_rounded
-                                                    : Icons
-                                                        .pending_actions_rounded,
-                                            color: application?.status.color ??
-                                                Colors.blueGrey,
-                                            size: 19,
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            application?.status.label ??
-                                                'Not applied',
-                                            textAlign: TextAlign.center,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.inter(
-                                              color:
-                                                  application?.status.color ??
-                                                      Colors.blueGrey,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  else if (job.companyIconKey.isNotEmpty)
+                                  if (job.companyIconKey.isNotEmpty)
                                     Container(
                                       width: 48,
                                       height: 48,
@@ -226,7 +143,7 @@ class JobListView extends GetView<JobController> {
                                             .color,
                                       ),
                                     )
-                                  else
+                                  else if (job.companyLogo.isNotEmpty)
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
                                       child: Image.network(
@@ -234,18 +151,12 @@ class JobListView extends GetView<JobController> {
                                         width: 48,
                                         height: 48,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          width: 48,
-                                          height: 48,
-                                          color: AppColors.primary
-                                              .withValues(alpha: 0.1),
-                                          child: const Icon(
-                                            Icons.business_rounded,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
+                                        errorBuilder: (_, __, ___) =>
+                                            _companyLogoFallback(),
                                       ),
-                                    ),
+                                    )
+                                  else
+                                    _companyLogoFallback(),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
@@ -378,4 +289,122 @@ class JobListView extends GetView<JobController> {
       ),
     );
   }
+
+  void _showFilters(BuildContext context, AuthService authService) {
+    final isCandidate =
+        authService.isLoggedIn && authService.currentRole == UserRole.candidate;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.of(sheetContext).viewPadding.bottom;
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(20, 8, 20, 24 + bottomInset),
+            child: Obx(() {
+              final isDark =
+                  Theme.of(sheetContext).brightness == Brightness.dark;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Filter jobs',
+                    style: GoogleFonts.inter(
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Job type',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      'All',
+                      'Full-time',
+                      'Remote',
+                      'Senior',
+                      'Contract'
+                    ].map((filter) {
+                      final selected =
+                          controller.selectedTypeFilter.value == filter;
+                      return FilterChip(
+                        label: Text(filter),
+                        selected: selected,
+                        selectedColor: AppColors.primary.withOpacity(0.15),
+                        checkmarkColor: AppColors.primary,
+                        labelStyle: TextStyle(
+                          color: selected
+                              ? AppColors.primary
+                              : (isDark ? Colors.white70 : Colors.black87),
+                        ),
+                        onSelected: (_) => controller.setTypeFilter(filter),
+                      );
+                    }).toList(),
+                  ),
+                  if (isCandidate) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Application status',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: ['All', 'Applied', 'Not applied'].map((filter) {
+                        final selected =
+                            controller.selectedApplicationFilter.value ==
+                                filter;
+                        return FilterChip(
+                          label: Text(
+                              filter == 'All' ? 'All applications' : filter),
+                          selected: selected,
+                          selectedColor: AppColors.secondary.withOpacity(0.15),
+                          checkmarkColor: AppColors.secondary,
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? AppColors.secondary
+                                : (isDark ? Colors.white70 : Colors.black87),
+                          ),
+                          onSelected: (_) =>
+                              controller.setApplicationFilter(filter),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
 }
+
+Widget _companyLogoFallback() => Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.business_rounded,
+        color: AppColors.primary,
+      ),
+    );

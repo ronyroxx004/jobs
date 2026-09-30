@@ -19,6 +19,7 @@ class JobController extends GetxController {
   final RxString searchQuery = ''.obs;
   final RxString selectedTypeFilter = 'All'.obs;
   final RxString selectedExperienceFilter = 'All'.obs;
+  final RxString selectedApplicationFilter = 'All'.obs;
 
   // Post Job Controllers for Recruiters
   final postTitleController = TextEditingController();
@@ -123,7 +124,16 @@ class JobController extends GetxController {
               .toLowerCase()
               .contains(selectedExperienceFilter.value.toLowerCase());
 
-      return matchesSearch && matchesType && matchesExp;
+      final isCandidate = _authService.isLoggedIn &&
+          _authService.currentRole == UserRole.candidate;
+      final matchesApplication = !isCandidate ||
+          switch (selectedApplicationFilter.value) {
+            'Applied' => hasAppliedForJob(job.id),
+            'Not applied' => !hasAppliedForJob(job.id),
+            _ => true,
+          };
+
+      return matchesSearch && matchesType && matchesExp && matchesApplication;
     }).toList();
   }
 
@@ -137,6 +147,10 @@ class JobController extends GetxController {
 
   void setExperienceFilter(String exp) {
     selectedExperienceFilter.value = exp;
+  }
+
+  void setApplicationFilter(String filter) {
+    selectedApplicationFilter.value = filter;
   }
 
   void selectResumeForApply(ResumeModel resume) {

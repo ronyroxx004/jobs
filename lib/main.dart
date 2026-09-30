@@ -7,7 +7,7 @@ import 'bindings/initial_binding.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     await Firebase.initializeApp();
   } catch (e) {
@@ -31,6 +31,9 @@ class JobsApp extends StatelessWidget {
       initialBinding: InitialBinding(),
       initialRoute: AppPages.initial,
       getPages: AppPages.pages,
+      builder: (context, child) => SafeArea(
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }
