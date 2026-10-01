@@ -53,7 +53,7 @@ class RecruiterDashboardView extends GetView<JobController> {
                         const SizedBox(height: 2),
                         Text(
                           recruiter?.companyName.isNotEmpty == true
-                              ? recruiter!.companyName
+                              ? recruiter?.companyName ?? ''
                               : 'Employer & Recruiter Portal',
                           style: GoogleFonts.inter(
                             fontSize: 13,

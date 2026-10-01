@@ -50,7 +50,7 @@ class InstructorDashboardView extends GetView<CourseController> {
                           const SizedBox(height: 2),
                           Text(
                             instructor?.headline.isNotEmpty == true 
-                                ? instructor!.headline 
+                                ? instructor?.headline ?? ''
                                 : 'Expert Instructor & Educator Portal',
                             style: GoogleFonts.inter(
                               fontSize: 13,

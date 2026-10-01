@@ -169,10 +169,13 @@ class AppStatusBar extends StatelessWidget {
     final service = Get.find<AppStatusService>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDark
-        ? Colors.black.withOpacity(0.55)
-        : Colors.white.withOpacity(0.82);
+        ? Colors.black.withValues(alpha: 0.55)
+        : Colors.white.withValues(alpha: 0.82);
     final foregroundColor = isDark ? Colors.white : Colors.black87;
     final accentColor = isDark ? Colors.white : Colors.black87;
+
+    final batteryColor = _batteryColor(service.batteryLevel.value, isDark);
+    final signalColor = isDark ? Colors.white : Colors.black87;
 
     return Obx(() {
       final data = service.networkStatus.value;
@@ -187,11 +190,11 @@ class AppStatusBar extends StatelessWidget {
           color: backgroundColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08),
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
           ),
           boxShadow: [
             BoxShadow(
-              color: (isDark ? Colors.black : Colors.grey).withOpacity(0.12),
+              color: (isDark ? Colors.black : Colors.grey).withValues(alpha: 0.12),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -208,7 +211,7 @@ class AppStatusBar extends StatelessWidget {
             const SizedBox(width: 8),
             Icon(
               _batteryIcon(batteryState, battery),
-              color: _batteryColor(battery),
+              color: batteryColor,
               size: 18,
             ),
             const SizedBox(width: 4),
@@ -254,9 +257,9 @@ class AppStatusBar extends StatelessWidget {
     return Icons.battery_1_bar_rounded;
   }
 
-  Color _batteryColor(int value) {
+  Color _batteryColor(int value, bool isDark) {
     if (value <= 15) return Colors.redAccent;
     if (value <= 35) return Colors.orangeAccent;
-    return Colors.greenAccent;
+    return isDark ? Colors.greenAccent : const Color(0xFF16A34A);
   }
 }

@@ -341,10 +341,10 @@ class JobController extends GetxController {
         ) ??
         (recruiter?.companyName == company
             ? CompanyProfile(
-                id: 'legacy_${recruiter!.id}',
-                name: recruiter.companyName,
-                location: recruiter.companyLocation,
-                iconKey: recruiter.companyIconKey,
+                id: 'legacy_${recruiter?.id ?? ''}',
+                name: recruiter?.companyName ?? '',
+                location: recruiter?.companyLocation ?? '',
+                iconKey: recruiter?.companyIconKey ?? 'business',
               )
             : null);
 

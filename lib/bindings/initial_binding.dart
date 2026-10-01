@@ -21,13 +21,15 @@ class InitialBinding extends Bindings {
     Get.put<FirestoreService>(FirestoreService(), permanent: true);
     Get.put<AuthService>(AuthService(), permanent: true);
     Get.put<AppStatusService>(AppStatusService(), permanent: true);
+    Get.put<ThemeController>(ThemeController(), permanent: true);
 
     // Controllers
-    Get.put<ThemeController>(ThemeController(), permanent: true);
-    Get.lazyPut<AuthController>(() => AuthController(), fenix: true);
-    Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
-    Get.lazyPut<JobController>(() => JobController(), fenix: true);
-    Get.lazyPut<ProfileController>(() => ProfileController(), fenix: true);
+    Get.put<AuthController>(AuthController(), permanent: true);
+    Get.put<HomeController>(HomeController(), permanent: true);
+    Get.put<JobController>(JobController(), permanent: true);
+    Get.put<ProfileController>(ProfileController(), permanent: true);
+
+    // Remaining screen controllers can stay lazy if they are only used inside a specific flow.
     Get.lazyPut<MentorshipController>(() => MentorshipController(), fenix: true);
     Get.lazyPut<CourseController>(() => CourseController(), fenix: true);
     Get.lazyPut<ChatController>(() => ChatController(), fenix: true);

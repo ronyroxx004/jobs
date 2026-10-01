@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../utils/constants.dart';
 
 class AppTheme {
-  static ThemeData get lightTheme => _buildTheme(isDark: false);
-  static ThemeData get darkTheme => _buildTheme(isDark: true);
+  static final ThemeData lightTheme = _buildTheme(isDark: false);
+  static final ThemeData darkTheme = _buildTheme(isDark: true);
 
   static ThemeData _buildTheme({required bool isDark}) {
     final background = isDark ? AppColors.bgDark : AppColors.bgLight;
@@ -49,9 +49,11 @@ class AppTheme {
         foregroundColor: foreground,
         surfaceTintColor: Colors.transparent,
         systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: background,
+          statusBarColor: Colors.transparent,
           statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
           statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+          systemNavigationBarColor: background,
+          systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         ),
         titleTextStyle: GoogleFonts.inter(
           fontSize: 19,

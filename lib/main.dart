@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
+import 'controllers/theme_controller.dart';
+import 'controllers/auth_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,49 +16,36 @@ void main() async {
     debugPrint('Firebase initialized in mock/fallback mode: $e');
   }
 
+  Get.put<ThemeController>(ThemeController(), permanent: true);
+  InitialBinding().dependencies();
+
   runApp(const JobsApp());
 }
 
-SystemUiOverlayStyle _systemUiOverlayStyle(bool isDark) {
-  final background = isDark ? const Color(0xFF0F172A) : Colors.white;
-  final iconBrightness = isDark ? Brightness.light : Brightness.dark;
-  return SystemUiOverlayStyle(
-    statusBarColor: background,
-    statusBarIconBrightness: iconBrightness,
-    statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-    systemNavigationBarColor: background,
-    systemNavigationBarIconBrightness: iconBrightness,
-  );
-}
-
-class JobsApp extends StatefulWidget {
+class JobsApp extends StatelessWidget {
   const JobsApp({super.key});
 
   @override
-  State<JobsApp> createState() => _JobsAppState();
-}
-
-class _JobsAppState extends State<JobsApp> {
-  @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      title: 'Jobs - Professional Networking & Hiring',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      initialBinding: InitialBinding(),
-      initialRoute: AppPages.initial,
-      getPages: AppPages.pages,
-      builder: (context, child) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: _systemUiOverlayStyle(isDark),
-          child: SafeArea(
-            child: child ?? const SizedBox.shrink(),
-          ),
-        );
-      },
-    );
+    if (!Get.isRegistered<ThemeController>()) {
+      Get.put(ThemeController(), permanent: true);
+    }
+    if (!Get.isRegistered<AuthController>()) {
+      InitialBinding().dependencies();
+    }
+
+    final themeController = Get.find<ThemeController>();
+
+    return Obx(() => GetMaterialApp(
+          title: 'Jobs - Professional Networking & Hiring',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeController.isDarkMode.value
+              ? ThemeMode.dark
+              : ThemeMode.light,
+          initialRoute: AppPages.initial,
+          getPages: AppPages.pages,
+        ));
   }
 }

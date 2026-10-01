@@ -24,6 +24,10 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   HomeController get controller => Get.find<HomeController>();
+  ThemeController get themeController =>
+      Get.isRegistered<ThemeController>()
+          ? Get.find<ThemeController>()
+          : Get.put(ThemeController(), permanent: true);
 
   @override
   Widget build(BuildContext context) {
@@ -61,14 +65,14 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   IconButton(
                     icon: Obx(() => Icon(
-                          Get.find<ThemeController>().isDarkMode.value
+                          themeController.isDarkMode.value
                               ? Icons.light_mode_rounded
                               : Icons.dark_mode_rounded,
                           color: AppColors.primary,
                           size: 22,
                         )),
                     tooltip: 'Toggle Light/Dark Mode',
-                    onPressed: () => Get.find<ThemeController>().toggleTheme(),
+                    onPressed: themeController.toggleTheme,
                   ),
                   const SizedBox(width: 4),
                   ElevatedButton(
@@ -103,14 +107,14 @@ class _HomeViewState extends State<HomeView> {
                   ),
                 IconButton(
                   icon: Obx(() => Icon(
-                        Get.find<ThemeController>().isDarkMode.value
+                        themeController.isDarkMode.value
                             ? Icons.light_mode_rounded
                             : Icons.dark_mode_rounded,
                         color: AppColors.primary,
                         size: 22,
                       )),
                   tooltip: 'Toggle Light/Dark Mode',
-                  onPressed: () => Get.find<ThemeController>().toggleTheme(),
+                  onPressed: themeController.toggleTheme,
                 ),
                 const SizedBox(width: 4),
                 IconButton(
@@ -131,7 +135,9 @@ class _HomeViewState extends State<HomeView> {
         final tabs = _tabsFor(isLoggedIn, role);
         final selectedIndex =
             controller.selectedTabIndex.clamp(0, tabs.length - 1);
-        return tabs[selectedIndex].page;
+        return SizedBox.expand(
+          child: tabs[selectedIndex].page,
+        );
       }),
       bottomNavigationBar: Obx(() {
         final isLoggedIn = controller.isLoggedIn;

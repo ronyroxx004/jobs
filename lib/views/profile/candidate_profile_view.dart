@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../controllers/profile_controller.dart';
 import '../../controllers/job_controller.dart';
 import '../../core/utils/constants.dart';
@@ -22,527 +23,566 @@ class CandidateProfileView extends GetView<ProfileController> {
         final dbService = Get.find<DatabaseService>();
         await dbService.fetchAllData();
       },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+      child: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Profile Header Card
-            Obx(() {
-              final user = controller.user;
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Stack(
-                            children: [
-                              CircleAvatar(
-                                radius: 42,
-                                backgroundColor:
-                                    AppColors.primary.withOpacity(0.1),
-                                backgroundImage:
-                                    user?.avatarUrl.isNotEmpty == true
-                                        ? NetworkImage(user!.avatarUrl)
-                                        : null,
-                                child: user?.avatarUrl.isNotEmpty == true
-                                    ? null
-                                    : user?.avatarIconKey.isNotEmpty == true
-                                        ? Icon(
-                                            _iconForAvatarKey(
-                                                user!.avatarIconKey),
-                                            size: 38,
-                                            color: AppColors.primary,
-                                          )
-                                        : Text(
-                                            user?.name.isNotEmpty == true
-                                                ? user!.name[0]
-                                                : 'U',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 28,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Obx(() {
+            final user = controller.user;
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 42,
+                              backgroundColor:
+                                  AppColors.primary.withValues(alpha: 0.1),
+                              backgroundImage:
+                                  user?.avatarUrl.isNotEmpty == true
+                                      ? NetworkImage(user?.avatarUrl ?? '')
+                                      : null,
+                              child: user?.avatarUrl.isNotEmpty == true
+                                  ? null
+                                  : user?.avatarIconKey.isNotEmpty == true
+                                      ? Icon(
+                                          _iconForAvatarKey(
+                                              user?.avatarIconKey ?? ''),
+                                          size: 38,
+                                          color: AppColors.primary,
+                                        )
+                                      : Text(
+                                          user?.name.isNotEmpty == true
+                                              ? user!.name[0]
+                                              : 'U',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.bold,
                                           ),
+                                        ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: InkWell(
+                                onTap: () => _showAvatarPicker(context),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
                               ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: InkWell(
-                                  onTap: () => _showAvatarPicker(context),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 16),
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user?.name ?? 'User',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                user?.headline.isNotEmpty == true
+                                    ? user?.headline ?? ''
+                                    : 'Add a headline to describe your professional role',
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      user?.location.isNotEmpty == true
+                                          ? user?.location ?? ''
+                                          : 'Set location',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                      ),
                                     ),
-                                    child: const Icon(Icons.camera_alt,
-                                        color: Colors.white, size: 14),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user?.name ?? 'User',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  user?.headline.isNotEmpty == true
-                                      ? user!.headline
-                                      : 'Add a headline to describe your professional role',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: isDark
-                                        ? AppColors.textSecondaryDark
-                                        : AppColors.textSecondaryLight,
-                                  ),
-                                ),
+                              if ((user?.experienceYears ?? 0) > 0) ...[
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    const Icon(Icons.location_on_outlined,
-                                        size: 14, color: AppColors.primary),
+                                    const Icon(
+                                      Icons.work_outline,
+                                      size: 14,
+                                      color: AppColors.primary,
+                                    ),
                                     const SizedBox(width: 4),
-                                    Text(
-                                      user?.location.isNotEmpty == true
-                                          ? user!.location
-                                          : 'Set location',
-                                      style: GoogleFonts.inter(
-                                          fontSize: 11, color: Colors.grey),
+                                    Flexible(
+                                      child: Text(
+                                        '${user?.experienceYears ?? 0} years experience',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                if ((user?.experienceYears ?? 0) > 0) ...[
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.work_outline,
-                                          size: 14, color: AppColors.primary),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${user!.experienceYears} years experience',
-                                        style: GoogleFonts.inter(
-                                            fontSize: 11, color: Colors.grey),
-                                      ),
-                                    ],
-                                  ),
-                                ],
                               ],
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Edit profile and manage resumes',
-                            onPressed: () => Get.toNamed(AppRoutes.editProfile),
-                            icon: const Icon(Icons.edit_outlined,
-                                color: AppColors.primary),
-                          ),
-                        ],
-                      ),
-                      if (user?.email.isNotEmpty == true ||
-                          user?.phone.isNotEmpty == true) ...[
-                        const SizedBox(height: 16),
-                        const Divider(height: 1),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 18,
-                          runSpacing: 10,
-                          children: [
-                            if (user?.email.isNotEmpty == true)
-                              _ProfileContact(
-                                icon: Icons.email_outlined,
-                                text: user!.email,
-                              ),
-                            if (user?.phone.isNotEmpty == true)
-                              _ProfileContact(
-                                icon: Icons.phone_outlined,
-                                text: user!.phone,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            }),
-
-            if (controller.user?.role == UserRole.recruiter) ...[
-              const SizedBox(height: 12),
-              Obx(() {
-                final user = controller.user;
-                final companies = user?.companies.isNotEmpty == true
-                    ? user!.companies
-                    : (user?.companyName.isNotEmpty == true
-                        ? [
-                            CompanyProfile(
-                              id: 'company_${user!.id}',
-                              name: user.companyName,
-                              location: user.companyLocation,
-                              iconKey: user.companyIconKey.isNotEmpty
-                                  ? user.companyIconKey
-                                  : 'business',
-                            ),
-                          ]
-                        : <CompanyProfile>[]);
-
-                if (companies.isEmpty) {
-                  return Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.add_business_outlined,
-                          color: AppColors.primary),
-                      title: const Text('Add your companies'),
-                      subtitle:
-                          const Text('Manage the companies you recruit for.'),
-                      onTap: () => Get.toNamed(AppRoutes.editProfile),
-                    ),
-                  );
-                }
-
-                return Column(
-                  children: companies.map((company) {
-                    final icon = companyIconForKey(company.iconKey);
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: icon.color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(icon.icon, color: icon.color),
-                        ),
-                        title: Text(
-                          company.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
+                            ],
                           ),
                         ),
-                        subtitle: Text(
-                          company.location.isEmpty
-                              ? 'Company place not added'
-                              : company.location,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: IconButton(
-                          tooltip: 'Edit companies',
+                        IconButton(
+                          tooltip: 'Edit profile and manage resumes',
                           onPressed: () => Get.toNamed(AppRoutes.editProfile),
                           icon: const Icon(
                             Icons.edit_outlined,
                             color: AppColors.primary,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                );
-              }),
-            ],
-
-            const SizedBox(height: 16),
-
-            Obx(() {
-              final bio = controller.user?.bio ?? '';
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Summary',
-                        style: GoogleFonts.inter(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        bio.isNotEmpty
-                            ? bio
-                            : 'Add a short professional summary to introduce your background and goals.',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          height: 1.5,
-                          color: bio.isEmpty ? Colors.grey : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-
-            const SizedBox(height: 16),
-
-            // Skills Card
-            Obx(() {
-              final skills = controller.user?.skills ?? [];
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Technical Skills',
-                        style: GoogleFonts.inter(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 10),
-                      if (skills.isEmpty)
-                        Text(
-                          'No skills added yet. Tap Edit Profile to add skills.',
-                          style: GoogleFonts.inter(
-                              fontSize: 12, color: Colors.grey),
-                        )
-                      else
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: skills.map((s) {
-                            return Chip(
-                              label: Text(s),
-                              backgroundColor:
-                                  AppColors.primary.withOpacity(0.12),
-                              side: BorderSide.none,
-                              labelStyle: GoogleFonts.inter(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-
-            if (controller.user?.role == UserRole.candidate) ...[
-              const SizedBox(height: 16),
-
-              // My Applications Pipeline
-              Text(
-                'My Job Applications',
-                style: GoogleFonts.inter(
-                    fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-
-              Obx(() {
-                final apps = jobController.myApplications;
-                if (apps.isEmpty) {
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            const Icon(Icons.assignment_outlined,
-                                size: 48, color: Colors.grey),
-                            const SizedBox(height: 8),
-                            Text(
-                              'You have not applied for any jobs yet',
-                              style: GoogleFonts.inter(
-                                  fontSize: 14, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: apps.length,
-                  itemBuilder: (context, index) {
-                    final app = apps[index];
-                    final isDark = Theme.of(context).brightness == Brightness.dark;
-                    final statusBg = _applicationStatusBackground(app.status, isDark);
-                    final statusColor = _applicationStatusColor(app.status, isDark);
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: statusBg,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(Icons.work_history, color: statusColor),
-                        ),
-                        title: Text(app.jobTitle,
-                            style: GoogleFonts.inter(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
-                        subtitle: Text(
-                            '${app.companyName} • Applied ${app.appliedAt.day}/${app.appliedAt.month}'),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusBg,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            app.status.label,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              }),
-            ],
-
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-void _showAvatarPicker(BuildContext context) {
-  final profileController = Get.find<ProfileController>();
-  final role = profileController.user?.role ?? UserRole.candidate;
-  final options = _avatarOptionsFor(role);
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-
-  Get.bottomSheet(
-    SafeArea(
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.max,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Choose your profile icon',
-              style: GoogleFonts.inter(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Pick an icon for your ${role.displayName.toLowerCase()} profile.',
-              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 14),
-            Expanded(
-              child: GridView.builder(
-                itemCount: options.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.9,
-                  mainAxisExtent: 86,
-                ),
-                itemBuilder: (context, index) {
-                  final option = options[index];
-                  final isSelected =
-                      profileController.user?.avatarIconKey == option.key;
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () =>
-                        profileController.setProfileAvatarIcon(option.key),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                option.color.withValues(alpha: 0.22),
-                                option.color.withValues(alpha: 0.08),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: isSelected
-                                  ? option.color
-                                  : option.color.withValues(alpha: 0.25),
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Icon(
-                            option.icon,
-                            color: option.color,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          option.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
+                    if (user?.email.isNotEmpty == true ||
+                        user?.phone.isNotEmpty == true) ...[
+                      const SizedBox(height: 16),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 18,
+                        runSpacing: 10,
+                        children: [
+                          if (user?.email.isNotEmpty == true)
+                            _ProfileContact(
+                              icon: Icons.email_outlined,
+                              text: user?.email ?? '',
+                            ),
+                          if (user?.phone.isNotEmpty == true)
+                            _ProfileContact(
+                              icon: Icons.phone_outlined,
+                              text: user?.phone ?? '',
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+
+          if (controller.user?.role == UserRole.recruiter) ...[
+            const SizedBox(height: 12),
+            Obx(() {
+              final user = controller.user;
+              final companies = user?.companies.isNotEmpty == true
+                  ? user?.companies ?? []
+                  : (user?.companyName.isNotEmpty == true
+                      ? [
+                          CompanyProfile(
+                            id: 'company_${user?.id ?? ''}',
+                            name: user?.companyName ?? '',
+                            location: user?.companyLocation ?? '',
+                            iconKey: user?.companyIconKey.isNotEmpty == true
+                                ? user?.companyIconKey ?? ''
+                                : 'business',
+                          ),
+                        ]
+                      : <CompanyProfile>[]);
+
+              if (companies.isEmpty) {
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.add_business_outlined,
+                        color: AppColors.primary),
+                    title: const Text('Add your companies'),
+                    subtitle:
+                        const Text('Manage the companies you recruit for.'),
+                    onTap: () => Get.toNamed(AppRoutes.editProfile),
+                  ),
+                );
+              }
+
+              return Column(
+                children: companies.map((company) {
+                  final icon = companyIconForKey(company.iconKey);
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: icon.color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(icon.icon, color: icon.color),
+                      ),
+                      title: Text(
+                        company.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        company.location.isEmpty
+                            ? 'Company place not added'
+                            : company.location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: IconButton(
+                        tooltip: 'Edit companies',
+                        onPressed: () => Get.toNamed(AppRoutes.editProfile),
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
                   );
-                },
+                }).toList(),
+              );
+            }),
+          ],
+
+          const SizedBox(height: 16),
+
+          Obx(() {
+            final bio = controller.user?.bio ?? '';
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Summary',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      bio.isNotEmpty
+                          ? bio
+                          : 'Add a short professional summary to introduce your background and goals.',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: bio.isEmpty ? Colors.grey : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+
+          const SizedBox(height: 16),
+
+          Obx(() {
+            final skills = controller.user?.skills ?? [];
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Technical Skills',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (skills.isEmpty)
+                      Text(
+                        'No skills added yet. Tap Edit Profile to add skills.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: skills.map((s) {
+                          return Chip(
+                            label: Text(s),
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.12),
+                            side: BorderSide.none,
+                            labelStyle: GoogleFonts.inter(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+
+          if (controller.user?.role == UserRole.candidate) ...[
+            const SizedBox(height: 16),
+            Text(
+              'My Job Applications',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 10),
+            Obx(() {
+              final apps = jobController.myApplications;
+              if (apps.isEmpty) {
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.assignment_outlined,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'You have not applied for any jobs yet',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: apps.map((app) {
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  final statusBg =
+                      _applicationStatusBackground(app.status, isDark);
+                  final statusColor =
+                      _applicationStatusColor(app.status, isDark);
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: statusBg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.work_history, color: statusColor),
+                      ),
+                      title: Text(
+                        app.jobTitle,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${app.companyName} • Applied ${app.appliedAt.day}/${app.appliedAt.month}',
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusBg,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          app.status.label,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            }),
           ],
+
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  void _showAvatarPicker(BuildContext context) {
+    final profileController = Get.find<ProfileController>();
+    final role = profileController.user?.role ?? UserRole.candidate;
+    final options = _avatarOptionsFor(role);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Choose your profile icon',
+                  style: GoogleFonts.inter(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Pick an icon for your ${role.displayName.toLowerCase()} profile.',
+                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 14),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: options.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 0.9,
+                    mainAxisExtent: 86,
+                  ),
+                  itemBuilder: (context, index) {
+                    final option = options[index];
+                    final isSelected =
+                        profileController.user?.avatarIconKey == option.key;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => profileController.setProfileAvatarIcon(option.key),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  option.color.withValues(alpha: 0.22),
+                                  option.color.withValues(alpha: 0.08),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: isSelected
+                                    ? option.color
+                                    : option.color.withValues(alpha: 0.25),
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Icon(
+                              option.icon,
+                              color: option.color,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            option.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight:
+                                  isSelected ? FontWeight.bold : FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-  );
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
 }
 
 IconData _iconForAvatarKey(String key) {
@@ -666,10 +706,10 @@ class _AvatarOption {
 }
 
 class _ProfileContact extends StatelessWidget {
+  const _ProfileContact({required this.icon, required this.text});
+
   final IconData icon;
   final String text;
-
-  const _ProfileContact({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -678,7 +718,14 @@ class _ProfileContact extends StatelessWidget {
       children: [
         Icon(icon, size: 15, color: AppColors.primary),
         const SizedBox(width: 6),
-        Text(text, style: GoogleFonts.inter(fontSize: 12)),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(fontSize: 12),
+          ),
+        ),
       ],
     );
   }
@@ -713,4 +760,3 @@ Color _applicationStatusColor(ApplicationStatus status, bool isDark) {
       return isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C);
   }
 }
-
