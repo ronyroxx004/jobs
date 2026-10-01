@@ -28,15 +28,48 @@ class DeletedUserModel {
     };
   }
 
-  factory DeletedUserModel.fromMap(Map<String, dynamic> map, String key) {
+  factory DeletedUserModel.fromRaw(dynamic raw, String key) {
+    if (raw is Map) {
+      return DeletedUserModel.fromMap(Map<String, dynamic>.from(raw), key);
+    }
+    final rawStr = raw?.toString().trim() ?? '';
+    final isEmail = rawStr.contains('@');
     return DeletedUserModel(
-      id: (map['uid']?.toString() ?? map['id']?.toString() ?? key),
-      name: map['name']?.toString() ?? '',
-      email: map['email']?.toString() ?? '',
-      role: map['role']?.toString() ?? 'candidate',
-      deletedAt: DateTime.tryParse(map['deletedAt']?.toString() ?? '') ??
-          DateTime.now(),
-      deletedBy: map['deletedBy']?.toString() ?? '',
+      id: key,
+      name: isEmail
+          ? rawStr.split('@')[0]
+          : (rawStr.isNotEmpty && rawStr != 'true' && rawStr != '1'
+              ? rawStr
+              : 'User ${key.length > 6 ? key.substring(0, 6) : key}'),
+      email: isEmail ? rawStr : '',
+      role: 'candidate',
+      deletedAt: DateTime.now(),
+      deletedBy: '',
+    );
+  }
+
+  factory DeletedUserModel.fromMap(Map<String, dynamic> map, String key) {
+    final rawId = map['uid']?.toString() ??
+        map['id']?.toString() ??
+        map['userId']?.toString() ??
+        '';
+    final id = rawId.trim().isNotEmpty ? rawId.trim() : key;
+    final name = map['name']?.toString() ??
+        map['displayName']?.toString() ??
+        '';
+    final email = map['email']?.toString() ?? '';
+    final role = map['role']?.toString() ?? 'candidate';
+    final deletedAt = DateTime.tryParse(map['deletedAt']?.toString() ?? '') ??
+        DateTime.now();
+    final deletedBy = map['deletedBy']?.toString() ?? '';
+
+    return DeletedUserModel(
+      id: id,
+      name: name,
+      email: email,
+      role: role,
+      deletedAt: deletedAt,
+      deletedBy: deletedBy,
     );
   }
 }

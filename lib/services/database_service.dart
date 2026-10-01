@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -38,12 +39,20 @@ class DatabaseService extends GetxService {
 
   /// Admin-removed accounts kept as tombstones so they can be restored.
   final RxList<DeletedUserModel> deletedUsersList = <DeletedUserModel>[].obs;
+  StreamSubscription? _deletedUsersSubscription;
 
   @override
   void onInit() {
     super.onInit();
     fetchAllData();
     _setupRealtimeListeners();
+    _setupDeletedUsersListener();
+  }
+
+  @override
+  void onClose() {
+    _deletedUsersSubscription?.cancel();
+    super.onClose();
   }
 
   void _setupRealtimeListeners() {
@@ -86,6 +95,46 @@ class DatabaseService extends GetxService {
     } catch (_) {}
   }
 
+  void _setupDeletedUsersListener() {
+    try {
+      _deletedUsersSubscription?.cancel();
+      _deletedUsersSubscription =
+          _db?.ref(DatabaseKeys.deletedUsers).onValue.listen(
+        (event) {
+          if (event.snapshot.exists && event.snapshot.value != null) {
+            final parsed = _parseDeletedUsers(event.snapshot.value);
+            deletedUsersList.assignAll(parsed);
+          } else {
+            deletedUsersList.clear();
+          }
+        },
+        onError: (err) {
+          debugPrint('Deleted users listener: $err');
+        },
+      );
+    } catch (_) {}
+  }
+
+  List<DeletedUserModel> _parseDeletedUsers(dynamic value) {
+    final deleted = <DeletedUserModel>[];
+    if (value is Map) {
+      value.forEach((key, entry) {
+        if (entry != null) {
+          deleted.add(DeletedUserModel.fromRaw(entry, key.toString()));
+        }
+      });
+    } else if (value is List) {
+      for (int i = 0; i < value.length; i++) {
+        final entry = value[i];
+        if (entry != null) {
+          deleted.add(DeletedUserModel.fromRaw(entry, i.toString()));
+        }
+      }
+    }
+    deleted.sort((a, b) => b.deletedAt.compareTo(a.deletedAt));
+    return deleted;
+  }
+
   Future<void> fetchAllData() async {
     await fetchJobs();
     await fetchCourses();
@@ -93,6 +142,9 @@ class DatabaseService extends GetxService {
     await fetchResumes();
     await fetchApplications();
     await fetchUsers();
+    try {
+      await fetchDeletedUsers();
+    } catch (_) {}
   }
 
   Future<List<UserModel>> fetchUsers() async {
@@ -131,16 +183,22 @@ class DatabaseService extends GetxService {
 
     final user = usersList.firstWhereOrNull((u) => u.id == userId);
 
+    final deletedRecord = DeletedUserModel(
+      id: userId,
+      email: user?.email ?? '',
+      name: user?.name ?? '',
+      role: user?.role.name ?? UserRole.candidate.name,
+      deletedAt: DateTime.now(),
+      deletedBy: _currentAdminId(),
+    );
+
     // Preserve a tombstone BEFORE clearing the profile, so an in-flight login
     // cannot recreate the account from the deleted profile document.
-    await db.ref(DatabaseKeys.deletedUsers).child(userId).set({
-      'uid': userId,
-      'email': user?.email ?? '',
-      'name': user?.name ?? '',
-      'role': user?.role.name ?? UserRole.candidate.name,
-      'deletedAt': DateTime.now().toIso8601String(),
-      'deletedBy': _currentAdminId(),
-    });
+    await db.ref(DatabaseKeys.deletedUsers).child(userId).set(deletedRecord.toMap());
+
+    // Update local reactive list immediately
+    deletedUsersList.removeWhere((u) => u.id == userId);
+    deletedUsersList.insert(0, deletedRecord);
 
     await Future.wait([
       db.ref(DatabaseKeys.users).child(userId).remove(),
@@ -192,61 +250,80 @@ class DatabaseService extends GetxService {
     }
 
     final snapshot = await db.ref(DatabaseKeys.deletedUsers).get();
-    final deleted = <DeletedUserModel>[];
-    final value = snapshot.value;
-
-    if (value is Map) {
-      value.forEach((key, entry) {
-        if (entry is Map) {
-          deleted.add(DeletedUserModel.fromMap(
-            Map<String, dynamic>.from(entry),
-            key.toString(),
-          ));
-        }
-      });
+    if (!snapshot.exists || snapshot.value == null) {
+      deletedUsersList.clear();
+      return <DeletedUserModel>[];
     }
 
-    deleted.sort((a, b) => b.deletedAt.compareTo(a.deletedAt));
+    final deleted = _parseDeletedUsers(snapshot.value);
+    deletedUsersList.assignAll(deleted);
     return deleted;
   }
 
   /// Restores a removed account's login + profile.
   ///
-  /// Only the account and its profile come back: resumes, applications, jobs,
-  /// sessions and chats were deleted permanently and cannot be recovered.
-  Future<void> restoreUser(String userId) async {
+  /// Can restore using existing tombstone data at `deleted_users/{userId}`,
+  /// or restore directly by ID with optional name/email/role fallbacks.
+  Future<void> restoreUser(
+    String userId, {
+    String? name,
+    String? email,
+    UserRole? role,
+  }) async {
     final db = _db;
     if (db == null) {
       throw StateError('Firebase Realtime Database is not available.');
     }
 
-    final snapshot = await db.ref(DatabaseKeys.deletedUsers).child(userId).get();
-    final raw = snapshot.value;
-    if (!snapshot.exists || raw is! Map) {
-      throw StateError('This account is not in the deleted list.');
+    final cleanId = userId.trim();
+    if (cleanId.isEmpty) {
+      throw ArgumentError('User ID cannot be empty.');
     }
 
-    final record = Map<String, dynamic>.from(raw);
-    final email = record['email']?.toString() ?? '';
+    final snapshot = await db.ref(DatabaseKeys.deletedUsers).child(cleanId).get();
+    final raw = snapshot.value;
+    Map<String, dynamic> record = {};
+    if (snapshot.exists && raw != null) {
+      if (raw is Map) {
+        record = Map<String, dynamic>.from(raw);
+      } else if (raw is String && raw.contains('@')) {
+        record['email'] = raw;
+      }
+    }
+
+    final finalEmail = email?.trim().isNotEmpty == true
+        ? email!.trim()
+        : (record['email']?.toString() ?? '');
+
+    final finalName = name?.trim().isNotEmpty == true
+        ? name!.trim()
+        : (record['name']?.toString().trim().isNotEmpty == true
+            ? record['name']!.toString().trim()
+            : (finalEmail.isNotEmpty
+                ? finalEmail.split('@')[0]
+                : 'User_${cleanId.length > 6 ? cleanId.substring(0, 6) : cleanId}'));
+
     final roleName = record['role']?.toString() ?? UserRole.candidate.name;
-    final role = UserRole.values.firstWhere(
-      (r) => r.name == roleName,
-      orElse: () => UserRole.candidate,
-    );
+    final finalRole = role ??
+        UserRole.values.firstWhere(
+          (r) => r.name.toLowerCase() == roleName.toLowerCase(),
+          orElse: () => UserRole.candidate,
+        );
 
     // Re-create the profile, then drop the tombstone so login is allowed again.
-    await db.ref(DatabaseKeys.users).child(userId).set(
-      UserModel(
-        id: userId,
-        name: record['name']?.toString() ?? '',
-        email: email,
-        role: role,
-      ).toMap(),
+    final restoredUser = UserModel(
+      id: cleanId,
+      name: finalName,
+      email: finalEmail,
+      role: finalRole,
     );
 
-    await db.ref(DatabaseKeys.deletedUsers).child(userId).remove();
-    deletedUsersList.removeWhere((u) => u.id == userId);
-    usersList.removeWhere((u) => u.id == userId);
+    await db.ref(DatabaseKeys.users).child(cleanId).set(restoredUser.toMap());
+
+    await db.ref(DatabaseKeys.deletedUsers).child(cleanId).remove();
+    deletedUsersList.removeWhere((u) => u.id == cleanId);
+    usersList.removeWhere((u) => u.id == cleanId);
+    usersList.add(restoredUser);
 
     // Pull the restored profile into the local cache.
     await fetchUsers();

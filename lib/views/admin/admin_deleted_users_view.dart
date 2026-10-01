@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -52,12 +53,24 @@ class _AdminDeletedUsersViewState extends State<AdminDeletedUsersView> {
           style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18),
         ),
         actions: [
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.secondary,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+            label: const Text(
+              'Restore by ID',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+            onPressed: () => _showRestoreByIdDialog(context),
+          ),
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _load,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
         ],
       ),
       body: RefreshIndicator(
@@ -113,7 +126,7 @@ class _AdminDeletedUsersViewState extends State<AdminDeletedUsersView> {
         onChanged: (value) => _query.value = value,
         style: GoogleFonts.inter(fontSize: 14),
         decoration: InputDecoration(
-          hintText: 'Search deleted users by name or email...',
+          hintText: 'Search by name, email, or User ID...',
           prefixIcon: const Icon(Icons.search_rounded, size: 20),
           suffixIcon: Obx(
             () => _query.value.isEmpty
@@ -133,33 +146,83 @@ class _AdminDeletedUsersViewState extends State<AdminDeletedUsersView> {
 
   Widget _buildList() {
     return Obx(() {
-      final q = _query.value.toLowerCase();
+      final q = _query.value.toLowerCase().trim();
       final items = controller.deletedUsers
-          .where((u) => q.isEmpty ||
+          .where((u) =>
+              q.isEmpty ||
               u.name.toLowerCase().contains(q) ||
-              u.email.toLowerCase().contains(q))
+              u.email.toLowerCase().contains(q) ||
+              u.id.toLowerCase().contains(q))
           .toList();
 
       if (items.isEmpty) {
         if (!controller.deletedUsersLoaded.value) {
-          return const AdminEmptyState(
-            icon: Icons.cloud_off_rounded,
-            title: 'Could not load deleted accounts',
-            subtitle:
-                'The database denied this read. Deploy the latest rules with: '
-                'firebase deploy --only database',
-            color: Colors.redAccent,
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const AdminEmptyState(
+                    icon: Icons.cloud_off_rounded,
+                    title: 'Could not load deleted accounts',
+                    subtitle:
+                        'The database denied this read or no accounts were found.\n'
+                        'Deploy latest rules: firebase deploy --only database\n\n'
+                        'You can still restore an account directly by entering its User ID below.',
+                    color: Colors.redAccent,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.person_add_alt_1_rounded),
+                    label: const Text('Restore by User ID'),
+                    onPressed: () => _showRestoreByIdDialog(context),
+                  ),
+                ],
+              ),
+            ),
           );
         }
-        return const AdminEmptyState(
-          icon: Icons.restore_rounded,
-          title: 'No deleted accounts',
-          subtitle:
-              'Accounts you delete appear here so you can restore them.\n\n'
-              'If you used Purge, the record is gone and restore is no longer '
-              'possible. That user can still sign in again with their old '
-              'email and password, which recreates their profile.',
-          color: AppColors.primary,
+        return Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AdminEmptyState(
+                  icon: Icons.restore_rounded,
+                  title: 'No deleted accounts',
+                  subtitle:
+                      'Accounts removed by an admin appear here so you can restore them.\n\n'
+                      'Have an account ID from Realtime Database at deleted_users? '
+                      'Tap below to restore it directly.',
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.person_add_alt_1_rounded),
+                  label: const Text('Restore by User ID'),
+                  onPressed: () => _showRestoreByIdDialog(context),
+                ),
+              ],
+            ),
+          ),
         );
       }
 
@@ -171,6 +234,228 @@ class _AdminDeletedUsersViewState extends State<AdminDeletedUsersView> {
         itemBuilder: (context, index) => _DeletedUserCard(record: items[index]),
       );
     });
+  }
+
+  void _showRestoreByIdDialog(BuildContext context) {
+    final idController = TextEditingController();
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final Rx<UserRole> selectedRole = UserRole.candidate.obs;
+    final RxBool isSubmitting = false.obs;
+
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.restore_rounded,
+                  color: AppColors.secondary, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Restore Account by ID',
+                style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w800, fontSize: 17),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter or paste the User ID found in Realtime Database at deleted_users/{id}.',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: idController,
+                style: GoogleFonts.robotoMono(fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'User ID (UID) *',
+                  hintText: 'e.g. 5qO8Yd...',
+                  prefixIcon:
+                      const Icon(Icons.fingerprint_rounded, size: 20),
+                  suffixIcon: IconButton(
+                    tooltip: 'Paste from clipboard',
+                    icon: const Icon(Icons.paste_rounded, size: 20),
+                    onPressed: () async {
+                      final data = await Clipboard.getData('text/plain');
+                      if (data?.text != null &&
+                          data!.text!.trim().isNotEmpty) {
+                        final pasted = data.text!.trim();
+                        idController.text = pasted;
+                        final match =
+                            controller.deletedUsers.firstWhereOrNull(
+                          (u) => u.id == pasted,
+                        );
+                        if (match != null) {
+                          if (match.name.isNotEmpty) {
+                            nameController.text = match.name;
+                          }
+                          if (match.email.isNotEmpty) {
+                            emailController.text = match.email;
+                          }
+                          selectedRole.value = UserRole.values.firstWhere(
+                            (r) =>
+                                r.name.toLowerCase() ==
+                                match.role.toLowerCase(),
+                            orElse: () => UserRole.candidate,
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+                onChanged: (val) {
+                  final trimmed = val.trim();
+                  final match = controller.deletedUsers.firstWhereOrNull(
+                    (u) => u.id == trimmed,
+                  );
+                  if (match != null) {
+                    if (nameController.text.isEmpty &&
+                        match.name.isNotEmpty) {
+                      nameController.text = match.name;
+                    }
+                    if (emailController.text.isEmpty &&
+                        match.email.isNotEmpty) {
+                      emailController.text = match.email;
+                    }
+                    selectedRole.value = UserRole.values.firstWhere(
+                      (r) =>
+                          r.name.toLowerCase() == match.role.toLowerCase(),
+                      orElse: () => UserRole.candidate,
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameController,
+                style: GoogleFonts.inter(fontSize: 13),
+                decoration: const InputDecoration(
+                  labelText: 'Name (optional)',
+                  hintText: 'e.g. John Doe',
+                  prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                style: GoogleFonts.inter(fontSize: 13),
+                decoration: const InputDecoration(
+                  labelText: 'Email (optional)',
+                  hintText: 'e.g. user@example.com',
+                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Role',
+                style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 6),
+              Obx(
+                () => Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: UserRole.values.map((role) {
+                    final selected = selectedRole.value == role;
+                    return ChoiceChip(
+                      label: Text(
+                        role.displayName,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: selected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: selected ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      selected: selected,
+                      selectedColor: AppColors.secondary,
+                      onSelected: (val) {
+                        if (val) selectedRole.value = role;
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: Get.back,
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                  color: Colors.grey[700], fontWeight: FontWeight.w600),
+            ),
+          ),
+          Obx(
+            () => ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: isSubmitting.value
+                  ? null
+                  : () async {
+                      final uid = idController.text.trim();
+                      if (uid.isEmpty) {
+                        Get.snackbar(
+                          'User ID Required',
+                          'Please enter a valid User ID to restore.',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.redAccent,
+                          colorText: Colors.white,
+                        );
+                        return;
+                      }
+                      isSubmitting.value = true;
+                      Get.back();
+                      await controller.restoreUserById(
+                        uid,
+                        name: nameController.text.trim().isNotEmpty
+                            ? nameController.text.trim()
+                            : null,
+                        email: emailController.text.trim().isNotEmpty
+                            ? emailController.text.trim()
+                            : null,
+                        role: selectedRole.value,
+                      );
+                      await _load();
+                    },
+              child: isSubmitting.value
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text('Restore Account',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -215,7 +500,9 @@ class _DeletedUserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<AdminController>();
-    final label = record.name.isEmpty ? record.email : record.name;
+    final label = record.name.isNotEmpty
+        ? record.name
+        : (record.email.isNotEmpty ? record.email : 'User (${record.id})');
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -300,6 +587,39 @@ class _DeletedUserCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
         ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                'UID: ${record.id}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.robotoMono(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+            const SizedBox(width: 4),
+            InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: record.id));
+                Get.snackbar(
+                  'Copied',
+                  'User ID copied: ${record.id}',
+                  snackPosition: SnackPosition.BOTTOM,
+                  duration: const Duration(seconds: 2),
+                );
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Icon(Icons.copy_rounded, size: 14, color: Colors.grey),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 6),
         Row(
           children: [
@@ -334,6 +654,10 @@ class _DeletedUserCard extends StatelessWidget {
   }
 
   void _confirmRestore(BuildContext context, AdminController controller) {
+    final displayName = record.name.isNotEmpty
+        ? record.name
+        : (record.email.isNotEmpty ? record.email : 'UID: ${record.id}');
+
     Get.dialog(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -342,7 +666,7 @@ class _DeletedUserCard extends StatelessWidget {
           style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18),
         ),
         content: Text(
-          '${record.email.isEmpty ? record.name : record.email} will be able to '
+          '$displayName will be able to '
           'log in again and will reappear in the candidate, recruiter, mentor '
           'and instructor lists.\n\nTheir deleted resumes, applications, jobs, '
           'sessions and chats will NOT come back.',

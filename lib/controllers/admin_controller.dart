@@ -20,6 +20,13 @@ class AdminController extends GetxController {
           ? Get.find<AccountAdminService>()
           : Get.put(AccountAdminService(), permanent: true);
 
+  @override
+  void onInit() {
+    super.onInit();
+    refreshDeletedUsers();
+    refreshAccountDeletionAvailability();
+  }
+
   int get totalJobs => _dbService.jobsList.length;
   int get totalApplications => _dbService.applicationsList.length;
   int get totalMentors => _dbService.servicesList.length;
@@ -186,6 +193,7 @@ class AdminController extends GetxController {
     try {
       final result = await _accountAdminService.deleteAccount(userId);
       _applyLocalRemoval(userId);
+      await refreshDeletedUsers();
 
       if (result.authDeleted) {
         _notify(
@@ -224,6 +232,7 @@ class AdminController extends GetxController {
   Future<bool> _deleteWithoutCloudFunction(String userId, String name) async {
     try {
       final result = await _dbService.deleteUserCascade(userId);
+      await refreshDeletedUsers();
 
       final note = result.email.isEmpty ? '' : ' (${result.email})';
       _notify(
@@ -285,12 +294,23 @@ class AdminController extends GetxController {
   /// jobs, sessions and chats are gone for good.
   Future<bool> restoreUser(DeletedUserModel deleted) async {
     try {
-      await _dbService.restoreUser(deleted.id);
+      await _dbService.restoreUser(
+        deleted.id,
+        name: deleted.name,
+        email: deleted.email,
+        role: UserRole.values.firstWhere(
+          (r) => r.name.toLowerCase() == deleted.role.toLowerCase(),
+          orElse: () => UserRole.candidate,
+        ),
+      );
+      final displayName = deleted.name.isNotEmpty
+          ? deleted.name
+          : (deleted.email.isNotEmpty ? deleted.email : 'User ${deleted.id}');
       _notify(
         title: 'Account Restored',
-        message: '${deleted.name.isEmpty ? deleted.email : deleted.name} can '
-            'log in again. Their previous resumes, applications and posts were '
-            'deleted permanently and were not restored.',
+        message: '$displayName can log in again. Their profile has been '
+            're-created in Realtime Database. Previous resumes, applications '
+            'and posts were deleted permanently and were not restored.',
         background: AppColors.secondary,
         action: TextButton(
           onPressed: Get.closeAllSnackbars,
@@ -299,7 +319,48 @@ class AdminController extends GetxController {
       );
       return true;
     } catch (e) {
-      _showError('Restore Failed', 'Could not restore ${deleted.email}: $e');
+      final label = deleted.email.isNotEmpty ? deleted.email : deleted.id;
+      _showError('Restore Failed', 'Could not restore $label: $e');
+      return false;
+    }
+  }
+
+  /// Restores a removed account directly by User ID.
+  Future<bool> restoreUserById(
+    String userId, {
+    String? name,
+    String? email,
+    UserRole? role,
+  }) async {
+    final cleanId = userId.trim();
+    if (cleanId.isEmpty) {
+      _showError('Invalid ID', 'Please provide a valid User ID.');
+      return false;
+    }
+
+    try {
+      await _dbService.restoreUser(
+        cleanId,
+        name: name,
+        email: email,
+        role: role,
+      );
+      final label = (name != null && name.trim().isNotEmpty)
+          ? name.trim()
+          : ((email != null && email.trim().isNotEmpty) ? email.trim() : cleanId);
+
+      _notify(
+        title: 'Account Restored',
+        message: '$label can now log in again. Profile was successfully recreated in Realtime Database.',
+        background: AppColors.secondary,
+        action: TextButton(
+          onPressed: Get.closeAllSnackbars,
+          child: const Text('OK', style: TextStyle(color: Colors.white)),
+        ),
+      );
+      return true;
+    } catch (e) {
+      _showError('Restore Failed', 'Could not restore user $cleanId: $e');
       return false;
     }
   }

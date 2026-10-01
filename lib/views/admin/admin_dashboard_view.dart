@@ -15,13 +15,17 @@ class AdminDashboardView extends GetView<AdminController> {
   Widget build(BuildContext context) {
     final jobController = Get.find<JobController>();
 
-    // Check once whether Auth-account deletion is available.
+    // Refresh status and deleted accounts list
     controller.refreshAccountDeletionAvailability();
+    controller.refreshDeletedUsers();
 
     return RefreshIndicator(
       onRefresh: () async {
         final dbService = Get.find<DatabaseService>();
-        await dbService.fetchAllData();
+        await Future.wait([
+          dbService.fetchAllData(),
+          controller.refreshDeletedUsers(),
+        ]);
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
