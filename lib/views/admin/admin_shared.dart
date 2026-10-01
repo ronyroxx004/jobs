@@ -286,7 +286,65 @@ class AdminEmptyState extends StatelessWidget {
   }
 }
 
-/// Opens the edit screen for a user from any admin role screen.
+/// Watches a [ScrollController] and reports whether the top header should be
+/// shown.
+///
+/// Hides while scrolling down, reveals again when scrolling up, and always
+/// reveals at the very top of the list.
+class HeaderCollapseNotifier {
+  HeaderCollapseNotifier(this.controller);
+
+  final ScrollController controller;
+  final RxBool visible = true.obs;
+
+  double _lastOffset = 0;
+
+  void onScroll() {
+    if (!controller.hasClients) return;
+    final offset = controller.position.pixels;
+    if (offset == _lastOffset) return;
+
+    final delta = offset - _lastOffset;
+    _lastOffset = offset;
+
+    if (offset <= 12) {
+      // Always visible at the top of the list.
+      if (!visible.value) visible.value = true;
+      return;
+    }
+    if (delta > 6 && visible.value) {
+      visible.value = false;
+    } else if (delta < -6 && !visible.value) {
+      visible.value = true;
+    }
+  }
+}
+
+/// Animates its [child] away when [visible] is false, reclaiming the space.
+class CollapsibleHeader extends StatelessWidget {
+  final bool visible;
+  final Widget child;
+
+  const CollapsibleHeader({
+    super.key,
+    required this.visible,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOutCubic,
+      alignment: Alignment.topCenter,
+      child: visible
+          ? child
+          : const SizedBox(width: double.infinity, height: 0),
+    );
+  }
+}
+
+/// Opens the delete-user confirmation for a user from any admin role screen.
 void adminEditUser(UserModel user) {
   Get.to(
     () => AdminUserProfileView(user: user, role: user.role),

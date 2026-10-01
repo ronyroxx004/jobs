@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
+import '../models/deleted_user_model.dart';
 import 'firestore_service.dart';
 import '../models/job_model.dart';
 import '../models/resume_model.dart';
@@ -33,6 +35,9 @@ class DatabaseService extends GetxService {
   final RxList<CourseModel> coursesList = <CourseModel>[].obs;
   final RxList<ChatRoomModel> chatRoomsList = <ChatRoomModel>[].obs;
   final RxList<UserModel> usersList = <UserModel>[].obs;
+
+  /// Admin-removed accounts kept as tombstones so they can be restored.
+  final RxList<DeletedUserModel> deletedUsersList = <DeletedUserModel>[].obs;
 
   @override
   void onInit() {
@@ -129,10 +134,12 @@ class DatabaseService extends GetxService {
     // Preserve a tombstone BEFORE clearing the profile, so an in-flight login
     // cannot recreate the account from the deleted profile document.
     await db.ref(DatabaseKeys.deletedUsers).child(userId).set({
+      'uid': userId,
       'email': user?.email ?? '',
       'name': user?.name ?? '',
-      'role': user?.role.name ?? '',
+      'role': user?.role.name ?? UserRole.candidate.name,
       'deletedAt': DateTime.now().toIso8601String(),
+      'deletedBy': _currentAdminId(),
     });
 
     await Future.wait([
@@ -172,6 +179,103 @@ class DatabaseService extends GetxService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// All accounts removed by an admin, newest first.
+  ///
+  /// Throws a [StateError] when the read is denied so the UI can report the
+  /// real problem instead of silently showing an empty list.
+  Future<List<DeletedUserModel>> fetchDeletedUsers() async {
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available.');
+    }
+
+    final snapshot = await db.ref(DatabaseKeys.deletedUsers).get();
+    final deleted = <DeletedUserModel>[];
+    final value = snapshot.value;
+
+    if (value is Map) {
+      value.forEach((key, entry) {
+        if (entry is Map) {
+          deleted.add(DeletedUserModel.fromMap(
+            Map<String, dynamic>.from(entry),
+            key.toString(),
+          ));
+        }
+      });
+    }
+
+    deleted.sort((a, b) => b.deletedAt.compareTo(a.deletedAt));
+    return deleted;
+  }
+
+  /// Restores a removed account's login + profile.
+  ///
+  /// Only the account and its profile come back: resumes, applications, jobs,
+  /// sessions and chats were deleted permanently and cannot be recovered.
+  Future<void> restoreUser(String userId) async {
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available.');
+    }
+
+    final snapshot = await db.ref(DatabaseKeys.deletedUsers).child(userId).get();
+    final raw = snapshot.value;
+    if (!snapshot.exists || raw is! Map) {
+      throw StateError('This account is not in the deleted list.');
+    }
+
+    final record = Map<String, dynamic>.from(raw);
+    final email = record['email']?.toString() ?? '';
+    final roleName = record['role']?.toString() ?? UserRole.candidate.name;
+    final role = UserRole.values.firstWhere(
+      (r) => r.name == roleName,
+      orElse: () => UserRole.candidate,
+    );
+
+    // Re-create the profile, then drop the tombstone so login is allowed again.
+    await db.ref(DatabaseKeys.users).child(userId).set(
+      UserModel(
+        id: userId,
+        name: record['name']?.toString() ?? '',
+        email: email,
+        role: role,
+      ).toMap(),
+    );
+
+    await db.ref(DatabaseKeys.deletedUsers).child(userId).remove();
+    deletedUsersList.removeWhere((u) => u.id == userId);
+    usersList.removeWhere((u) => u.id == userId);
+
+    // Pull the restored profile into the local cache.
+    await fetchUsers();
+  }
+
+  /// Removes the tombstone permanently - the account can never be restored.
+  Future<void> purgeDeletedUser(String userId) async {
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available.');
+    }
+    await db.ref(DatabaseKeys.deletedUsers).child(userId).remove();
+    deletedUsersList.removeWhere((u) => u.id == userId);
+  }
+
+  /// Best-effort id of the signed-in admin, recorded on the tombstone.
+  String _currentAdminId() {
+    try {
+      // Read from Firebase Auth directly to avoid a circular dependency on
+      // AuthService (which itself depends on this service).
+      return FirebaseAuth.instance.currentUser?.uid ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Refreshes the local list of admin-removed accounts.
+  Future<void> refreshDeletedUsers() async {
+    deletedUsersList.assignAll(await fetchDeletedUsers());
   }
 
   Future<void> _purgeResumes(FirebaseDatabase db, String userId) async {

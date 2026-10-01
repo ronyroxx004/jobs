@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
+import '../services/account_admin_service.dart';
 import '../core/utils/constants.dart';
 import '../models/user_model.dart';
+import '../models/deleted_user_model.dart';
 import '../models/job_model.dart';
 import '../models/application_model.dart';
 import '../models/course_model.dart';
@@ -12,6 +15,10 @@ import '../models/service_model.dart';
 class AdminController extends GetxController {
   final DatabaseService _dbService = Get.find<DatabaseService>();
   final AuthService _authService = Get.find<AuthService>();
+  final AccountAdminService _accountAdminService =
+      Get.isRegistered<AccountAdminService>()
+          ? Get.find<AccountAdminService>()
+          : Get.put(AccountAdminService(), permanent: true);
 
   int get totalJobs => _dbService.jobsList.length;
   int get totalApplications => _dbService.applicationsList.length;
@@ -162,9 +169,13 @@ class AdminController extends GetxController {
 
   /// Deletes a user and all of their data.
   ///
+  /// Prefers the `deleteUserAccount` Cloud Function, which is the only way to
+  /// also remove the Firebase Auth account. If the function is not deployed it
+  /// falls back to deleting everything from Realtime Database / Firestore
+  /// directly, and says so.
+  ///
   /// Returns true on success. On failure the reason is shown to the admin and
-  /// false is returned, instead of throwing an unhandled async error that used
-  /// to make the delete look like a silent no-op.
+  /// false is returned, instead of throwing an unhandled async error.
   Future<bool> deleteUser(String userId, String name) async {
     final self = _authService.currentUser.value;
     if (self != null && self.id == userId) {
@@ -173,16 +184,113 @@ class AdminController extends GetxController {
     }
 
     try {
+      final result = await _accountAdminService.deleteAccount(userId);
+      _applyLocalRemoval(userId);
+
+      if (result.authDeleted) {
+        _notify(
+          title: 'Account Deleted',
+          message: '$name was removed from Firebase Authentication, '
+              'Realtime Database and Firestore '
+              '(${result.totalRemoved} records cleared).',
+          background: AppColors.secondary,
+          action: TextButton(
+            onPressed: Get.closeAllSnackbars,
+            child: const Text('OK', style: TextStyle(color: Colors.white)),
+          ),
+        );
+      } else {
+        _notify(
+          title: 'Data Deleted',
+          message: '$name\'s data was removed (${result.totalRemoved} records), '
+              'but the Firebase Auth account could not be deleted: '
+              '${result.authError ?? 'unknown error'}. '
+              'Remove it in Firebase Console > Authentication.',
+          background: AppColors.warning,
+        );
+      }
+      return true;
+    } on AccountDeletionUnavailable catch (e) {
+      // Cloud Function unavailable -> clean up the data ourselves.
+      debugPrint('Cloud delete unavailable: ${e.message}');
+      return _deleteWithoutCloudFunction(userId, name);
+    } catch (e) {
+      debugPrint('Unexpected delete error: $e');
+      return _deleteWithoutCloudFunction(userId, name);
+    }
+  }
+
+  /// Fallback path: removes profile + related records using the client SDK.
+  Future<bool> _deleteWithoutCloudFunction(String userId, String name) async {
+    try {
       final result = await _dbService.deleteUserCascade(userId);
 
-      // Firebase Auth accounts can only be deleted by the account owner from a
-      // client SDK, so flag it explicitly instead of silently leaving it alive.
       final note = result.email.isEmpty ? '' : ' (${result.email})';
-
       _notify(
-        title: 'User Removed',
-        message: 'Deleted $name$note. Their login account must also be removed '
-            'in Firebase Console > Authentication.',
+        title: 'Realtime Data Deleted',
+        message: '$name$note was removed from Realtime Database, but the '
+            'Firebase Auth account still exists.\n\n'
+            'Deleting another user\'s login requires the deleteUserAccount '
+            'Cloud Function, which needs the Blaze (pay-as-you-go) plan:\n'
+            '1. Upgrade: console.firebase.google.com/project/jobs-37214/usage/details\n'
+            '2. Deploy: firebase deploy --only functions',
+        background: AppColors.warning,
+        action: TextButton(
+          onPressed: () async {
+            Get.closeAllSnackbars();
+            await restoreUser(
+              DeletedUserModel(
+                id: userId,
+                name: name,
+                email: result.email,
+                deletedAt: DateTime.now(),
+              ),
+            );
+          },
+          child: const Text('UNDO', style: TextStyle(color: Colors.white)),
+        ),
+      );
+      return true;
+    } catch (e) {
+      final details = await describeAdminAccess();
+      _showError(
+        'Delete Failed',
+        'Could not delete $name.\n\n${_friendlyError(e)}\n\n$details',
+      );
+      return false;
+    }
+  }
+
+  /// True when Auth-account deletion is available (Cloud Function deployed).
+  final RxBool canDeleteAuthAccounts = false.obs;
+
+  /// True once the deleted-users list has loaded successfully at least once.
+  final RxBool deletedUsersLoaded = false.obs;
+
+  /// Checks once whether server-side Auth deletion is available.
+  Future<void> refreshAccountDeletionAvailability() async {
+    try {
+      canDeleteAuthAccounts.value = await _accountAdminService.isDeployed();
+    } catch (_) {
+      canDeleteAuthAccounts.value = false;
+    }
+  }
+
+  /// Accounts an admin has removed, newest first.
+  List<DeletedUserModel> get deletedUsers => _dbService.deletedUsersList;
+
+  /// Restores a removed account so the person can log in again.
+  ///
+  /// Brings back the login and profile only - deleted resumes, applications,
+  /// jobs, sessions and chats are gone for good.
+  Future<bool> restoreUser(DeletedUserModel deleted) async {
+    try {
+      await _dbService.restoreUser(deleted.id);
+      _notify(
+        title: 'Account Restored',
+        message: '${deleted.name.isEmpty ? deleted.email : deleted.name} can '
+            'log in again. Their previous resumes, applications and posts were '
+            'deleted permanently and were not restored.',
         background: AppColors.secondary,
         action: TextButton(
           onPressed: Get.closeAllSnackbars,
@@ -191,12 +299,61 @@ class AdminController extends GetxController {
       );
       return true;
     } catch (e) {
+      _showError('Restore Failed', 'Could not restore ${deleted.email}: $e');
+      return false;
+    }
+  }
+
+  /// Deletes the tombstone so the account can never be restored.
+  Future<bool> purgeDeletedUser(DeletedUserModel deleted) async {
+    try {
+      await _dbService.purgeDeletedUser(deleted.id);
+      _notify(
+        title: 'Record Purged',
+        message: 'The restore option for '
+            '${deleted.email.isEmpty ? deleted.name : deleted.email} is gone.',
+        background: AppColors.error,
+      );
+      return true;
+    } catch (e) {
+      _showError('Purge Failed', 'Could not purge the record: $e');
+      return false;
+    }
+  }
+
+  /// Loads the list of removed accounts.
+  ///
+  /// Returns false and reports the reason when the read is denied, so the UI
+  /// never claims "0 deleted accounts" when the list simply could not load.
+  Future<bool> refreshDeletedUsers() async {
+    try {
+      await _dbService.refreshDeletedUsers();
+      deletedUsersLoaded.value = true;
+      return true;
+    } catch (e) {
+      _dbService.deletedUsersList.clear();
+      deletedUsersLoaded.value = false;
       _showError(
-        'Delete Failed',
-        'Could not delete $name. ${_friendlyError(e)}',
+        'Could not load deleted users',
+        'The Realtime Database denied this read. Deploy the latest rules:\n'
+        'firebase deploy --only database\n\n'
+        '(${_friendlyError(e)})',
       );
       return false;
     }
+  }
+
+  /// Mirrors the server-side cleanup into the local reactive caches.
+  void _applyLocalRemoval(String userId) {
+    _dbService.usersList.removeWhere((u) => u.id == userId);
+    _dbService.resumeList.removeWhere((r) => r.userId == userId);
+    _dbService.applicationsList.removeWhere((a) => a.candidateId == userId);
+    _dbService.jobsList.removeWhere((j) => j.recruiterId == userId);
+    _dbService.servicesList.removeWhere((s) => s.mentorId == userId);
+    _dbService.bookingsList.removeWhere(
+        (b) => b.mentorId == userId || b.candidateId == userId);
+    _dbService.chatRoomsList
+        .removeWhere((c) => c.participantIds.contains(userId));
   }
 
   /// Shows a snackbar without ever throwing. Snackbars need a mounted overlay,
@@ -223,6 +380,36 @@ class AdminController extends GetxController {
     }
   }
 
+  /// Diagnostics for admin write access, surfaced from the delete error path so
+  /// a `permission-denied` can be diagnosed without guessing.
+Future<String> describeAdminAccess() async {
+    final user = _authService.currentUser.value;
+    if (user == null) {
+      return 'No user is currently signed in.';
+    }
+
+    final lines = <String>[
+      'Signed in as: ${user.email.isEmpty ? '(no email)' : user.email}',
+      'App role: ${user.role.displayName}',
+    ];
+
+    try {
+      final tokenEmail = FirebaseAuth.instance.currentUser?.email;
+      lines.add('Auth email: ${tokenEmail ?? '(not signed in)' }');
+      if (tokenEmail != null && tokenEmail.toLowerCase() != 'admin@gmail.com') {
+        lines.add(
+          'Rules expect admin@gmail.com, so writes are denied for this email.',
+        );
+      }
+    } catch (_) {
+      lines.add('Auth email: unavailable (Firebase Auth not initialised)');
+    }
+
+    final tombstone = await _dbService.isUserDeleted('__probe__');
+    lines.add('Can read deleted_users: ${tombstone ? "yes" : "no/denied"}');
+    return lines.join('\n');
+  }
+
   void _showError(String title, String message) {
     _notify(
       title: title,
@@ -235,8 +422,11 @@ class AdminController extends GetxController {
     final raw = error.toString();
     if (raw.contains('permission-denied') ||
         raw.contains('PERMISSION_DENIED')) {
-      return 'Database rules denied this action. Check your Firebase rules '
-          'allow admins to write to the users collection.';
+      return 'Database rules denied this action.\n\n'
+          'Admin deletes require your account email to be admin@gmail.com '
+          '(Firebase Auth > Sign-in method > Email/Password must be enabled). '
+          'Also confirm you deployed the latest rules: '
+          'firebase deploy --only database,firestore';
     }
     if (raw.contains('not available') || raw.contains('not connected')) {
       return 'No Firebase connection. Check your internet connection.';

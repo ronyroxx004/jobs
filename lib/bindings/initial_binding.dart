@@ -3,6 +3,7 @@ import '../services/database_service.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../services/app_status_service.dart';
+import '../services/account_admin_service.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/job_controller.dart';
@@ -22,6 +23,7 @@ class InitialBinding extends Bindings {
     Get.put<AuthService>(AuthService(), permanent: true);
     Get.put<AppStatusService>(AppStatusService(), permanent: true);
     Get.put<ThemeController>(ThemeController(), permanent: true);
+    Get.put<AccountAdminService>(AccountAdminService(), permanent: true);
 
     // Controllers
     Get.put<AuthController>(AuthController(), permanent: true);

@@ -16,4 +16,5 @@ abstract class AppRoutes {
   static const postCourse = '/post-course';
   static const lessonView = '/lesson-view';
   static const chatDetail = '/chat-detail';
+  static const adminDeletedUsers = '/admin-deleted-users';
 }

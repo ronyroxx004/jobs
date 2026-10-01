@@ -22,8 +22,22 @@ class _AdminInstructorsViewState extends State<AdminInstructorsView> {
   final TextEditingController _searchController = TextEditingController();
   final RxString _query = ''.obs;
 
+  late final ScrollController _scrollController;
+  late final HeaderCollapseNotifier _header;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _header = HeaderCollapseNotifier(_scrollController);
+    _scrollController.addListener(_header.onScroll);
+  }
+
   @override
   void dispose() {
+    _scrollController
+      ..removeListener(_header.onScroll)
+      ..dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -37,7 +51,13 @@ class _AdminInstructorsViewState extends State<AdminInstructorsView> {
       child: SafeArea(
         child: Column(
           children: [
-            _buildHeader(controller),
+            // Heading + stat tiles collapse away when scrolling down.
+            Obx(
+              () => CollapsibleHeader(
+                visible: _header.visible.value,
+                child: _buildCollapsibleHeader(controller),
+              ),
+            ),
             _buildSearch(),
             Expanded(child: _buildInstructorList(controller)),
           ],
@@ -46,7 +66,7 @@ class _AdminInstructorsViewState extends State<AdminInstructorsView> {
     );
   }
 
-  Widget _buildHeader(AdminController controller) {
+  Widget _buildCollapsibleHeader(AdminController controller) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
       child: Column(
@@ -172,6 +192,7 @@ Widget _buildInstructorList(AdminController controller) {
       }
 
       return ListView.separated(
+        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: instructors.length,

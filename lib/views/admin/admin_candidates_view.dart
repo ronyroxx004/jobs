@@ -22,6 +22,9 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
   final RxString _query = ''.obs;
   final RxString _filter = 'All'.obs;
 
+  late final ScrollController _scrollController;
+  late final HeaderCollapseNotifier _header;
+
   static const List<String> _filters = [
     'All',
     'Verified',
@@ -31,7 +34,18 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _header = HeaderCollapseNotifier(_scrollController);
+    _scrollController.addListener(_header.onScroll);
+  }
+
+  @override
   void dispose() {
+    _scrollController
+      ..removeListener(_header.onScroll)
+      ..dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -45,7 +59,14 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
       child: SafeArea(
         child: Column(
           children: [
-            _buildHeader(controller),
+            // Heading + stat tiles collapse away when scrolling down.
+            Obx(
+              () => CollapsibleHeader(
+                visible: _header.visible.value,
+                child: _buildCollapsibleHeader(controller),
+              ),
+            ),
+            _buildSearch(),
             _buildFilterBar(),
             Expanded(child: _buildCandidateGrid(controller)),
           ],
@@ -54,9 +75,24 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
     );
   }
 
-  Widget _buildHeader(AdminController controller) {
+  Widget _buildSearch() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: AdminSearchField(
+        controller: _searchController,
+        hint: 'Search name, email, skill or location...',
+        onChanged: (value) => _query.value = value,
+        onClear: () {
+          _searchController.clear();
+          _query.value = '';
+        },
+      ),
+    );
+  }
+
+  Widget _buildCollapsibleHeader(AdminController controller) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -137,16 +173,6 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
             ),
           ),
           const SizedBox(height: 14),
-          AdminSearchField(
-            controller: _searchController,
-            hint: 'Search name, email, skill or location...',
-            onChanged: (value) => _query.value = value,
-            onClear: () {
-              _searchController.clear();
-              _query.value = '';
-            },
-          ),
-          const SizedBox(height: 12),
         ],
       ),
     );
@@ -212,6 +238,7 @@ Widget _buildFilterBar() {
       }
 
       return GridView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         physics: const AlwaysScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(

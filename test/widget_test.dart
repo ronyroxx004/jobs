@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:jobs/controllers/admin_controller.dart';
@@ -7,6 +7,7 @@ import 'package:jobs/models/course_model.dart';
 import 'package:jobs/models/job_model.dart';
 import 'package:jobs/models/service_model.dart';
 import 'package:jobs/models/user_model.dart';
+import 'package:jobs/models/deleted_user_model.dart';
 import 'package:jobs/services/auth_service.dart';
 import 'package:jobs/services/database_service.dart';
 import 'package:jobs/services/firestore_service.dart';
@@ -266,4 +267,71 @@ void main() {
     final db = Get.find<DatabaseService>();
     expect(await db.isUserDeleted('c1'), isFalse);
   });
+
+  group('deleted users restore', () {
+    testWidgets('restore reports failure instead of throwing', (tester) async {
+      await tester.pumpWidget(const GetMaterialApp(home: Scaffold()));
+      await tester.pump();
+      seed();
+      final controller = Get.find<AdminController>();
+
+      // Simulate a tombstone left by a previous admin deletion.
+      dbService.deletedUsersList.assignAll([
+        DeletedUserModel(
+          id: 'c1',
+          name: 'Ada Candidate',
+          email: 'ada@example.com',
+          role: 'candidate',
+          deletedAt: _testDate,
+        ),
+      ]);
+      expect(controller.deletedUsers.length, 1);
+
+      // Without Firebase we cannot write, so restore must report failure
+      // rather than pretending it worked or throwing.
+      final ok = await controller.restoreUser(controller.deletedUsers.first);
+      Get.closeAllSnackbars();
+      await tester.pumpAndSettle();
+
+      expect(ok, isFalse);
+      expect(controller.deletedUsers.length, 1,
+          reason: 'record must remain when the restore failed');
+    });
+
+    test('deletedUsers exposes tombstones newest first', () {
+      final older = DeletedUserModel(
+        id: 'a',
+        email: 'a@x.com',
+        deletedAt: DateTime(2024, 1, 1),
+      );
+      final newer = DeletedUserModel(
+        id: 'b',
+        email: 'b@x.com',
+        deletedAt: DateTime(2024, 6, 1),
+      );
+      final list = <DeletedUserModel>[older, newer]..sort(
+          (x, y) => y.deletedAt.compareTo(x.deletedAt));
+
+      expect(list.first.id, 'b');
+    });
+
+    test('tombstone round-trips through a map', () {
+      final model = DeletedUserModel(
+        id: 'u1',
+        name: 'Rex Recruiter',
+        email: 'rex@example.com',
+        role: 'recruiter',
+        deletedAt: _testDate,
+      );
+      final restored =
+          DeletedUserModel.fromMap(model.toMap(), 'u1');
+
+      expect(restored.id, 'u1');
+      expect(restored.email, 'rex@example.com');
+      expect(restored.role, 'recruiter');
+      expect(restored.name, 'Rex Recruiter');
+    });
+  });
 }
+
+final _testDate = DateTime.utc(2024, 5, 5, 12);

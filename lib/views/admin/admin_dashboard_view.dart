@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/admin_controller.dart';
 import '../../controllers/job_controller.dart';
 import '../../core/utils/constants.dart';
+import '../../core/routes/app_routes.dart';
 import '../../services/database_service.dart';
 import 'admin_shared.dart';
 
@@ -13,6 +14,9 @@ class AdminDashboardView extends GetView<AdminController> {
   @override
   Widget build(BuildContext context) {
     final jobController = Get.find<JobController>();
+
+    // Check once whether Auth-account deletion is available.
+    controller.refreshAccountDeletionAvailability();
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -36,6 +40,9 @@ class AdminDashboardView extends GetView<AdminController> {
                   style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
+
+                _buildDeletedUsersEntry(context, controller),
+                _buildAuthDeletionBanner(context, controller),
 
                 // Revenue & Metrics Overview
                 Row(
@@ -201,6 +208,126 @@ class AdminDashboardView extends GetView<AdminController> {
         ),
       ),
     );
+  }
+
+  /// Entry point to the restore list for accounts an admin has removed.
+  Widget _buildDeletedUsersEntry(
+      BuildContext context, AdminController controller) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Obx(
+        () => InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Get.toNamed(AppRoutes.adminDeletedUsers),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.restore_rounded,
+                    color: AppColors.primary, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Deleted Users',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${controller.deletedUsers.length} account'
+                        '${controller.deletedUsers.length == 1 ? '' : 's'} '
+                        'can be restored',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Warns when Firebase Auth accounts cannot be deleted yet, because the
+  /// deleteUserAccount Cloud Function is not deployed.
+  Widget _buildAuthDeletionBanner(
+      BuildContext context, AdminController controller) {
+    return Obx(() {
+      if (controller.canDeleteAuthAccounts.value) {
+        return const SizedBox.shrink();
+      }
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline_rounded,
+                  color: AppColors.warning, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Auth deletion unavailable',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Deleting a user clears Realtime Database now, but their '
+                      'Firebase login stays until the deleteUserAccount '
+                      'function is deployed (needs the Blaze plan):\n'
+                      'firebase deploy --only functions',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        height: 1.5,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Check again',
+                icon: const Icon(Icons.refresh_rounded,
+                    size: 18, color: AppColors.warning),
+                onPressed: controller.refreshAccountDeletionAvailability,
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildMetricCard(String title, String value, IconData icon, Color color) {

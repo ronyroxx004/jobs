@@ -25,8 +25,22 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
 
   static const List<String> _sorts = ['Earnings', 'Bookings', 'Services', 'Name'];
 
+  late final ScrollController _scrollController;
+  late final HeaderCollapseNotifier _header;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _header = HeaderCollapseNotifier(_scrollController);
+    _scrollController.addListener(_header.onScroll);
+  }
+
   @override
   void dispose() {
+    _scrollController
+      ..removeListener(_header.onScroll)
+      ..dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -39,9 +53,18 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
       onRefresh: () => Get.find<DatabaseService>().fetchAllData(),
       child: SafeArea(
         child: CustomScrollView(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(child: _buildHeader(controller)),
+            // Hero card + stat tiles collapse away when scrolling down.
+            SliverToBoxAdapter(
+              child: Obx(
+                () => CollapsibleHeader(
+                  visible: _header.visible.value,
+                  child: _buildCollapsibleHeader(controller),
+                ),
+              ),
+            ),
             SliverToBoxAdapter(child: _buildControls()),
             _buildMentorList(controller),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -51,7 +74,7 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
     );
   }
 
-  Widget _buildHeader(AdminController controller) {
+  Widget _buildCollapsibleHeader(AdminController controller) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
       child: Column(
