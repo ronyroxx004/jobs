@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/job_controller.dart';
 import '../../controllers/profile_controller.dart';
 import '../../services/auth_service.dart';
@@ -83,7 +85,106 @@ class JobDetailView extends GetView<JobController> {
           ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            onPressed: () {},
+            onPressed: () {
+              Get.bottomSheet(
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.cardDark : Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Share Job',
+                        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Share "${job.title}" at ${job.companyName}',
+                        style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 20),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.chat_bubble_rounded,
+                            color: Colors.green,
+                            size: 22,
+                          ),
+                        ),
+                        title: Text(
+                          'Share to WhatsApp',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          'Send directly via WhatsApp chat or status',
+                          style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                        ),
+                        onTap: () async {
+                          Get.back();
+                          final shareText = 'Check out this job opening!\n\n*${job.title}* at *${job.companyName}*\n📍 Location: ${job.location}\n💰 Salary: ${job.salaryRange}\n💼 Type: ${job.jobType}\n\nRequirements:\n${job.requirements.take(3).map((r) => '• $r').join('\n')}\n\nApply now on Jobs App!';
+                          final whatsappUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(shareText)}');
+                          if (await canLaunchUrl(whatsappUrl)) {
+                            await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+                          } else {
+                            await Share.share(shareText);
+                          }
+                        },
+                      ),
+                      const Divider(height: 24),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.share_outlined,
+                            color: AppColors.primary,
+                            size: 22,
+                          ),
+                        ),
+                        title: Text(
+                          'More Share Options',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          'Share via other apps or copy link',
+                          style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                        ),
+                        onTap: () async {
+                          Get.back();
+                          final shareText = 'Check out this job opening: ${job.title} at ${job.companyName} (${job.location}). Salary: ${job.salaryRange}. Apply now on Jobs App!';
+                          await Share.share(shareText);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                isScrollControlled: true,
+              );
+            },
           ),
         ],
       ),
