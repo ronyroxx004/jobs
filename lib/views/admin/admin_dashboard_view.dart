@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../controllers/admin_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/database_service.dart';
-import 'admin_shared.dart';
 
 class AdminDashboardView extends GetView<AdminController> {
   const AdminDashboardView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Refresh status and deleted accounts list
-    controller.refreshAccountDeletionAvailability();
+    // Refresh deleted accounts list
     controller.refreshDeletedUsers();
 
     return RefreshIndicator(
@@ -37,13 +36,10 @@ class AdminDashboardView extends GetView<AdminController> {
                   style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'System analytics, platform health & user management',
+                  'System analytics & platform health',
                   style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
-
-                _buildDeletedUsersEntry(context, controller),
-                _buildAuthDeletionBanner(context, controller),
 
                 // Revenue & Metrics Overview
                 Row(
@@ -93,73 +89,11 @@ class AdminDashboardView extends GetView<AdminController> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
-                // User Management List (All Users, Recruiters, Mentors, Instructors)
-                Text(
-                  'Platform Users Management',
-                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Manage all users, recruiters, mentors, and instructors',
-                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 10),
-
-                Obx(() {
-                  final users = controller.allUsers;
-                  if (users.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Center(
-                        child: Text('No users found', style: GoogleFonts.inter(color: Colors.grey)),
-                      ),
-                    );
-                  }
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: users.length,
-                    itemBuilder: (context, index) {
-                      final user = users[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
-                            child: Text(
-                              user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                              style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          title: Text(user.name, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
-                          subtitle: Text('${user.email}\nRole: ${user.role.displayName}'),
-                          isThreeLine: true,
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            tooltip: 'Delete User',
-                            onPressed: () => adminConfirmDeleteUser(user),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                }),
-
-                const SizedBox(height: 24),
-                // End of page refresh section
-                Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        "You've reached the end of administration panel",
-                        style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
+                // Deleted Users Entry moved to the bottom
+                _buildDeletedUsersEntry(context, controller),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -171,121 +105,53 @@ class AdminDashboardView extends GetView<AdminController> {
   /// Entry point to the restore list for accounts an admin has removed.
   Widget _buildDeletedUsersEntry(
       BuildContext context, AdminController controller) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Obx(
-        () => InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => Get.toNamed(AppRoutes.adminDeletedUsers),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.25)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.restore_rounded,
-                    color: AppColors.primary, size: 22),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Deleted Users',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${controller.deletedUsers.length} account'
-                        '${controller.deletedUsers.length == 1 ? '' : 's'} '
-                        'can be restored',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Warns when Firebase Auth accounts cannot be deleted yet, because the
-  /// deleteUserAccount Cloud Function is not deployed.
-  Widget _buildAuthDeletionBanner(
-      BuildContext context, AdminController controller) {
-    return Obx(() {
-      if (controller.canDeleteAuthAccounts.value) {
-        return const SizedBox.shrink();
-      }
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+    return Obx(
+      () => InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Get.toNamed(AppRoutes.adminDeletedUsers),
         child: Container(
-          width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.warning.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25)),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.info_outline_rounded,
-                  color: AppColors.warning, size: 20),
-              const SizedBox(width: 10),
+              const Icon(Icons.restore_rounded,
+                  color: AppColors.primary, size: 22),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Auth deletion unavailable',
+                      'Deleted Users',
                       style: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: Colors.grey[800],
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      'Deleting a user clears Realtime Database now, but their '
-                      'Firebase login stays until the deleteUserAccount '
-                      'function is deployed (needs the Blaze plan):\n'
-                      'firebase deploy --only functions',
+                      '${controller.deletedUsers.length} account'
+                      '${controller.deletedUsers.length == 1 ? '' : 's'} '
+                      'can be restored',
                       style: GoogleFonts.inter(
                         fontSize: 11,
-                        height: 1.5,
-                        color: Colors.grey[700],
+                        color: Colors.grey[600],
                       ),
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: 'Check again',
-                icon: const Icon(Icons.refresh_rounded,
-                    size: 18, color: AppColors.warning),
-                onPressed: controller.refreshAccountDeletionAvailability,
-              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.grey),
             ],
           ),
         ),
-      );
-    });
+      ),
+    );
   }
 
   Widget _buildMetricCard(
