@@ -26,21 +26,16 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
   static const List<String> _sorts = ['Earnings', 'Bookings', 'Services', 'Name'];
 
   late final ScrollController _scrollController;
-  late final HeaderCollapseNotifier _header;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _header = HeaderCollapseNotifier(_scrollController);
-    _scrollController.addListener(_header.onScroll);
   }
 
   @override
   void dispose() {
-    _scrollController
-      ..removeListener(_header.onScroll)
-      ..dispose();
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -56,18 +51,22 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // Hero card + stat tiles collapse away when scrolling down.
+            // Mentorship Program hero + 3 stat buttons scroll upward when scrolling on mentor cards
             SliverToBoxAdapter(
-              child: Obx(
-                () => CollapsibleHeader(
-                  visible: _header.visible.value,
-                  child: _buildCollapsibleHeader(controller),
+              child: _buildCollapsibleHeader(controller),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: AdminPinnedHeaderDelegate(
+                height: 104,
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: _buildControls(),
                 ),
               ),
             ),
-            SliverToBoxAdapter(child: _buildControls()),
             _buildMentorList(controller),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
       ),
@@ -249,33 +248,39 @@ Widget _buildControls() {
   }
 
   Widget _buildMentorList(AdminController controller) {
-    return SliverToBoxAdapter(
-      child: Obx(() {
-        final mentors = _sortedMentors(controller);
+    return Obx(() {
+      final mentors = _sortedMentors(controller);
 
-        if (mentors.isEmpty) {
-          return const AdminEmptyState(
+      if (mentors.isEmpty) {
+        return const SliverFillRemaining(
+          hasScrollBody: false,
+          child: AdminEmptyState(
             icon: Icons.groups_outlined,
             title: 'No mentors found',
             subtitle:
                 'Mentors who register will appear here with their sessions.',
             color: AppColors.secondary,
-          );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: [
-              for (final mentor in mentors) ...[
-                _MentorCard(mentor: mentor, controller: controller),
-                const SizedBox(height: 12),
-              ],
-            ],
           ),
         );
-      }),
-    );
+      }
+
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index.isOdd) return const SizedBox(height: 12);
+              final itemIndex = index ~/ 2;
+              return _MentorCard(
+                mentor: mentors[itemIndex],
+                controller: controller,
+              );
+            },
+            childCount: mentors.isEmpty ? 0 : mentors.length * 2 - 1,
+          ),
+        ),
+      );
+    });
   }
 
   List<UserModel> _sortedMentors(AdminController controller) {

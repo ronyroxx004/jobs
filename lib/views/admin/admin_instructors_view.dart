@@ -23,21 +23,16 @@ class _AdminInstructorsViewState extends State<AdminInstructorsView> {
   final RxString _query = ''.obs;
 
   late final ScrollController _scrollController;
-  late final HeaderCollapseNotifier _header;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _header = HeaderCollapseNotifier(_scrollController);
-    _scrollController.addListener(_header.onScroll);
   }
 
   @override
   void dispose() {
-    _scrollController
-      ..removeListener(_header.onScroll)
-      ..dispose();
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -49,17 +44,26 @@ class _AdminInstructorsViewState extends State<AdminInstructorsView> {
     return RefreshIndicator(
       onRefresh: () => Get.find<DatabaseService>().fetchAllData(),
       child: SafeArea(
-        child: Column(
-          children: [
-            // Heading + stat tiles collapse away when scrolling down.
-            Obx(
-              () => CollapsibleHeader(
-                visible: _header.visible.value,
-                child: _buildCollapsibleHeader(controller),
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // Course Instructors header + 3 buttons scroll upward when scrolling on trainer cards
+            SliverToBoxAdapter(
+              child: _buildCollapsibleHeader(controller),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: AdminPinnedHeaderDelegate(
+                height: 56,
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: _buildSearch(),
+                ),
               ),
             ),
-            _buildSearch(),
-            Expanded(child: _buildInstructorList(controller)),
+            _buildInstructorList(controller),
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
       ),
@@ -182,24 +186,32 @@ Widget _buildInstructorList(AdminController controller) {
       }).toList();
 
       if (instructors.isEmpty) {
-        return const AdminEmptyState(
-          icon: Icons.school_outlined,
-          title: 'No instructors found',
-          subtitle:
-              'Instructors who register will appear here with their courses.',
-          color: AppColors.accent,
+        return const SliverFillRemaining(
+          hasScrollBody: false,
+          child: AdminEmptyState(
+            icon: Icons.school_outlined,
+            title: 'No instructors found',
+            subtitle:
+                'Instructors who register will appear here with their courses.',
+            color: AppColors.accent,
+          ),
         );
       }
 
-      return ListView.separated(
-        controller: _scrollController,
+      return SliverPadding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: instructors.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) => _InstructorCard(
-          instructor: instructors[index],
-          controller: controller,
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index.isOdd) return const SizedBox(height: 12);
+              final itemIndex = index ~/ 2;
+              return _InstructorCard(
+                instructor: instructors[itemIndex],
+                controller: controller,
+              );
+            },
+            childCount: instructors.isEmpty ? 0 : instructors.length * 2 - 1,
+          ),
         ),
       );
     });

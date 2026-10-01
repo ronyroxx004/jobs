@@ -23,7 +23,6 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
   final RxString _filter = 'All'.obs;
 
   late final ScrollController _scrollController;
-  late final HeaderCollapseNotifier _header;
 
   static const List<String> _filters = [
     'All',
@@ -37,15 +36,11 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _header = HeaderCollapseNotifier(_scrollController);
-    _scrollController.addListener(_header.onScroll);
   }
 
   @override
   void dispose() {
-    _scrollController
-      ..removeListener(_header.onScroll)
-      ..dispose();
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -57,18 +52,32 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
     return RefreshIndicator(
       onRefresh: () => Get.find<DatabaseService>().fetchAllData(),
       child: SafeArea(
-        child: Column(
-          children: [
-            // Heading + stat tiles collapse away when scrolling down.
-            Obx(
-              () => CollapsibleHeader(
-                visible: _header.visible.value,
-                child: _buildCollapsibleHeader(controller),
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // Talent Pipeline header + 3 buttons scroll upward when scrolling on candidate cards
+            SliverToBoxAdapter(
+              child: _buildCollapsibleHeader(controller),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: AdminPinnedHeaderDelegate(
+                height: 104,
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildSearch(),
+                      _buildFilterBar(),
+                    ],
+                  ),
+                ),
               ),
             ),
-            _buildSearch(),
-            _buildFilterBar(),
-            Expanded(child: _buildCandidateGrid(controller)),
+            _buildCandidateGrid(controller),
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
       ),
@@ -229,27 +238,32 @@ Widget _buildFilterBar() {
     return Obx(() {
       final users = _filteredCandidates(controller);
       if (users.isEmpty) {
-        return const AdminEmptyState(
-          icon: Icons.person_search_rounded,
-          title: 'No candidates found',
-          subtitle: 'Try a different search term or clear the active filter.',
-          color: AppColors.primary,
+        return const SliverFillRemaining(
+          hasScrollBody: false,
+          child: AdminEmptyState(
+            icon: Icons.person_search_rounded,
+            title: 'No candidates found',
+            subtitle: 'Try a different search term or clear the active filter.',
+            color: AppColors.primary,
+          ),
         );
       }
 
-      return GridView.builder(
-        controller: _scrollController,
+      return SliverPadding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-        physics: const AlwaysScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 340,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          mainAxisExtent: 196,
+        sliver: SliverGrid(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) =>
+                _CandidateCard(user: users[index], controller: controller),
+            childCount: users.length,
+          ),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 340,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            mainAxisExtent: 196,
+          ),
         ),
-        itemCount: users.length,
-        itemBuilder: (context, index) =>
-            _CandidateCard(user: users[index], controller: controller),
       );
     });
   }

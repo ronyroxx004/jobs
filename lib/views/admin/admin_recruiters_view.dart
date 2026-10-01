@@ -24,21 +24,16 @@ class _AdminRecruitersViewState extends State<AdminRecruitersView> {
   final RxString _expandedId = ''.obs;
 
   late final ScrollController _scrollController;
-  late final HeaderCollapseNotifier _header;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _header = HeaderCollapseNotifier(_scrollController);
-    _scrollController.addListener(_header.onScroll);
   }
 
   @override
   void dispose() {
-    _scrollController
-      ..removeListener(_header.onScroll)
-      ..dispose();
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -50,17 +45,26 @@ class _AdminRecruitersViewState extends State<AdminRecruitersView> {
     return RefreshIndicator(
       onRefresh: () => Get.find<DatabaseService>().fetchAllData(),
       child: SafeArea(
-        child: Column(
-          children: [
-            // Heading + stat tiles collapse away when scrolling down.
-            Obx(
-              () => CollapsibleHeader(
-                visible: _header.visible.value,
-                child: _buildCollapsibleHeader(controller),
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // Hiring Partners header + 3 buttons scroll upward when scrolling on recruiter cards
+            SliverToBoxAdapter(
+              child: _buildCollapsibleHeader(controller),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: AdminPinnedHeaderDelegate(
+                height: 56,
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: _buildSearch(),
+                ),
               ),
             ),
-            _buildSearch(),
-            Expanded(child: _buildRecruiterList(controller)),
+            _buildRecruiterList(controller),
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
       ),
@@ -190,31 +194,37 @@ Widget _buildSearch() {
       }).toList();
 
       if (recruiters.isEmpty) {
-        return const AdminEmptyState(
-          icon: Icons.search_off_rounded,
-          title: 'No recruiters found',
-          subtitle: 'Try a different search term to find a hiring partner.',
-          color: AppColors.secondary,
+        return const SliverFillRemaining(
+          hasScrollBody: false,
+          child: AdminEmptyState(
+            icon: Icons.search_off_rounded,
+            title: 'No recruiters found',
+            subtitle: 'Try a different search term to find a hiring partner.',
+            color: AppColors.secondary,
+          ),
         );
       }
 
-      return ListView.separated(
-        controller: _scrollController,
+      return SliverPadding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: recruiters.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final user = recruiters[index];
-          return _RecruiterRow(
-            user: user,
-            controller: controller,
-            isExpanded: expandedId == user.id,
-            onToggle: () {
-              _expandedId.value = expandedId == user.id ? '' : user.id;
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index.isOdd) return const SizedBox(height: 10);
+              final itemIndex = index ~/ 2;
+              final user = recruiters[itemIndex];
+              return _RecruiterRow(
+                user: user,
+                controller: controller,
+                isExpanded: expandedId == user.id,
+                onToggle: () {
+                  _expandedId.value = expandedId == user.id ? '' : user.id;
+                },
+              );
             },
-          );
-        },
+            childCount: recruiters.isEmpty ? 0 : recruiters.length * 2 - 1,
+          ),
+        ),
       );
     });
   }

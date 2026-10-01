@@ -344,6 +344,43 @@ class CollapsibleHeader extends StatelessWidget {
   }
 }
 
+/// Pinned sliver header delegate used to pin search bars and filters
+/// while hero and stat headers scroll upward naturally.
+class AdminPinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+  final Color? backgroundColor;
+
+  AdminPinnedHeaderDelegate({
+    required this.child,
+    required this.height,
+    this.backgroundColor,
+  });
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      height: height,
+      color: backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant AdminPinnedHeaderDelegate oldDelegate) {
+    return oldDelegate.height != height ||
+        oldDelegate.child != child ||
+        oldDelegate.backgroundColor != backgroundColor;
+  }
+}
+
 /// Opens the delete-user confirmation for a user from any admin role screen.
 void adminEditUser(UserModel user) {
   Get.to(
