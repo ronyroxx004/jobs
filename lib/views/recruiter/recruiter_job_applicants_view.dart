@@ -9,8 +9,9 @@ import '../../models/job_model.dart';
 
 class RecruiterJobApplicantsView extends GetView<JobController> {
   final JobModel job;
+  final Rx<ApplicationStatus?> selectedApplicantFilter = Rx<ApplicationStatus?>(null);
 
-  const RecruiterJobApplicantsView({super.key, required this.job});
+  RecruiterJobApplicantsView({super.key, required this.job});
 
   @override
   Widget build(BuildContext context) {
@@ -40,10 +41,46 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
               applicantCount: controller.getApplicantCountForJob(job.id),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Obx(
+              () => SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _FilterChip(
+                      label: 'All',
+                      isSelected: selectedApplicantFilter.value == null,
+                      color: Colors.grey,
+                      onTap: () => selectedApplicantFilter.value = null,
+                    ),
+                    const SizedBox(width: 8),
+                    ...ApplicationStatus.values.map(
+                      (status) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _FilterChip(
+                          label: status.label,
+                          isSelected: selectedApplicantFilter.value == status,
+                          color: status.color,
+                          onTap: () => selectedApplicantFilter.value = status,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: Obx(() {
-              final applicants = controller.getApplicantsForJob(job.id);
-              if (applicants.isEmpty) {
+              final allApplicants = controller.getApplicantsForJob(job.id);
+              final filteredApplicants = selectedApplicantFilter.value == null
+                  ? allApplicants
+                  : allApplicants
+                      .where((app) => app.status == selectedApplicantFilter.value)
+                      .toList();
+
+              if (filteredApplicants.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(32),
@@ -54,7 +91,9 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
                             size: 56, color: Colors.grey.shade400),
                         const SizedBox(height: 12),
                         Text(
-                          'No applications yet',
+                          selectedApplicantFilter.value == null
+                              ? 'No applications yet'
+                              : 'No ${selectedApplicantFilter.value!.label} applicants',
                           style: GoogleFonts.inter(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -62,7 +101,7 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Candidates who apply for this position will appear here.',
+                          'Try a different filter to view more candidates.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(color: Colors.grey),
                         ),
@@ -74,13 +113,13 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
 
               return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                itemCount: applicants.length,
+                itemCount: filteredApplicants.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, index) => _ApplicantCard(
-                  application: applicants[index],
+                  application: filteredApplicants[index],
                   isDark: isDark,
                   onStatusChanged: (status) => controller.updateApplicantStage(
-                    applicants[index].id,
+                    filteredApplicants[index].id,
                     status,
                   ),
                 ),
@@ -140,6 +179,53 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
   }
 }
 
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.14)
+              : (isDark ? AppColors.cardDark : Colors.white),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isSelected
+                ? color
+                : (isDark ? AppColors.borderDark : AppColors.borderLight),
+            width: isSelected ? 1.2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? color : Colors.grey.shade600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _JobHeader extends StatelessWidget {
   final JobModel job;
   final int applicantCount;
@@ -166,7 +252,12 @@ class _JobHeader extends StatelessWidget {
         children: [
           Text(
             job.title,
-            style: GoogleFonts.inter(fontSize: 19, fontWeight: FontWeight.bold),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 19,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 5),
           Text(
@@ -225,13 +316,15 @@ class _ApplicantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = application;
-    final firstName = app.candidateName.trim().isEmpty
+    final candidateName = app.candidateName.trim().isEmpty
         ? 'Candidate'
-        : app.candidateName.trim().split(RegExp(r'\s+')).first;
+        : app.candidateName.trim();
 
-    final headline = app.candidateHeadline.isNotEmpty
-        ? app.candidateHeadline
-        : 'Professional candidate';
+    final jobTitle = app.jobTitle.isNotEmpty
+        ? app.jobTitle
+        : (app.candidateHeadline.isNotEmpty
+            ? app.candidateHeadline
+            : 'Senior Flutter Developer');
 
     return Card(
       elevation: 1,
@@ -259,7 +352,7 @@ class _ApplicantCard extends StatelessWidget {
                         : null,
                     child: app.candidateAvatar.isEmpty
                         ? Text(
-                            firstName.substring(0, 1).toUpperCase(),
+                            candidateName.substring(0, 1).toUpperCase(),
                             style: GoogleFonts.inter(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w700,
@@ -273,7 +366,7 @@ class _ApplicantCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          firstName,
+                          candidateName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
@@ -283,8 +376,8 @@ class _ApplicantCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          headline,
-                          maxLines: 1,
+                          jobTitle,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
                             fontSize: 12,
@@ -294,10 +387,6 @@ class _ApplicantCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ),
-                  _StatusPicker(
-                    status: app.status,
-                    onChanged: onStatusChanged,
                   ),
                 ],
               ),
@@ -329,6 +418,24 @@ class _ApplicantCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Status:',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                    ),
+                  ),
+                  _StatusPicker(
+                    status: app.status,
+                    onChanged: onStatusChanged,
+                  ),
+                ],
               ),
             ],
           ),
@@ -382,17 +489,21 @@ class _ApplicantCard extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (app.candidateHeadline.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                app.candidateHeadline,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            const SizedBox(height: 4),
+                            Text(
+                              app.jobTitle.isNotEmpty
+                                  ? app.jobTitle
+                                  : (app.candidateHeadline.isNotEmpty
+                                      ? app.candidateHeadline
+                                      : 'Senior Flutter Developer'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
                               ),
-                            ],
+                            ),
                           ],
                         ),
                       ),

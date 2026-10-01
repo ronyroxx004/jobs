@@ -357,6 +357,8 @@ class RecruiterDashboardView extends GetView<JobController> {
                             ),
                             child: Text(
                               'Applied For: ${app.jobTitle}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -671,6 +673,8 @@ class RecruiterDashboardView extends GetView<JobController> {
                         color: Colors.grey)),
                 const SizedBox(height: 4),
                 Text(app.jobTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,

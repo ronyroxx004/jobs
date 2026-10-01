@@ -56,77 +56,104 @@ class JobDetailView extends GetView<JobController> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header Card
-                    Row(
-                      children: [
-                        if (job.companyIconKey.isNotEmpty)
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: companyIconForKey(job.companyIconKey)
-                                  .color
-                                  .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(
-                              companyIconForKey(job.companyIconKey).icon,
-                              color:
-                                  companyIconForKey(job.companyIconKey).color,
-                              size: 32,
-                            ),
-                          )
-                        else
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.network(
-                              job.companyLogo,
-                              width: 64,
-                              height: 64,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 64,
-                                height: 64,
-                                color: AppColors.primary.withOpacity(0.1),
-                                child: const Icon(Icons.business_rounded,
-                                    color: AppColors.primary, size: 32),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                job.title,
-                                style: GoogleFonts.inter(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                job.companyName,
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Quick Specs
+                    // Job Header Card Box
                     Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          if (job.companyIconKey.isNotEmpty)
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: companyIconForKey(job.companyIconKey)
+                                    .color
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                companyIconForKey(job.companyIconKey).icon,
+                                color:
+                                    companyIconForKey(job.companyIconKey).color,
+                                size: 28,
+                              ),
+                            )
+                          else if (job.companyLogo.isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.network(
+                                job.companyLogo,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 56,
+                                  height: 56,
+                                  color: AppColors.primary.withValues(alpha: 0.12),
+                                  child: const Icon(Icons.business_rounded,
+                                      color: AppColors.primary, size: 28),
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.business_rounded,
+                                  color: AppColors.primary, size: 28),
+                            ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  job.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  job.companyName,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Quick Specs Card Box (2 rows, 2 items per row)
+                    Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.cardDark : AppColors.bgLight,
@@ -137,104 +164,183 @@ class JobDetailView extends GetView<JobController> {
                               : AppColors.borderLight,
                         ),
                       ),
-                      child: Wrap(
-                        spacing: 20,
-                        runSpacing: 16,
-                        alignment: WrapAlignment.spaceBetween,
+                      child: Column(
                         children: [
-                          _buildSpecItem(Icons.location_on_outlined, 'Location',
-                              job.location),
-                          _buildSpecItem(
-                              Icons.work_outline_rounded, 'Type', job.jobType),
-                          _buildSpecItem(Icons.attach_money_rounded, 'Salary',
-                              job.salaryRange),
-                          _buildSpecItem(
-                            Icons.people_outline_rounded,
-                            'Applicants',
-                            '${controller.getApplicantCountForJob(job.id)}',
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildSpecItem(
+                                  Icons.location_on_outlined,
+                                  'Location',
+                                  job.location,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildSpecItem(
+                                  Icons.work_outline_rounded,
+                                  'Type',
+                                  job.jobType,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildSpecItem(
+                                  Icons.attach_money_rounded,
+                                  'Salary',
+                                  job.salaryRange,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildSpecItem(
+                                  Icons.people_outline_rounded,
+                                  'Applicants',
+                                  '${controller.getApplicantCountForJob(job.id)}',
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                    // Job Description
-                    Text(
-                      'Job Description',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      job.description,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        height: 1.6,
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondaryLight,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Requirements
-                    Text(
-                      'Key Requirements',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...job.requirements.map((req) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.check_circle_rounded,
-                                color: AppColors.secondary, size: 18),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                req,
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
+                    // Job Description Card Box
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
                         ),
-                      );
-                    }),
-                    const SizedBox(height: 24),
-
-                    // Skills Required
-                    Text(
-                      'Required Skills',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Job Description',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            job.description,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              height: 1.6,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: job.skills.map((skill) {
-                        return Chip(
-                          label: Text(skill),
-                          backgroundColor: AppColors.primary.withOpacity(0.1),
-                          side: BorderSide.none,
-                          labelStyle: GoogleFonts.inter(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
+                    const SizedBox(height: 16),
+
+                    // Key Requirements Card Box
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Key Requirements',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        );
-                      }).toList(),
+                          const SizedBox(height: 12),
+                          ...job.requirements.map((req) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.check_circle_rounded,
+                                      color: AppColors.secondary, size: 18),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      req,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Required Skills Card Box
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Required Skills',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: job.skills.map((skill) {
+                              return Chip(
+                                label: Text(skill),
+                                backgroundColor:
+                                    AppColors.primary.withValues(alpha: 0.12),
+                                side: BorderSide.none,
+                                labelStyle: GoogleFonts.inter(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -248,7 +354,7 @@ class JobDetailView extends GetView<JobController> {
                 color: isDark ? AppColors.cardDark : Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -4),
                   )
@@ -303,14 +409,18 @@ class JobDetailView extends GetView<JobController> {
 
   Widget _buildSpecItem(IconData icon, String title, String value) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: AppColors.primary, size: 22),
+        Icon(icon, color: AppColors.primary, size: 20),
         const SizedBox(height: 4),
-        Text(title, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
+        Text(title, style: GoogleFonts.inter(fontSize: 10, color: Colors.grey)),
         const SizedBox(height: 2),
-        Text(value,
-            style:
-                GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }

@@ -17,6 +17,7 @@ class ProfileController extends GetxController {
 
   final nameController = TextEditingController();
   final headlineController = TextEditingController();
+  final phoneController = TextEditingController();
   final bioController = TextEditingController();
   final locationController = TextEditingController();
   final companyController = TextEditingController();
@@ -41,6 +42,7 @@ class ProfileController extends GetxController {
     if (user != null) {
       nameController.text = user!.name;
       headlineController.text = user!.headline;
+      phoneController.text = user!.phone;
       bioController.text = user!.bio;
       locationController.text = user!.location;
       companyController.text = user!.companyName;
@@ -116,6 +118,7 @@ class ProfileController extends GetxController {
     final updated = user!.copyWith(
       name: nameController.text.trim(),
       headline: headlineController.text.trim(),
+      phone: phoneController.text.trim(),
       bio: bioController.text.trim(),
       location: locationController.text.trim(),
       companyName: primaryCompany?.name ?? '',
@@ -249,6 +252,7 @@ class ProfileController extends GetxController {
   void onClose() {
     nameController.dispose();
     headlineController.dispose();
+    phoneController.dispose();
     bioController.dispose();
     locationController.dispose();
     companyController.dispose();

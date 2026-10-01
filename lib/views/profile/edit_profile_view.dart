@@ -58,6 +58,19 @@ class EditProfileView extends GetView<ProfileController> {
               ),
               const SizedBox(height: 16),
 
+              Text('Mobile Number / Phone',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: controller.phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. +1 555-0199 or +91 9876543210',
+                  prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               if (controller.user?.role == UserRole.recruiter) ...[
                 Row(
                   children: [
