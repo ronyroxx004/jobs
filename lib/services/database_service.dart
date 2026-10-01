@@ -31,6 +31,7 @@ class DatabaseService extends GetxService {
   final RxList<BookingModel> bookingsList = <BookingModel>[].obs;
   final RxList<CourseModel> coursesList = <CourseModel>[].obs;
   final RxList<ChatRoomModel> chatRoomsList = <ChatRoomModel>[].obs;
+  final RxList<UserModel> usersList = <UserModel>[].obs;
 
   @override
   void onInit() {
@@ -64,6 +65,18 @@ class DatabaseService extends GetxService {
           applicationsList.assignAll(list);
         }
       });
+
+      _db?.ref(DatabaseKeys.users).onValue.listen((event) {
+        if (event.snapshot.exists && event.snapshot.value != null) {
+          final Map<dynamic, dynamic> map = event.snapshot.value as Map;
+          final list = <UserModel>[];
+          map.forEach((key, value) {
+            list.add(UserModel.fromMap(
+                Map<String, dynamic>.from(value), key.toString()));
+          });
+          usersList.assignAll(list);
+        }
+      });
     } catch (_) {}
   }
 
@@ -73,6 +86,32 @@ class DatabaseService extends GetxService {
     await fetchServices();
     await fetchResumes();
     await fetchApplications();
+    await fetchUsers();
+  }
+
+  Future<List<UserModel>> fetchUsers() async {
+    try {
+      final snapshot = await _db?.ref(DatabaseKeys.users).get();
+      if (snapshot != null && snapshot.exists && snapshot.value != null) {
+        final Map<dynamic, dynamic> map = snapshot.value as Map;
+        final list = <UserModel>[];
+        map.forEach((key, value) {
+          list.add(UserModel.fromMap(
+              Map<String, dynamic>.from(value), key.toString()));
+        });
+        usersList.assignAll(list);
+      }
+    } catch (_) {}
+    return usersList;
+  }
+
+  Future<void> deleteUser(String userId) async {
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available');
+    }
+    await db.ref(DatabaseKeys.users).child(userId).remove();
+    usersList.removeWhere((u) => u.id == userId);
   }
 
   // --- USER PROFILE ---

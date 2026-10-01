@@ -126,6 +126,60 @@ class AdminDashboardView extends GetView<AdminController> {
           }),
 
           const SizedBox(height: 24),
+
+          // User Management List (All Users, Recruiters, Mentors, Instructors)
+          Text(
+            'Platform Users Management',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Manage all users, recruiters, mentors, and instructors',
+            style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 10),
+
+          Obx(() {
+            final users = controller.allUsers;
+            if (users.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Text('No users found', style: GoogleFonts.inter(color: Colors.grey)),
+                ),
+              );
+            }
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: users.length,
+              itemBuilder: (context, index) {
+                final user = users[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
+                      child: Text(
+                        user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                        style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    title: Text(user.name, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+                    subtitle: Text('${user.email}\nRole: ${user.role.displayName}'),
+                    isThreeLine: true,
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      tooltip: 'Delete User',
+                      onPressed: () => controller.deleteUser(user.id, user.name),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+
+          const SizedBox(height: 24),
           // End of page refresh section
           Center(
             child: Column(

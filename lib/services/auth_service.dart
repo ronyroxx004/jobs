@@ -30,6 +30,24 @@ class AuthService extends GetxService {
     _initAuthListener();
   }
 
+  UserRole _detectRoleFromEmail(String? email) {
+    if (email == null) return UserRole.candidate;
+    final cleanEmail = email.toLowerCase().trim();
+    if (cleanEmail == 'admin@gmail.com' || cleanEmail.contains('admin')) {
+      return UserRole.admin;
+    }
+    if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
+      return UserRole.recruiter;
+    }
+    if (cleanEmail.contains('instructor') || cleanEmail.contains('course')) {
+      return UserRole.instructor;
+    }
+    if (cleanEmail.contains('mentor')) {
+      return UserRole.mentor;
+    }
+    return UserRole.candidate;
+  }
+
   void _initAuthListener() {
     currentUser.value = null; // Unauthenticated guest state
     try {
@@ -38,25 +56,18 @@ class AuthService extends GetxService {
         if (user != null) {
           final dbService = Get.find<DatabaseService>();
           final profile = await dbService.getUserProfile(user.uid);
+          final expectedRole = _detectRoleFromEmail(user.email);
           if (profile != null) {
-            currentUser.value = profile;
+            if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
+              final updatedProfile = profile.copyWith(role: UserRole.admin);
+              currentUser.value = updatedProfile;
+              await dbService.saveUserProfile(updatedProfile);
+            } else {
+              currentUser.value = profile;
+            }
             await dbService.fetchAllData();
           } else {
-            // Auto-detect role from email domain/pattern if new user
-            UserRole detectedRole = UserRole.candidate;
-            if (user.email?.toLowerCase().contains('recruiter') == true ||
-                user.email?.toLowerCase().contains('hr') == true) {
-              detectedRole = UserRole.recruiter;
-            } else if (user.email?.toLowerCase().contains('instructor') ==
-                    true ||
-                user.email?.toLowerCase().contains('course') == true) {
-              detectedRole = UserRole.instructor;
-            } else if (user.email?.toLowerCase().contains('mentor') == true) {
-              detectedRole = UserRole.mentor;
-            } else if (user.email?.toLowerCase().contains('admin') == true) {
-              detectedRole = UserRole.admin;
-            }
-
+            final detectedRole = _detectRoleFromEmail(user.email);
             final newProfile = UserModel(
               id: user.uid,
               name: user.displayName ?? user.email?.split('@')[0] ?? 'User',
@@ -77,6 +88,7 @@ class AuthService extends GetxService {
     try {
       isLoading.value = true;
       UserModel? profile;
+      final expectedRole = _detectRoleFromEmail(email);
 
       if (_auth != null) {
         try {
@@ -89,75 +101,39 @@ class AuthService extends GetxService {
             final dbService = Get.find<DatabaseService>();
             profile = await dbService.getUserProfile(credential.user!.uid);
 
-            if (profile == null) {
-              // Identify role from email if missing in DB
-              UserRole detectedRole = UserRole.candidate;
-              final cleanEmail = email.toLowerCase();
-              if (cleanEmail.contains('recruiter') ||
-                  cleanEmail.contains('hr')) {
-                detectedRole = UserRole.recruiter;
-              } else if (cleanEmail.contains('instructor') ||
-                  cleanEmail.contains('course')) {
-                detectedRole = UserRole.instructor;
-              } else if (cleanEmail.contains('mentor')) {
-                detectedRole = UserRole.mentor;
-              } else if (cleanEmail.contains('admin')) {
-                detectedRole = UserRole.admin;
+            if (profile != null) {
+              if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
+                profile = profile.copyWith(role: UserRole.admin);
+                await dbService.saveUserProfile(profile);
               }
-
+            } else {
               profile = UserModel(
                 id: credential.user!.uid,
                 name: credential.user!.displayName ?? email.split('@')[0],
                 email: email,
-                role: detectedRole,
+                role: expectedRole,
               );
               await dbService.saveUserProfile(profile);
             }
           }
         } catch (e) {
           // Fallback profile creation for local demo testing
-          UserRole detectedRole = UserRole.candidate;
-          final cleanEmail = email.toLowerCase();
-          if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
-            detectedRole = UserRole.recruiter;
-          } else if (cleanEmail.contains('instructor') ||
-              cleanEmail.contains('course')) {
-            detectedRole = UserRole.instructor;
-          } else if (cleanEmail.contains('mentor')) {
-            detectedRole = UserRole.mentor;
-          } else if (cleanEmail.contains('admin')) {
-            detectedRole = UserRole.admin;
-          }
-
           profile = UserModel(
             id: 'user_${DateTime.now().millisecondsSinceEpoch}',
             name: email.split('@')[0],
             email: email,
-            role: detectedRole,
+            role: expectedRole,
           );
           final dbService = Get.find<DatabaseService>();
           await dbService.saveUserProfile(profile);
         }
       } else {
         // Handle offline auth
-        UserRole detectedRole = UserRole.candidate;
-        final cleanEmail = email.toLowerCase();
-        if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
-          detectedRole = UserRole.recruiter;
-        } else if (cleanEmail.contains('instructor') ||
-            cleanEmail.contains('course')) {
-          detectedRole = UserRole.instructor;
-        } else if (cleanEmail.contains('mentor')) {
-          detectedRole = UserRole.mentor;
-        } else if (cleanEmail.contains('admin')) {
-          detectedRole = UserRole.admin;
-        }
-
         profile = UserModel(
           id: 'user_${DateTime.now().millisecondsSinceEpoch}',
           name: email.split('@')[0],
           email: email,
-          role: detectedRole,
+          role: expectedRole,
         );
         final dbService = Get.find<DatabaseService>();
         await dbService.saveUserProfile(profile);

@@ -9,9 +9,9 @@ import '../../core/routes/app_routes.dart';
 import '../jobs/job_list_view.dart';
 import '../courses/course_list_view.dart';
 import '../mentorship/mentor_list_view.dart';
-import '../chat/chat_list_view.dart';
 import '../profile/candidate_profile_view.dart';
 import '../admin/admin_dashboard_view.dart';
+import '../admin/admin_role_users_view.dart';
 import '../instructor/instructor_dashboard_view.dart';
 import '../recruiter/recruiter_jobs_view.dart';
 
@@ -217,15 +217,15 @@ class _HomeViewState extends State<HomeView> {
         ];
       case UserRole.admin:
         return const [
-          _HomeTab('Jobs', Icons.work_outline_rounded, Icons.work_rounded,
-              JobListView()),
-          _HomeTab('Courses', Icons.local_library_outlined,
-              Icons.local_library_rounded, CourseListView()),
-          _HomeTab('Mentors', Icons.groups_outlined, Icons.groups_rounded,
-              MentorListView()),
-          _HomeTab('Chats', Icons.chat_bubble_outline_rounded,
-              Icons.chat_bubble_rounded, ChatListView()),
-          _HomeTab('Admin Dashboard', Icons.dashboard_outlined,
+          _HomeTab('Candidates', Icons.person_outline_rounded,
+              Icons.person_rounded, AdminRoleUsersView(role: UserRole.candidate)),
+          _HomeTab('Recruiters', Icons.business_rounded,
+              Icons.business_center_rounded, AdminRoleUsersView(role: UserRole.recruiter)),
+          _HomeTab('Mentors', Icons.groups_outlined,
+              Icons.groups_rounded, AdminRoleUsersView(role: UserRole.mentor)),
+          _HomeTab('Instructors', Icons.cast_for_education_outlined,
+              Icons.cast_for_education_rounded, AdminRoleUsersView(role: UserRole.instructor)),
+          _HomeTab('Dashboard', Icons.dashboard_outlined,
               Icons.dashboard_rounded, AdminDashboardView()),
         ];
       case UserRole.candidate:
