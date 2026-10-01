@@ -17,6 +17,7 @@ class UserModel {
   final String companyLocation;
   final String companyIconKey;
   final List<CompanyProfile> companies;
+  final List<CompanyProfile> favoriteCompanies;
   final String designation;
   final int experienceYears;
   final double rating;
@@ -40,6 +41,7 @@ class UserModel {
     this.companyLocation = '',
     this.companyIconKey = '',
     this.companies = const [],
+    this.favoriteCompanies = const [],
     this.designation = '',
     this.experienceYears = 0,
     this.rating = 5.0,
@@ -65,6 +67,7 @@ class UserModel {
       'companyLocation': companyLocation,
       'companyIconKey': companyIconKey,
       'companies': companies.map((company) => company.toMap()).toList(),
+      'favoriteCompanies': favoriteCompanies.map((company) => company.toMap()).toList(),
       'designation': designation,
       'experienceYears': experienceYears,
       'rating': rating,
@@ -94,6 +97,7 @@ class UserModel {
       companyLocation: map['companyLocation'] ?? '',
       companyIconKey: map['companyIconKey'] ?? '',
       companies: _parseCompanies(map['companies']),
+      favoriteCompanies: _parseCompanies(map['favoriteCompanies']),
       designation: map['designation'] ?? '',
       experienceYears: map['experienceYears'] ?? 0,
       rating: (map['rating'] ?? 5.0).toDouble(),
@@ -129,6 +133,7 @@ class UserModel {
     String? companyLocation,
     String? companyIconKey,
     List<CompanyProfile>? companies,
+    List<CompanyProfile>? favoriteCompanies,
     String? designation,
     int? experienceYears,
     double? rating,
@@ -151,6 +156,7 @@ class UserModel {
       companyLocation: companyLocation ?? this.companyLocation,
       companyIconKey: companyIconKey ?? this.companyIconKey,
       companies: companies ?? this.companies,
+      favoriteCompanies: favoriteCompanies ?? this.favoriteCompanies,
       designation: designation ?? this.designation,
       experienceYears: experienceYears ?? this.experienceYears,
       rating: rating ?? this.rating,

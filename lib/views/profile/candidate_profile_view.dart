@@ -514,7 +514,89 @@ class CandidateProfileView extends GetView<ProfileController> {
             }),
           ],
 
-          const SizedBox(height: 24),
+          if (controller.user?.role == UserRole.candidate) ...[
+            Obx(() {
+              final user = controller.user;
+              final companies = user?.favoriteCompanies.isNotEmpty == true
+                  ? user?.favoriteCompanies ?? []
+                  : <CompanyProfile>[];
+
+              if (companies.isEmpty) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ListTile(
+                    leading: const Icon(Icons.bookmark_border_rounded,
+                        color: AppColors.primary),
+                    title: const Text('Saved companies'),
+                    subtitle: const Text('Mark companies as favorite from job details.'),
+                    onTap: () => Get.toNamed(AppRoutes.editProfile),
+                  ),
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Saved companies',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  ...companies.map((company) {
+                    final icon = companyIconForKey(company.iconKey);
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: ListTile(
+                        leading: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: icon.color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(icon.icon, color: icon.color),
+                        ),
+                        title: Text(
+                          company.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          company.location.isEmpty
+                              ? 'Company place not added'
+                              : company.location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(
+                          Icons.bookmark_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ],
+              );
+            }),
+          ],
+
+          const SizedBox(height: 8),
         ],
       ),
     );

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/job_controller.dart';
+import '../../controllers/profile_controller.dart';
 import '../../services/auth_service.dart';
 import '../../models/job_model.dart';
+import '../../models/company_profile.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/utils/company_icons.dart';
@@ -17,13 +19,21 @@ class JobDetailView extends GetView<JobController> {
     final JobModel job = Get.arguments as JobModel;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final authService = Get.find<AuthService>();
+    final profileController = Get.find<ProfileController>();
+    final isFavorite = profileController.user != null &&
+        profileController.user!.favoriteCompanies.any(
+          (company) => company.name.toLowerCase() == job.companyName.toLowerCase(),
+        );
 
     return Scaffold(
       appBar: AppBar(
         title: Text(job.companyName),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bookmark_border_rounded),
+            icon: Icon(
+              isFavorite ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+              color: isFavorite ? AppColors.primary : null,
+            ),
             onPressed: () {
               if (!authService.isLoggedIn) {
                 Get.snackbar(
@@ -36,9 +46,35 @@ class JobDetailView extends GetView<JobController> {
                 Get.toNamed(AppRoutes.login);
                 return;
               }
+
+              final company = CompanyProfile(
+                id: 'company_${job.companyName}_${job.recruiterId}',
+                name: job.companyName,
+                location: job.location,
+                iconKey: job.companyIconKey.isNotEmpty
+                    ? job.companyIconKey
+                    : 'business',
+              );
+
+              final currentIsFavorite = profileController.user != null &&
+                  profileController.user!.favoriteCompanies.any(
+                    (item) => item.id == company.id ||
+                        item.name.toLowerCase() == company.name.toLowerCase(),
+                  );
+
+              profileController.toggleFavoriteCompany(company);
+              final updatedUser = authService.currentUser.value?.copyWith(
+                favoriteCompanies: profileController.favoriteCompanies.toList(),
+              );
+              if (updatedUser != null) {
+                authService.updateUserProfile(updatedUser);
+              }
+
               Get.snackbar(
-                'Job Saved',
-                'Added to your saved jobs list',
+                currentIsFavorite ? 'Removed from favorites' : 'Job company saved',
+                currentIsFavorite
+                    ? 'Removed from your saved companies list'
+                    : 'Added to your saved companies list',
                 snackPosition: SnackPosition.BOTTOM,
                 backgroundColor: AppColors.primary,
                 colorText: Colors.white,

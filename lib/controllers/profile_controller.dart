@@ -26,6 +26,7 @@ class ProfileController extends GetxController {
 
   final RxList<String> currentSkills = <String>[].obs;
   final RxList<CompanyProfile> companies = <CompanyProfile>[].obs;
+  final RxList<CompanyProfile> favoriteCompanies = <CompanyProfile>[].obs;
   final RxBool isUploading = false.obs;
   final RxString companyIconKey = 'business'.obs;
 
@@ -63,6 +64,7 @@ class ProfileController extends GetxController {
           ),
         ]);
       }
+      favoriteCompanies.assignAll(user!.favoriteCompanies);
       currentSkills.assignAll(user!.skills);
     }
   }
@@ -105,6 +107,23 @@ class ProfileController extends GetxController {
     return true;
   }
 
+  bool toggleFavoriteCompany(CompanyProfile company) {
+    final existing = favoriteCompanies.indexWhere((item) => item.id == company.id);
+    if (existing == -1) {
+      favoriteCompanies.add(company);
+      Get.snackbar('Company saved', '${company.name} marked as favorite.');
+      return true;
+    }
+
+    favoriteCompanies.removeAt(existing);
+    Get.snackbar('Company removed', '${company.name} removed from favorites.');
+    return false;
+  }
+
+  bool isFavoriteCompany(String companyId) {
+    return favoriteCompanies.any((company) => company.id == companyId);
+  }
+
   void removeCompany(String companyId) {
     companies.removeWhere((company) => company.id == companyId);
   }
@@ -113,6 +132,7 @@ class ProfileController extends GetxController {
     if (user == null) return;
 
     final savedCompanies = companies.toList();
+    final savedFavoriteCompanies = favoriteCompanies.toList();
     final primaryCompany =
         savedCompanies.isNotEmpty ? savedCompanies.first : null;
     final updated = user!.copyWith(
@@ -125,6 +145,7 @@ class ProfileController extends GetxController {
       companyLocation: primaryCompany?.location ?? '',
       companyIconKey: primaryCompany?.iconKey ?? 'business',
       companies: savedCompanies,
+      favoriteCompanies: savedFavoriteCompanies,
       skills: currentSkills.toList(),
     );
 
