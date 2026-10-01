@@ -11,6 +11,7 @@ import '../../views/recruiter/recruiter_job_applicants_view.dart';
 import '../../views/courses/post_course_view.dart';
 import '../../views/profile/edit_profile_view.dart';
 import '../../views/profile/resume_manager_view.dart';
+import '../../views/candidate_activity_view.dart';
 
 class AppPages {
   static const initial = AppRoutes.splash;
@@ -57,6 +58,16 @@ class AppPages {
     GetPage(
       name: AppRoutes.resumeManager,
       page: () => const ResumeManagerView(),
+    ),
+    GetPage(
+      name: AppRoutes.candidateActivity,
+      page: () {
+        final arguments = Get.arguments is Map<String, dynamic>
+            ? Get.arguments as Map<String, dynamic>
+            : const <String, dynamic>{};
+        final initialTab = arguments['tab'] as String? ?? 'applications';
+        return CandidateActivityView(initialTab: initialTab);
+      },
     ),
   ];
 }

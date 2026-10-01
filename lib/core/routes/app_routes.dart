@@ -9,6 +9,7 @@ abstract class AppRoutes {
   static const postJob = '/post-job';
   static const editProfile = '/edit-profile';
   static const resumeManager = '/resume-manager';
+  static const candidateActivity = '/candidate-activity';
   static const mentorDetails = '/mentor-details';
   static const bookSession = '/book-session';
   static const courseDetails = '/course-details';
