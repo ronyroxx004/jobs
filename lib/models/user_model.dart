@@ -79,32 +79,32 @@ class UserModel {
 
   factory UserModel.fromMap(Map<String, dynamic> map, String docId) {
     return UserModel(
-      id: docId.isNotEmpty ? docId : (map['id'] ?? ''),
-      name: map['name'] ?? '',
-      email: map['email'] ?? '',
-      phone: map['phone'] ?? '',
+      id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? ''),
+      name: map['name']?.toString() ?? '',
+      email: map['email']?.toString() ?? '',
+      phone: map['phone']?.toString() ?? '',
       role: UserRole.values.firstWhere(
-        (r) => r.name == map['role'],
+        (r) => r.name == map['role']?.toString(),
         orElse: () => UserRole.candidate,
       ),
-      headline: map['headline'] ?? '',
-      bio: map['bio'] ?? '',
-      location: map['location'] ?? '',
-      avatarUrl: map['avatarUrl'] ?? '',
-      avatarIconKey: map['avatarIconKey'] ?? '',
+      headline: map['headline']?.toString() ?? '',
+      bio: map['bio']?.toString() ?? '',
+      location: map['location']?.toString() ?? '',
+      avatarUrl: map['avatarUrl']?.toString() ?? '',
+      avatarIconKey: map['avatarIconKey']?.toString() ?? '',
       skills: List<String>.from(map['skills'] ?? []),
-      companyName: map['companyName'] ?? '',
-      companyLocation: map['companyLocation'] ?? '',
-      companyIconKey: map['companyIconKey'] ?? '',
+      companyName: map['companyName']?.toString() ?? '',
+      companyLocation: map['companyLocation']?.toString() ?? '',
+      companyIconKey: map['companyIconKey']?.toString() ?? '',
       companies: _parseCompanies(map['companies']),
       favoriteCompanies: _parseCompanies(map['favoriteCompanies']),
-      designation: map['designation'] ?? '',
-      experienceYears: map['experienceYears'] ?? 0,
-      rating: (map['rating'] ?? 5.0).toDouble(),
-      totalReviews: map['totalReviews'] ?? 0,
-      isVerified: map['isVerified'] ?? false,
+      designation: map['designation']?.toString() ?? '',
+      experienceYears: (map['experienceYears'] as num?)?.toInt() ?? 0,
+      rating: (map['rating'] as num?)?.toDouble() ?? 5.0,
+      totalReviews: (map['totalReviews'] as num?)?.toInt() ?? 0,
+      isVerified: map['isVerified'] == true,
       createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt']) ?? DateTime.now()
+          ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
   }
