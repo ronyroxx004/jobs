@@ -5,6 +5,8 @@ import '../../controllers/job_controller.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/utils/constants.dart';
 
+import '../../services/auth_service.dart';
+
 class PostJobView extends GetView<JobController> {
   const PostJobView({super.key});
 
@@ -121,6 +123,17 @@ class PostJobView extends GetView<JobController> {
                   const SizedBox(height: 7),
                   Obx(() {
                     final companies = controller.postCompanyOptions;
+                    final isAdmin = Get.find<AuthService>().currentUser.value?.role == UserRole.admin;
+                    if (companies.isEmpty || isAdmin) {
+                      return TextField(
+                        controller: controller.postCompanyController,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          hintText: 'e.g. Acme Corporation',
+                          prefixIcon: Icon(Icons.business_outlined),
+                        ),
+                      );
+                    }
                     final selected = companies
                             .contains(controller.postCompanyController.text)
                         ? controller.postCompanyController.text
@@ -144,21 +157,25 @@ class PostJobView extends GetView<JobController> {
                             ),
                           )
                           .toList(),
-                      onChanged: companies.isEmpty
+                      onChanged: (value) => value == null
                           ? null
-                          : (value) => value == null
-                              ? null
-                              : controller.selectPostCompany(value),
+                          : controller.selectPostCompany(value),
                     );
                   }),
-                  if (controller.postCompanyOptions.isEmpty) ...[
-                    const SizedBox(height: 6),
-                    TextButton.icon(
-                      onPressed: () => Get.toNamed(AppRoutes.editProfile),
-                      icon: const Icon(Icons.add_business_outlined, size: 18),
-                      label: const Text('Add company details in your profile'),
-                    ),
-                  ],
+                  Obx(() {
+                    final isAdmin = Get.find<AuthService>().currentUser.value?.role == UserRole.admin;
+                    if (!isAdmin && controller.postCompanyOptions.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: TextButton.icon(
+                          onPressed: () => Get.toNamed(AppRoutes.editProfile),
+                          icon: const Icon(Icons.add_business_outlined, size: 18),
+                          label: const Text('Add company details in your profile'),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
                   const SizedBox(height: 16),
                   _FieldLabel(text: 'Work location', required: true),
                   const SizedBox(height: 7),

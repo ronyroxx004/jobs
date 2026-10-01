@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../controllers/admin_controller.dart';
+import '../../controllers/job_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../models/user_model.dart';
 import '../../models/job_model.dart';
@@ -486,6 +487,15 @@ class _JobModerationTile extends StatelessWidget {
                 color: isActive ? AppColors.secondary : Colors.grey[700],
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Edit listing',
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 20,
+              color: AppColors.primary,
+            ),
+            onPressed: () => Get.find<JobController>().openJobEditor(job),
           ),
           IconButton(
             tooltip: isActive ? 'Pause listing' : 'Approve listing',

@@ -125,31 +125,54 @@ class AdminController extends GetxController {
   int get totalEnrollments =>
       _dbService.coursesList.fold(0, (sum, c) => sum + c.enrolledCount);
 
-  void toggleJobStatus(String jobId) {
+  Future<void> toggleJobStatus(String jobId) async {
     final idx = _dbService.jobsList.indexWhere((j) => j.id == jobId);
     if (idx != -1) {
       final j = _dbService.jobsList[idx];
-      _dbService.jobsList[idx] = j;
+      final updated = j.copyWith(isActive: !j.isActive);
+      try {
+        await _dbService.updateJob(updated);
+        Get.snackbar(
+          'Job Status Updated',
+          '${j.title} is now ${updated.isActive ? "Live" : "Paused"}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.primary,
+          colorText: Colors.white,
+        );
+      } catch (e) {
+        Get.snackbar(
+          'Error',
+          'Failed to update job status: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
+      }
+    }
+  }
+
+  Future<void> removeJob(String jobId) async {
+    try {
+      await _dbService.deleteJob(jobId);
       Get.snackbar(
-        'Job Moderated',
-        'Updated status for ${j.title}',
+        'Job Removed',
+        'Job listing was deleted successfully',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to remove job: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
         colorText: Colors.white,
       );
     }
   }
 
-  void removeJob(String jobId) {
-    _dbService.jobsList.removeWhere((j) => j.id == jobId);
-    Get.snackbar(
-      'Job Removed',
-      'Job listing removed by admin moderation',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.redAccent,
-      colorText: Colors.white,
-    );
-  }
+  Future<void> deleteJob(String jobId) => removeJob(jobId);
 
   Future<void> removeCourse(String courseId, String courseTitle) async {
     await _dbService.deleteCourse(courseId);

@@ -86,4 +86,46 @@ class JobModel {
           : DateTime.now(),
     );
   }
+
+  JobModel copyWith({
+    String? id,
+    String? title,
+    String? companyName,
+    String? companyLogo,
+    String? companyIconKey,
+    String? location,
+    String? jobType,
+    String? experienceLevel,
+    String? salaryRange,
+    String? description,
+    List<String>? requirements,
+    List<String>? skills,
+    String? recruiterId,
+    String? recruiterName,
+    int? applicantCount,
+    bool? isFeatured,
+    bool? isActive,
+    DateTime? postedAt,
+  }) {
+    return JobModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      companyName: companyName ?? this.companyName,
+      companyLogo: companyLogo ?? this.companyLogo,
+      companyIconKey: companyIconKey ?? this.companyIconKey,
+      location: location ?? this.location,
+      jobType: jobType ?? this.jobType,
+      experienceLevel: experienceLevel ?? this.experienceLevel,
+      salaryRange: salaryRange ?? this.salaryRange,
+      description: description ?? this.description,
+      requirements: requirements ?? this.requirements,
+      skills: skills ?? this.skills,
+      recruiterId: recruiterId ?? this.recruiterId,
+      recruiterName: recruiterName ?? this.recruiterName,
+      applicantCount: applicantCount ?? this.applicantCount,
+      isFeatured: isFeatured ?? this.isFeatured,
+      isActive: isActive ?? this.isActive,
+      postedAt: postedAt ?? this.postedAt,
+    );
+  }
 }

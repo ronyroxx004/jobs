@@ -225,8 +225,9 @@ class JobController extends GetxController {
   }
 
   Future<void> deleteJob(JobModel job) async {
-    final recruiterId = _authService.currentUser.value?.id;
-    if (recruiterId == null || recruiterId != job.recruiterId) {
+    final user = _authService.currentUser.value;
+    final isAdmin = user?.role == UserRole.admin;
+    if (user == null || (!isAdmin && user.id != job.recruiterId)) {
       throw StateError('You can only delete your own job posts');
     }
 
@@ -318,15 +319,16 @@ class JobController extends GetxController {
         'Incomplete Fields',
         'Please fill in all required job posting details',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.withOpacity(0.8),
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
         colorText: Colors.white,
       );
       return;
     }
 
     final recruiter = _authService.currentUser.value;
+    final isAdmin = recruiter?.role == UserRole.admin;
     final existingJob = editingJob.value;
-    if (existingJob != null && existingJob.recruiterId != recruiter?.id) {
+    if (existingJob != null && !isAdmin && existingJob.recruiterId != recruiter?.id) {
       Get.snackbar(
         'Unable to edit job',
         'You can only edit job posts created by your account.',

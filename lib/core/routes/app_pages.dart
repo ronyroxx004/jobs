@@ -14,6 +14,7 @@ import '../../views/profile/resume_manager_view.dart';
 import '../../views/candidate_activity_view.dart';
 
 import '../../views/admin/admin_deleted_users_view.dart';
+import '../../views/admin/admin_jobs_view.dart';
 
 class AppPages {
   static const initial = AppRoutes.splash;
@@ -71,9 +72,13 @@ class AppPages {
         return CandidateActivityView(initialTab: initialTab);
       },
     ),
-  GetPage(
+    GetPage(
       name: AppRoutes.adminDeletedUsers,
       page: () => const AdminDeletedUsersView(),
+    ),
+    GetPage(
+      name: AppRoutes.adminJobs,
+      page: () => const AdminJobsView(),
     ),
   ];
 }

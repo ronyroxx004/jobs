@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/admin_controller.dart';
-import '../../controllers/job_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/database_service.dart';
@@ -13,8 +12,6 @@ class AdminDashboardView extends GetView<AdminController> {
 
   @override
   Widget build(BuildContext context) {
-    final jobController = Get.find<JobController>();
-
     // Refresh status and deleted accounts list
     controller.refreshAccountDeletionAvailability();
     controller.refreshDeletedUsers();
@@ -40,7 +37,7 @@ class AdminDashboardView extends GetView<AdminController> {
                   style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'System analytics, job moderation & platform health',
+                  'System analytics, platform health & user management',
                   style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
@@ -66,6 +63,8 @@ class AdminDashboardView extends GetView<AdminController> {
                         '${controller.totalJobs}',
                         Icons.work_rounded,
                         AppColors.primary,
+                        onTap: () => Get.toNamed(AppRoutes.adminJobs),
+                        subtitle: 'Tap to view all jobs →',
                       ),
                     ),
                   ],
@@ -92,53 +91,6 @@ class AdminDashboardView extends GetView<AdminController> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-
-                // Job Moderation List
-                Text(
-                  'Job Postings Moderation',
-                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-
-                Obx(() {
-                  final jobs = jobController.allJobs;
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: jobs.length,
-                    itemBuilder: (context, index) {
-                      final job = jobs[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: AppColors.primary,
-                            child: Icon(Icons.business, color: Colors.white, size: 20),
-                          ),
-                          title: Text(job.title, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
-                          subtitle: Text('${job.companyName} • ${job.location}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.check_circle_outline, color: AppColors.secondary),
-                                tooltip: 'Approve',
-                                onPressed: () => controller.toggleJobStatus(job.id),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                tooltip: 'Remove',
-                                onPressed: () => controller.removeJob(job.id),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                }),
-
                 const SizedBox(height: 24),
 
                 // User Management List (All Users, Recruiters, Mentors, Instructors)
@@ -334,19 +286,100 @@ class AdminDashboardView extends GetView<AdminController> {
     });
   }
 
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color, {
+    VoidCallback? onTap,
+    String? subtitle,
+  }) {
+    final isClickable = onTap != null;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(title, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(value, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
+      elevation: isClickable ? 2 : 1,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isClickable
+            ? BorderSide(color: color.withValues(alpha: 0.35), width: 1.5)
+            : BorderSide.none,
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                  if (isClickable)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: color,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(Icons.arrow_forward_rounded,
+                              size: 12, color: color),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: isClickable ? FontWeight.w700 : FontWeight.w500,
+                  color: isClickable ? color : Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
