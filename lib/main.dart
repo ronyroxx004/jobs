@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/theme/app_theme.dart';
@@ -17,9 +18,26 @@ void main() async {
   runApp(const JobsApp());
 }
 
-class JobsApp extends StatelessWidget {
+SystemUiOverlayStyle _systemUiOverlayStyle(bool isDark) {
+  final background = isDark ? const Color(0xFF0F172A) : Colors.white;
+  final iconBrightness = isDark ? Brightness.light : Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarColor: background,
+    statusBarIconBrightness: iconBrightness,
+    statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+    systemNavigationBarColor: background,
+    systemNavigationBarIconBrightness: iconBrightness,
+  );
+}
+
+class JobsApp extends StatefulWidget {
   const JobsApp({super.key});
 
+  @override
+  State<JobsApp> createState() => _JobsAppState();
+}
+
+class _JobsAppState extends State<JobsApp> {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
@@ -31,9 +49,15 @@ class JobsApp extends StatelessWidget {
       initialBinding: InitialBinding(),
       initialRoute: AppPages.initial,
       getPages: AppPages.pages,
-      builder: (context, child) => SafeArea(
-        child: child ?? const SizedBox.shrink(),
-      ),
+      builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: _systemUiOverlayStyle(isDark),
+          child: SafeArea(
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+      },
     );
   }
 }

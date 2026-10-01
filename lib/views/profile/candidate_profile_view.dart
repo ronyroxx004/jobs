@@ -377,17 +377,19 @@ class CandidateProfileView extends GetView<ProfileController> {
                   itemCount: apps.length,
                   itemBuilder: (context, index) {
                     final app = apps[index];
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    final statusBg = _applicationStatusBackground(app.status, isDark);
+                    final statusColor = _applicationStatusColor(app.status, isDark);
                     return Card(
                       margin: const EdgeInsets.only(bottom: 10),
                       child: ListTile(
                         leading: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: app.status.color.withOpacity(0.12),
+                            color: statusBg,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child:
-                              Icon(Icons.work_history, color: app.status.color),
+                          child: Icon(Icons.work_history, color: statusColor),
                         ),
                         title: Text(app.jobTitle,
                             style: GoogleFonts.inter(
@@ -398,7 +400,7 @@ class CandidateProfileView extends GetView<ProfileController> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: app.status.color.withOpacity(0.15),
+                            color: statusBg,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -406,7 +408,7 @@ class CandidateProfileView extends GetView<ProfileController> {
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: app.status.color,
+                              color: statusColor,
                             ),
                           ),
                         ),
@@ -681,3 +683,34 @@ class _ProfileContact extends StatelessWidget {
     );
   }
 }
+
+Color _applicationStatusBackground(ApplicationStatus status, bool isDark) {
+  switch (status) {
+    case ApplicationStatus.applied:
+      return isDark ? const Color(0xFF1E3A5F) : const Color(0xFFE0F2FE);
+    case ApplicationStatus.shortlisted:
+      return isDark ? const Color(0xFF2E2A5F) : const Color(0xFFEDE9FE);
+    case ApplicationStatus.interviewing:
+      return isDark ? const Color(0xFF3F2A1A) : const Color(0xFFFEF3C7);
+    case ApplicationStatus.offered:
+      return isDark ? const Color(0xFF123C2D) : const Color(0xFFDCFCE7);
+    case ApplicationStatus.rejected:
+      return isDark ? const Color(0xFF4A1D1D) : const Color(0xFFFEE2E2);
+  }
+}
+
+Color _applicationStatusColor(ApplicationStatus status, bool isDark) {
+  switch (status) {
+    case ApplicationStatus.applied:
+      return isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8);
+    case ApplicationStatus.shortlisted:
+      return isDark ? const Color(0xFFC4B5FD) : const Color(0xFF6D28D9);
+    case ApplicationStatus.interviewing:
+      return isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309);
+    case ApplicationStatus.offered:
+      return isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D);
+    case ApplicationStatus.rejected:
+      return isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C);
+  }
+}
+
