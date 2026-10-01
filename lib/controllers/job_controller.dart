@@ -106,6 +106,8 @@ class JobController extends GetxController {
 
   List<JobModel> get filteredJobs {
     return allJobs.where((job) {
+      if (!job.isActive) return false;
+
       final matchesSearch = searchQuery.value.isEmpty ||
           job.title.toLowerCase().contains(searchQuery.value.toLowerCase()) ||
           job.companyName

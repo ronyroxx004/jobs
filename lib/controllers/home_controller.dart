@@ -44,7 +44,7 @@ class HomeController extends GetxController {
   int get selectedTabIndex => currentIndex.value.clamp(0, pageCount - 1);
   String get userName => _authService.currentUser.value?.name ?? 'User';
 
-  int get totalJobsCount => _dbService.jobsList.length;
+  int get totalJobsCount => _dbService.jobsList.where((j) => j.isActive).length;
   int get myApplicationsCount => _dbService.applicationsList.length;
   int get availableMentorsCount => _dbService.servicesList.length;
   int get activeCoursesCount => _dbService.coursesList.length;

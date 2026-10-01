@@ -60,11 +60,11 @@ class AdminDashboardView extends GetView<AdminController> {
                     Expanded(
                       child: _buildMetricCard(
                         'Active Jobs',
-                        '${controller.totalJobs}',
+                        '${controller.activeJobs}',
                         Icons.work_rounded,
                         AppColors.primary,
                         onTap: () => Get.toNamed(AppRoutes.adminJobs),
-                        subtitle: 'Tap to view all jobs →',
+                        subtitle: '${controller.totalJobs} total • View all →',
                       ),
                     ),
                   ],

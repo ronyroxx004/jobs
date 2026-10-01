@@ -28,6 +28,7 @@ class AdminController extends GetxController {
   }
 
   int get totalJobs => _dbService.jobsList.length;
+  int get activeJobs => _dbService.jobsList.where((j) => j.isActive).length;
   int get totalApplications => _dbService.applicationsList.length;
   int get totalMentors => _dbService.servicesList.length;
   int get totalCourses => _dbService.coursesList.length;

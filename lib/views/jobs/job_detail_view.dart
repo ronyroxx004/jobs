@@ -106,6 +106,53 @@ class JobDetailView extends GetView<JobController> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Obx(() {
+                          final currentJob = controller.allJobs
+                                  .firstWhereOrNull((j) => j.id == job.id) ??
+                              job;
+                          if (!currentJob.isActive) {
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color:
+                                    AppColors.warning.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: AppColors.warning
+                                        .withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.pause_circle_filled_rounded,
+                                      color: AppColors.warning, size: 22),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Listing Paused',
+                                          style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13),
+                                        ),
+                                        Text(
+                                          'This job posting is currently paused and not accepting new applications.',
+                                          style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              color: Colors.grey[700]),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }),
                         // Job Header Card Box
                         Container(
                           width: double.infinity,
@@ -407,14 +454,18 @@ class JobDetailView extends GetView<JobController> {
                     ],
                   ),
                   child: Obx(() {
+                    final currentJob = controller.allJobs
+                            .firstWhereOrNull((j) => j.id == job.id) ??
+                        job;
+                    final isPaused = !currentJob.isActive;
                     final alreadyApplied = controller.hasAppliedForJob(job.id);
                     return ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: alreadyApplied
+                        backgroundColor: (isPaused || alreadyApplied)
                             ? Colors.grey.shade400
                             : AppColors.primary,
                       ),
-                      onPressed: alreadyApplied
+                      onPressed: (isPaused || alreadyApplied)
                           ? null
                           : () {
                               if (!authService.isLoggedIn) {
@@ -436,12 +487,20 @@ class JobDetailView extends GetView<JobController> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (alreadyApplied) ...[
+                          if (isPaused) ...[
+                            const Icon(Icons.pause_circle_outline_rounded,
+                                color: Colors.white, size: 18),
+                            const SizedBox(width: 8),
+                          ] else if (alreadyApplied) ...[
                             const Icon(Icons.check_circle_rounded,
                                 color: Colors.white, size: 18),
                             const SizedBox(width: 8),
                           ],
-                          Text(alreadyApplied ? 'Already Applied' : 'Apply Now'),
+                          Text(isPaused
+                              ? 'Listing Paused'
+                              : (alreadyApplied
+                                  ? 'Already Applied'
+                                  : 'Apply Now')),
                         ],
                       ),
                     );
