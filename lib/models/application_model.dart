@@ -95,4 +95,49 @@ class ApplicationModel {
           : DateTime.now(),
     );
   }
+
+  ApplicationModel copyWith({
+    String? id,
+    String? jobId,
+    String? jobTitle,
+    String? companyName,
+    String? candidateId,
+    String? candidateName,
+    String? candidateEmail,
+    String? candidatePhone,
+    String? candidateHeadline,
+    String? candidateBio,
+    String? candidateLocation,
+    int? candidateExperienceYears,
+    List<String>? candidateSkills,
+    String? candidateAvatar,
+    String? resumeUrl,
+    String? resumeName,
+    String? coverLetter,
+    ApplicationStatus? status,
+    DateTime? appliedAt,
+  }) {
+    return ApplicationModel(
+      id: id ?? this.id,
+      jobId: jobId ?? this.jobId,
+      jobTitle: jobTitle ?? this.jobTitle,
+      companyName: companyName ?? this.companyName,
+      candidateId: candidateId ?? this.candidateId,
+      candidateName: candidateName ?? this.candidateName,
+      candidateEmail: candidateEmail ?? this.candidateEmail,
+      candidatePhone: candidatePhone ?? this.candidatePhone,
+      candidateHeadline: candidateHeadline ?? this.candidateHeadline,
+      candidateBio: candidateBio ?? this.candidateBio,
+      candidateLocation: candidateLocation ?? this.candidateLocation,
+      candidateExperienceYears:
+          candidateExperienceYears ?? this.candidateExperienceYears,
+      candidateSkills: candidateSkills ?? this.candidateSkills,
+      candidateAvatar: candidateAvatar ?? this.candidateAvatar,
+      resumeUrl: resumeUrl ?? this.resumeUrl,
+      resumeName: resumeName ?? this.resumeName,
+      coverLetter: coverLetter ?? this.coverLetter,
+      status: status ?? this.status,
+      appliedAt: appliedAt ?? this.appliedAt,
+    );
+  }
 }

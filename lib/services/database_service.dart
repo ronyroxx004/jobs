@@ -664,6 +664,44 @@ class DatabaseService extends GetxService {
     }
   }
 
+  Future<void> updateApplication(ApplicationModel application) async {
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available');
+    }
+    await db
+        .ref(DatabaseKeys.applications)
+        .child(application.id)
+        .update(application.toMap());
+    final idx = applicationsList.indexWhere((a) => a.id == application.id);
+    if (idx != -1) {
+      applicationsList[idx] = application;
+    } else {
+      applicationsList.insert(0, application);
+    }
+  }
+
+  Future<void> deleteApplication(String appId) async {
+    final db = _db;
+    if (db == null) {
+      throw StateError('Firebase Realtime Database is not available');
+    }
+    final application =
+        applicationsList.firstWhereOrNull((a) => a.id == appId);
+    await db.ref(DatabaseKeys.applications).child(appId).remove();
+    applicationsList.removeWhere((a) => a.id == appId);
+
+    if (application != null && application.jobId.isNotEmpty) {
+      final jobRef = db.ref(DatabaseKeys.jobs).child(application.jobId);
+      try {
+        await jobRef.child('applicantCount').runTransaction((value) {
+          final currentCount = (value as num?)?.toInt() ?? 0;
+          return Transaction.success(currentCount > 0 ? currentCount - 1 : 0);
+        });
+      } catch (_) {}
+    }
+  }
+
   // --- MENTORSHIP SERVICES & BOOKINGS ---
   Future<void> createMentorshipService(MentorshipServiceModel service) async {
     try {

@@ -78,6 +78,8 @@ class AdminDashboardView extends GetView<AdminController> {
                         '${controller.totalApplications}',
                         Icons.assignment_turned_in_rounded,
                         AppColors.accent,
+                        onTap: () => Get.toNamed(AppRoutes.adminApplications),
+                        subtitle: 'Tap to view all →',
                       ),
                     ),
                     const SizedBox(width: 12),

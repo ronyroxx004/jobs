@@ -55,6 +55,72 @@ class AdminController extends GetxController {
   int get totalJobsByRecruiters =>
       _dbService.jobsList.where((j) => j.recruiterId.isNotEmpty).length;
 
+  List<ApplicationModel> get allApplications => _dbService.applicationsList;
+
+  Future<void> updateApplicationStage(
+      String appId, ApplicationStatus status) async {
+    try {
+      await _dbService.updateApplicationStatus(appId, status);
+      Get.snackbar(
+        'Status Updated',
+        'Application status updated to ${status.label}',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.primary,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to update status: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> updateApplication(ApplicationModel app) async {
+    try {
+      await _dbService.updateApplication(app);
+      Get.snackbar(
+        'Application Updated',
+        'Changes saved for ${app.candidateName}',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.primary,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to update application: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> deleteApplication(String appId) async {
+    try {
+      await _dbService.deleteApplication(appId);
+      Get.snackbar(
+        'Application Deleted',
+        'Candidate application record has been removed',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to delete application: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
   // --- Candidate analytics -------------------------------------------------
   List<ApplicationModel> applicationsByCandidate(String candidateId) =>
       _dbService.applicationsList
