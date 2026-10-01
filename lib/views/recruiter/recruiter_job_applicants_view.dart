@@ -18,7 +18,7 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Job Applicants'),
+        title: const Text('Applicants'),
         actions: [
           IconButton(
             tooltip: 'Edit job post',
@@ -75,7 +75,7 @@ class RecruiterJobApplicantsView extends GetView<JobController> {
               return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 itemCount: applicants.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, index) => _ApplicantCard(
                   application: applicants[index],
                   isDark: isDark,
@@ -225,243 +225,393 @@ class _ApplicantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = application;
-    final initials = app.candidateName.trim().isEmpty
-        ? 'C'
-        : app.candidateName.trim().substring(0, 1).toUpperCase();
+    final firstName = app.candidateName.trim().isEmpty
+        ? 'Candidate'
+        : app.candidateName.trim().split(RegExp(r'\s+')).first;
+
+    final headline = app.candidateHeadline.isNotEmpty
+        ? app.candidateHeadline
+        : 'Professional candidate';
 
     return Card(
       elevation: 1,
       color: isDark ? AppColors.cardDark : Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         side: BorderSide(
           color: isDark ? AppColors.borderDark : AppColors.borderLight,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: AppColors.primary.withOpacity(0.12),
-                  backgroundImage: app.candidateAvatar.isNotEmpty
-                      ? NetworkImage(app.candidateAvatar)
-                      : null,
-                  child: app.candidateAvatar.isEmpty
-                      ? Text(initials,
-                          style: GoogleFonts.inter(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ))
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        app.candidateName.isEmpty
-                            ? 'Candidate'
-                            : app.candidateName,
-                        style: GoogleFonts.inter(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (app.candidateHeadline.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          app.candidateHeadline,
-                          style: GoogleFonts.inter(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 5),
-                      Text(
-                        'Applied ${_formatDate(app.appliedAt)}',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _StatusPicker(
-                  status: app.status,
-                  onChanged: onStatusChanged,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 18,
-              runSpacing: 10,
-              children: [
-                if (app.candidateEmail.isNotEmpty)
-                  _DetailLine(
-                    icon: Icons.email_outlined,
-                    text: app.candidateEmail,
-                  ),
-                if (app.candidatePhone.isNotEmpty)
-                  _DetailLine(
-                    icon: Icons.phone_outlined,
-                    text: app.candidatePhone,
-                  ),
-                if (app.candidateLocation.isNotEmpty)
-                  _DetailLine(
-                    icon: Icons.location_on_outlined,
-                    text: app.candidateLocation,
-                  ),
-                _DetailLine(
-                  icon: Icons.work_outline,
-                  text: '${app.candidateExperienceYears} years experience',
-                ),
-              ],
-            ),
-            if (app.candidateBio.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _SectionLabel(title: 'PROFILE'),
-              const SizedBox(height: 5),
-              Text(
-                app.candidateBio,
-                style: GoogleFonts.inter(fontSize: 13, height: 1.45),
-              ),
-            ],
-            if (app.candidateSkills.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _SectionLabel(title: 'SKILLS'),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                children: app.candidateSkills
-                    .map(
-                      (skill) => Chip(
-                        label: Text(skill),
-                        visualDensity: VisualDensity.compact,
-                        backgroundColor: AppColors.primary.withOpacity(0.08),
-                        side: BorderSide.none,
-                        labelStyle: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-            if (app.coverLetter.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _SectionLabel(title: 'COVER LETTER'),
-              const SizedBox(height: 5),
-              Text(
-                app.coverLetter,
-                style: GoogleFonts.inter(fontSize: 13, height: 1.45),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.bgDark : AppColors.bgLight,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _showApplicantDetails(context, app),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  const Icon(Icons.description_outlined,
-                      color: AppColors.primary, size: 20),
-                  const SizedBox(width: 9),
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                    backgroundImage: app.candidateAvatar.isNotEmpty
+                        ? NetworkImage(app.candidateAvatar)
+                        : null,
+                    child: app.candidateAvatar.isEmpty
+                        ? Text(
+                            firstName.substring(0, 1).toUpperCase(),
+                            style: GoogleFonts.inter(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Submitted resume',
-                            style: GoogleFonts.inter(
-                                fontSize: 11, color: Colors.grey)),
                         Text(
-                          app.resumeName,
+                          firstName,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
-                              fontSize: 13, fontWeight: FontWeight.w600),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          headline,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  if (app.resumeUrl.isNotEmpty)
-                    IconButton(
-                      tooltip: 'Copy resume link',
-                      icon: const Icon(Icons.copy, size: 18),
-                      onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: app.resumeUrl),
-                        );
-                        Get.snackbar(
-                          'Resume link copied',
-                          'Paste the link to open the submitted resume.',
-                          snackPosition: SnackPosition.BOTTOM,
-                        );
-                      },
-                    ),
+                  _StatusPicker(
+                    status: app.status,
+                    onChanged: onStatusChanged,
+                  ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.bgDark : AppColors.bgLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _CompactInfoRow(
+                        icon: Icons.work_outline,
+                        label: 'Exp',
+                        value: '${app.candidateExperienceYears} yrs',
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: _CompactInfoRow(
+                        icon: Icons.location_on_outlined,
+                        label: 'Place',
+                        value: app.candidateLocation.isNotEmpty
+                            ? app.candidateLocation
+                            : 'Remote',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  static String _formatDate(DateTime date) =>
-      '${date.day}/${date.month}/${date.year}';
-}
-
-class _DetailLine extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _DetailLine({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: Colors.grey),
-        const SizedBox(width: 5),
-        Text(text, style: GoogleFonts.inter(fontSize: 12)),
-      ],
+  void _showApplicantDetails(BuildContext context, ApplicationModel app) {
+    Get.dialog(
+      Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 700),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                        backgroundImage: app.candidateAvatar.isNotEmpty
+                            ? NetworkImage(app.candidateAvatar)
+                            : null,
+                        child: app.candidateAvatar.isEmpty
+                            ? Text(
+                                app.candidateName.trim().isEmpty
+                                    ? 'C'
+                                    : app.candidateName.trim()[0].toUpperCase(),
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              app.candidateName.isEmpty ? 'Candidate' : app.candidateName,
+                              style: GoogleFonts.inter(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (app.candidateHeadline.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                app.candidateHeadline,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (app.candidateEmail.isNotEmpty)
+                    _DetailInfoRow(
+                      icon: Icons.email_outlined,
+                      label: 'Email',
+                      value: app.candidateEmail,
+                    ),
+                  if (app.candidatePhone.isNotEmpty)
+                    _DetailInfoRow(
+                      icon: Icons.phone_outlined,
+                      label: 'Phone',
+                      value: app.candidatePhone,
+                    ),
+                  if (app.candidateLocation.isNotEmpty)
+                    _DetailInfoRow(
+                      icon: Icons.location_on_outlined,
+                      label: 'Location',
+                      value: app.candidateLocation,
+                    ),
+                  _DetailInfoRow(
+                    icon: Icons.work_outline,
+                    label: 'Experience',
+                    value: '${app.candidateExperienceYears} years',
+                  ),
+                  if (app.candidateBio.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Bio',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.bgDark : AppColors.bgLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        app.candidateBio,
+                        style: GoogleFonts.inter(fontSize: 13, height: 1.5),
+                      ),
+                    ),
+                  ],
+                  if (app.candidateSkills.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'SKILLS',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: app.candidateSkills
+                          .map(
+                            (skill) => Chip(
+                              label: Text(skill),
+                              visualDensity: VisualDensity.compact,
+                              backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+                              side: BorderSide.none,
+                              labelStyle: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                  if (app.coverLetter.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'COVER LETTER',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.bgDark : AppColors.bgLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        app.coverLetter,
+                        style: GoogleFonts.inter(fontSize: 13, height: 1.5),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.bgDark : AppColors.bgLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Resume',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          app.resumeName.isNotEmpty ? app.resumeName : 'Resume.pdf',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (app.resumeUrl.isNotEmpty)
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                ClipboardData(text: app.resumeUrl),
+                              );
+                              Get.snackbar(
+                                'Resume link copied',
+                                'The resume URL has been copied to your clipboard.',
+                                snackPosition: SnackPosition.BOTTOM,
+                              );
+                            },
+                            icon: const Icon(Icons.copy_all_rounded, size: 18),
+                            label: const Text('Copy resume link'),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String title;
+class _DetailInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
 
-  const _SectionLabel({required this.title});
+  const _DetailInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
-  Widget build(BuildContext context) => Text(
-        title,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          letterSpacing: 0.8,
-          color: Colors.grey,
-          fontWeight: FontWeight.bold,
-        ),
-      );
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: Colors.grey.shade800,
+                ),
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
 
 class _StatusPicker extends StatelessWidget {
   final ApplicationStatus status;
@@ -485,7 +635,7 @@ class _StatusPicker extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: status.color.withOpacity(0.12),
+          color: status.color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -504,6 +654,46 @@ class _StatusPicker extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CompactInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _CompactInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: Colors.grey.shade700,
+              ),
+              children: [
+                TextSpan(
+                  text: '$label: ',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                TextSpan(text: value),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

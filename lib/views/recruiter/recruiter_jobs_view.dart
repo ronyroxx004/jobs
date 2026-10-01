@@ -115,7 +115,7 @@ class RecruiterJobsView extends GetView<JobController> {
                           decoration: BoxDecoration(
                             color: companyIconForKey(job.companyIconKey)
                                 .color
-                                .withOpacity(0.12),
+                                .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           alignment: Alignment.center,
@@ -147,40 +147,58 @@ class RecruiterJobsView extends GetView<JobController> {
                               ),
                               const SizedBox(height: 9),
                               Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      job.jobType,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 11,
-                                        color: AppColors.secondary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
                                     ),
-                                  ),
-                                  Flexible(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                     child: Text(
-                                      job.salaryRange,
+                                      '${controller.getApplicantCountForJob(job.id)}',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.right,
                                       style: GoogleFonts.inter(
-                                        fontSize: 11,
-                                        color: AppColors.secondary,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary,
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    '${controller.getApplicantCountForJob(job.id)} applicants',
-                                    maxLines: 1,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      color: Colors.grey.shade600,
-                                      fontWeight: FontWeight.w600,
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        job.jobType,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: AppColors.secondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        job.salaryRange,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: AppColors.secondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
