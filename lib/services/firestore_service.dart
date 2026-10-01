@@ -47,6 +47,24 @@ class FirestoreService extends GetxService {
     return null;
   }
 
+  /// Deletes every image document in [collection] owned by [userId].
+  Future<void> deleteImageRecords({
+    required String collection,
+    required String userId,
+  }) async {
+    try {
+      final db = _firestore;
+      if (db == null) return;
+      final snapshot = await db
+          .collection(collection)
+          .where('userId', isEqualTo: userId)
+          .get();
+      for (final doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (_) {}
+  }
+
   Stream<List<Map<String, dynamic>>> streamGalleryImages(String userId) {
     try {
       if (_firestore == null) return Stream.value([]);

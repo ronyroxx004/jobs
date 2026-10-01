@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/admin_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../models/user_model.dart';
+import './admin_user_profile_view.dart';
 
 class AdminRoleUsersView extends StatefulWidget {
   final UserRole role;
@@ -27,138 +28,140 @@ class _AdminRoleUsersViewState extends State<AdminRoleUsersView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Search Input
-            TextField(
-              controller: _searchController,
-              onChanged: (val) => _searchQuery.value = val,
-              decoration: InputDecoration(
-                hintText: 'Search by name, email or phone...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: Obx(() => _searchQuery.value.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded),
-                        onPressed: () {
-                          _searchController.clear();
-                          _searchQuery.value = '';
-                        },
-                      )
-                    : const SizedBox.shrink()),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Search Input
+              TextField(
+                controller: _searchController,
+                onChanged: (val) => _searchQuery.value = val,
+                decoration: InputDecoration(
+                  hintText: 'Search by name, email or phone...',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: Obx(() => _searchQuery.value.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchQuery.value = '';
+                          },
+                        )
+                      : const SizedBox.shrink()),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Obx(() {
-                final query = _searchQuery.value.toLowerCase();
-                final users = controller.allUsers
-                    .where((u) => u.role == widget.role)
-                    .where((u) =>
-                        u.name.toLowerCase().contains(query) ||
-                        u.email.toLowerCase().contains(query) ||
-                        u.phone.toLowerCase().contains(query))
-                    .toList();
+              const SizedBox(height: 16),
+              Expanded(
+                child: Obx(() {
+                  final query = _searchQuery.value.toLowerCase();
+                  final users = controller.allUsers
+                      .where((u) => u.role == widget.role)
+                      .where((u) =>
+                          u.name.toLowerCase().contains(query) ||
+                          u.email.toLowerCase().contains(query) ||
+                          u.phone.toLowerCase().contains(query))
+                      .toList();
 
-                if (users.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No ${widget.role.name}s found',
-                      style: GoogleFonts.inter(color: Colors.grey, fontSize: 15),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: users.length,
-                  itemBuilder: (context, index) {
-                    final user = users[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  if (users.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No ${widget.role.name}s found',
+                        style: GoogleFonts.inter(color: Colors.grey, fontSize: 15),
                       ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onLongPress: () =>
-                            _showUserProfileBottomSheet(context, user),
-                        onTap: () =>
-                            _showUserProfileBottomSheet(context, user),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          child: Row(
-                            children: [
-                              _buildUserAvatar(user, size: 48),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      user.name,
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                    );
+                  }
+                  return ListView.builder(
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final user = users[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onLongPress: () =>
+                              _showUserProfileBottomSheet(context, user),
+                          onTap: () =>
+                              _showUserProfileBottomSheet(context, user),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                _buildUserAvatar(user, size: 48),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        user.name,
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.email_outlined,
-                                            size: 13, color: Colors.grey),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            user.email.isNotEmpty
-                                                ? user.email
-                                                : 'No email provided',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.email_outlined,
+                                              size: 13, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              user.email.isNotEmpty
+                                                  ? user.email
+                                                  : 'No email provided',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600]),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.phone_outlined,
+                                              size: 13, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            user.phone.isNotEmpty
+                                                ? user.phone
+                                                : 'No phone provided',
                                             style: GoogleFonts.inter(
                                                 fontSize: 12,
                                                 color: Colors.grey[600]),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.phone_outlined,
-                                            size: 13, color: Colors.grey),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          user.phone.isNotEmpty
-                                              ? user.phone
-                                              : 'No phone provided',
-                                          style: GoogleFonts.inter(
-                                              fontSize: 12,
-                                              color: Colors.grey[600]),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.more_vert_rounded,
-                                    color: Colors.grey),
-                                tooltip: 'Options',
-                                onPressed: () =>
-                                    _showUserProfileBottomSheet(context, user),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.more_vert_rounded,
+                                      color: Colors.grey),
+                                  tooltip: 'Options',
+                                  onPressed: () =>
+                                      _showUserProfileBottomSheet(context, user),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              }),
-            ),
-          ],
+                      );
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -169,14 +172,18 @@ class _AdminRoleUsersViewState extends State<AdminRoleUsersView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       Container(
-        height: MediaQuery.of(context).size.height * 0.75,
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Handle bar
             Center(
@@ -184,15 +191,16 @@ class _AdminRoleUsersViewState extends State<AdminRoleUsersView> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[400],
+                  color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 20),
+            // User info header
             Row(
               children: [
-                _buildUserAvatar(user, size: 64),
+                _buildUserAvatar(user, size: 56),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -201,126 +209,43 @@ class _AdminRoleUsersViewState extends State<AdminRoleUsersView> {
                       Text(
                         user.name,
                         style: GoogleFonts.inter(
-                            fontSize: 20, fontWeight: FontWeight.bold),
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          user.role.displayName,
-                          style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary),
-                        ),
+                      Text(
+                        user.email,
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Get.back(),
-                ),
               ],
             ),
-            const Divider(height: 32),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInfoRow(
-                        Icons.email_outlined,
-                        user.email.isNotEmpty
-                            ? user.email
-                            : 'No email provided'),
-                    const SizedBox(height: 12),
-                    _buildInfoRow(
-                        Icons.phone_outlined,
-                        user.phone.isNotEmpty
-                            ? user.phone
-                            : 'No phone provided'),
-                    if (user.location.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _buildInfoRow(Icons.location_on_outlined, user.location),
-                    ],
-                    if (user.headline.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Text('Professional Headline',
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: AppColors.primary)),
-                      const SizedBox(height: 4),
-                      Text(user.headline,
-                          style: GoogleFonts.inter(fontSize: 14)),
-                    ],
-                    if (user.bio.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Text('Biography',
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: AppColors.primary)),
-                      const SizedBox(height: 4),
-                      Text(user.bio,
-                          style: GoogleFonts.inter(fontSize: 14, height: 1.4)),
-                    ],
-                    const SizedBox(height: 20),
-                    Text('Experience',
-                        style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: AppColors.primary)),
-                    const SizedBox(height: 4),
-                    Text('${user.experienceYears} years of experience',
-                        style: GoogleFonts.inter(fontSize: 14)),
-                    if (user.skills.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Text('Skills & Expertise',
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: AppColors.primary)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: user.skills
-                            .map((skill) => Chip(
-                                  label: Text(skill,
-                                      style: const TextStyle(fontSize: 11)),
-                                  backgroundColor:
-                                      AppColors.primary.withValues(alpha: 0.1),
-                                ))
-                            .toList(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            // Action buttons
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon: const Icon(Icons.edit_rounded, size: 18),
-                    label: const Text('Edit Profile'),
+                    icon: const Icon(Icons.edit_rounded, size: 20),
+                    label: const Text(
+                      'Edit',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                     onPressed: () {
                       Get.back();
-                      _showEditUserDialog(context, user);
+                      _handleEditUser(user);
                     },
                   ),
                 ),
@@ -328,70 +253,139 @@ class _AdminRoleUsersViewState extends State<AdminRoleUsersView> {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: Colors.red.shade50,
+                      foregroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.red.shade200),
                       ),
                     ),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Delete Profile'),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                    label: const Text(
+                      'Delete',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                     onPressed: () {
                       Get.back();
-                      _showDeleteConfirmation(context, user);
+                      _showFirstDeleteConfirmation(context, user);
                     },
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Colors.grey),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[700]),
-          ),
-        ),
-      ],
+  void _handleEditUser(UserModel user) {
+    // Navigate to admin user profile view for editing
+    Get.to(
+      () => AdminUserProfileView(user: user, role: user.role),
+      transition: Transition.rightToLeft,
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, UserModel user) {
+  void _showFirstDeleteConfirmation(BuildContext context, UserModel user) {
     Get.dialog(
       AlertDialog(
-        title: Text('Delete Profile',
-            style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete ${user.name}?',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         content: Text(
-            'Are you sure you want to delete ${user.name}? This action cannot be undone.',
-            style: GoogleFonts.inter(fontSize: 14)),
+          'This user and all their associated data will be permanently deleted. This action cannot be undone.',
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, foregroundColor: Colors.white),
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             onPressed: () {
               Get.back();
-              controller.deleteUser(user.id, user.name);
+              _showSecondDeleteConfirmation(context, user);
             },
-            child: const Text('Delete'),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
+      barrierDismissible: false,
     );
   }
+
+  void _showSecondDeleteConfirmation(BuildContext context, UserModel user) {
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Are you absolutely sure?',
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.red.shade600,
+          ),
+        ),
+        content: Text(
+          'This is the final confirmation. Once deleted, all data for ${user.name} will be removed from Firebase and the database.',
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () async {
+              Get.back();
+              await controller.deleteUser(user.id, user.name);
+            },
+            child: Text(
+              'Delete Permanently',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+
 
   Widget _buildUserAvatar(UserModel user, {double size = 48}) {
     if (user.avatarUrl.isNotEmpty) {
@@ -492,93 +486,5 @@ class _AdminRoleUsersViewState extends State<AdminRoleUsersView> {
       'instructor_award': Icons.workspace_premium_rounded,
     };
     return avatarIcons[key] ?? Icons.person_rounded;
-  }
-
-  void _showEditUserDialog(BuildContext context, UserModel user) {
-    final nameController = TextEditingController(text: user.name);
-    final emailController = TextEditingController(text: user.email);
-    final phoneController = TextEditingController(text: user.phone);
-    final headlineController = TextEditingController(text: user.headline);
-    final bioController = TextEditingController(text: user.bio);
-    final locationController = TextEditingController(text: user.location);
-    final experienceController =
-        TextEditingController(text: user.experienceYears.toString());
-
-    Get.dialog(
-      AlertDialog(
-        title: Text('Edit ${user.name}',
-            style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone Number'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: headlineController,
-                decoration: const InputDecoration(labelText: 'Headline'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: bioController,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Bio'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: locationController,
-                decoration: const InputDecoration(labelText: 'Location'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: experienceController,
-                keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'Experience Years'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final updated = user.copyWith(
-                name: nameController.text.trim(),
-                email: emailController.text.trim(),
-                phone: phoneController.text.trim(),
-                headline: headlineController.text.trim(),
-                bio: bioController.text.trim(),
-                location: locationController.text.trim(),
-                experienceYears:
-                    int.tryParse(experienceController.text.trim()) ??
-                        user.experienceYears,
-              );
-              controller.updateUserProfile(updated);
-              Get.back();
-            },
-            child: const Text('Save Changes'),
-          ),
-        ],
-      ),
-    );
   }
 }

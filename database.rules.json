@@ -1,0 +1,85 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (auth.uid === $uid && (!data.exists() || data.child('role').val() === newData.child('role').val())))",
+        ".validate": "newData.hasChildren(['id', 'name', 'email', 'role']) && newData.child('role').val().isString() && (newData.child('role').val() === 'candidate' || newData.child('role').val() === 'recruiter' || newData.child('role').val() === 'mentor' || newData.child('role').val() === 'instructor' || newData.child('role').val() === 'admin')",
+        "avatarUrl": { ".validate": "newData.isString()" },
+        "avatarIconKey": { ".validate": "newData.isString()" },
+        "skills": { ".validate": "newData.isString()" }
+      }
+    },
+
+    "deleted_users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    },
+
+    "jobs": {
+      "$jobId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (auth.uid === newData.child('recruiterId').val()))",
+        ".validate": "newData.hasChildren(['title', 'companyName', 'location', 'recruiterId'])"
+      }
+    },
+
+    "applications": {
+      "$appId": {
+        ".read": "auth != null && (auth.uid === newData.child('candidateId').val() || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('jobs').child(newData.child('jobId').val()).child('recruiterId').val() === auth.uid)",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('candidateId').val())"
+      }
+    },
+
+    "resumes": {
+      "$resumeId": {
+        ".read": "auth != null && (auth.uid === data.child('userId').val() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('userId').val())"
+      }
+    },
+
+    "mentorship_services": {
+      "$serviceId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('mentorId').val())",
+        ".validate": "newData.hasChildren(['title', 'mentorId', 'price', 'category'])"
+      }
+    },
+
+    "bookings": {
+      "$bookingId": {
+        ".read": "auth != null && (auth.uid === data.child('candidateId').val() || auth.uid === data.child('mentorId').val() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('candidateId').val() || auth.uid === newData.child('mentorId').val())"
+      }
+    },
+
+    "courses": {
+      "$courseId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".validate": "newData.hasChildren(['title', 'instructorName', 'category'])"
+      }
+    },
+
+    "chats": {
+      "$roomId": {
+        ".read": "auth != null && (data.child('participantIds').hasChild(auth.uid) || (data.exists() === false && newData.child('participantIds').hasChild(auth.uid)) || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || newData.child('participantIds').hasChild(auth.uid))"
+      }
+    },
+
+    "messages": {
+      "$roomId": {
+        ".read": "auth != null && root.child('chats').child($roomId).child('participantIds').hasChild(auth.uid)",
+        "$messageId": {
+          ".write": "auth != null && auth.uid === newData.child('senderId').val()"
+        }
+      }
+    }
+  }
+}

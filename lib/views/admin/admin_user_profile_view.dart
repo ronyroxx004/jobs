@@ -36,156 +36,163 @@ class AdminUserProfileView extends GetView<AdminController> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _buildUserAvatar(user, size: 72),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user.name,
-                        style: GoogleFonts.inter(
-                            fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.email_outlined,
-                              size: 14, color: Colors.grey),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              user.email.isNotEmpty
-                                  ? user.email
-                                  : 'No email provided',
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _buildUserAvatar(user, size: 72),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.name,
+                          style: GoogleFonts.inter(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.email_outlined,
+                                size: 14, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                user.email.isNotEmpty
+                                    ? user.email
+                                    : 'No email provided',
+                                style: GoogleFonts.inter(
+                                    fontSize: 13, color: Colors.grey[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.phone_outlined,
+                                size: 14, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Text(
+                              user.phone.isNotEmpty
+                                  ? user.phone
+                                  : 'No phone provided',
                               style: GoogleFonts.inter(
                                   fontSize: 13, color: Colors.grey[700]),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.phone_outlined,
-                              size: 14, color: Colors.grey),
-                          const SizedBox(width: 6),
-                          Text(
-                            user.phone.isNotEmpty
-                                ? user.phone
-                                : 'No phone provided',
-                            style: GoogleFonts.inter(
-                                fontSize: 13, color: Colors.grey[700]),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 32),
-            if (user.headline.isNotEmpty) ...[
-              Text('Professional Headline',
-                  style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.primary)),
-              const SizedBox(height: 6),
-              Text(user.headline, style: GoogleFonts.inter(fontSize: 15)),
-              const SizedBox(height: 20),
-            ],
-            if (user.bio.isNotEmpty) ...[
-              Text('Biography / About',
-                  style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.primary)),
-              const SizedBox(height: 6),
-              Text(user.bio,
-                  style: GoogleFonts.inter(fontSize: 15, height: 1.4)),
-              const SizedBox(height: 20),
-            ],
-            if (user.location.isNotEmpty) ...[
-              Text('Location',
-                  style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.primary)),
-              const SizedBox(height: 6),
-              Text(user.location, style: GoogleFonts.inter(fontSize: 15)),
-              const SizedBox(height: 20),
-            ],
-            Text('Experience',
-                style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: AppColors.primary)),
-            const SizedBox(height: 6),
-            Text('${user.experienceYears} years of experience',
-                style: GoogleFonts.inter(fontSize: 15)),
-            const SizedBox(height: 20),
-            if (user.skills.isNotEmpty) ...[
-              Text('Skills & Expertise',
-                  style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.primary)),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: user.skills
-                    .map((skill) => Chip(
-                          label:
-                              Text(skill, style: const TextStyle(fontSize: 12)),
-                          backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.1),
-                        ))
-                    .toList(),
-              ),
-            ],
-            const SizedBox(height: 32),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    icon: const Icon(Icons.edit_rounded),
-                    label: const Text('Edit Profile'),
-                    onPressed: () => _showEditUserDialog(context, user),
-                  ),
-                ),
-                if (role == UserRole.candidate) ...[
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Delete Candidate'),
-                      onPressed: () {
-                        controller.deleteUser(user.id, user.name);
-                        Get.back();
-                      },
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
+              ),
+              const Divider(height: 32),
+              if (user.headline.isNotEmpty) ...[
+                Text('Professional Headline',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: AppColors.primary)),
+                const SizedBox(height: 6),
+                Text(user.headline, style: GoogleFonts.inter(fontSize: 15)),
+                const SizedBox(height: 20),
               ],
-            ),
-          ],
+              if (user.bio.isNotEmpty) ...[
+                Text('Biography / About',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: AppColors.primary)),
+                const SizedBox(height: 6),
+                Text(user.bio,
+                    style: GoogleFonts.inter(fontSize: 15, height: 1.4)),
+                const SizedBox(height: 20),
+              ],
+              if (user.location.isNotEmpty) ...[
+                Text('Location',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: AppColors.primary)),
+                const SizedBox(height: 6),
+                Text(user.location, style: GoogleFonts.inter(fontSize: 15)),
+                const SizedBox(height: 20),
+              ],
+              Text('Experience',
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.primary)),
+              const SizedBox(height: 6),
+              Text('${user.experienceYears} years of experience',
+                  style: GoogleFonts.inter(fontSize: 15)),
+              const SizedBox(height: 20),
+              if (user.skills.isNotEmpty) ...[
+                Text('Skills & Expertise',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: AppColors.primary)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: user.skills
+                      .map((skill) => Chip(
+                            label:
+                                Text(skill, style: const TextStyle(fontSize: 12)),
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.1),
+                          ))
+                      .toList(),
+                ),
+              ],
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: const Icon(Icons.edit_rounded),
+                      label: const Text('Edit Profile'),
+                      onPressed: () => _showEditUserDialog(context, user),
+                    ),
+                  ),
+                  if (role == UserRole.candidate) ...[
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete Candidate'),
+                        onPressed: () async {
+                          final deleted = await controller.deleteUser(
+                            user.id,
+                            user.name,
+                          );
+                          if (deleted && Get.isBottomSheetOpen == false) {
+                            Get.back();
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

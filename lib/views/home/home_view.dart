@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/home_controller.dart';
@@ -6,13 +6,15 @@ import '../../controllers/auth_controller.dart';
 import '../../controllers/theme_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
-import '../../services/database_service.dart';
 import '../jobs/job_list_view.dart';
 import '../courses/course_list_view.dart';
 import '../mentorship/mentor_list_view.dart';
 import '../profile/candidate_profile_view.dart';
 import '../admin/admin_dashboard_view.dart';
-import '../admin/admin_role_users_view.dart';
+import '../admin/admin_candidates_view.dart';
+import '../admin/admin_recruiters_view.dart';
+import '../admin/admin_mentors_view.dart';
+import '../admin/admin_instructors_view.dart';
 import '../instructor/instructor_dashboard_view.dart';
 import '../recruiter/recruiter_jobs_view.dart';
 
@@ -152,34 +154,16 @@ class _HomeViewState extends State<HomeView> {
           onDestinationSelected: (index) {
             setState(() => controller.changeTab(index));
           },
-          indicatorColor: AppColors.primary.withOpacity(0.15),
+          indicatorColor: AppColors.primary.withValues(alpha: 0.15),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
           destinations: tabs.asMap().entries.map((entry) {
-            final index = entry.key;
             final tab = entry.value;
-            final isSelected = selectedIndex == index;
+            final isSelected = selectedIndex == entry.key;
 
-            Widget iconWidget;
-            if (role == UserRole.admin && index < 4) {
-              if (index == 0) {
-                iconWidget = Icon(
-                  isSelected ? Icons.person_rounded : Icons.person_outline_rounded,
-                  color: isSelected ? AppColors.primary : null,
-                );
-              } else if (index == 1) {
-                iconWidget = Icon(
-                  isSelected ? Icons.business_center_rounded : Icons.business_rounded,
-                  color: isSelected ? AppColors.primary : null,
-                );
-              } else {
-                UserRole targetRole = index == 2 ? UserRole.mentor : UserRole.instructor;
-                IconData fallback = index == 2 ? Icons.groups_rounded : Icons.cast_for_education_rounded;
-                iconWidget = _buildRoleAvatarIcon(targetRole, fallback);
-              }
-            } else {
-              iconWidget = Icon(isSelected ? tab.selectedIcon : tab.icon,
-                  color: isSelected ? AppColors.primary : null);
-            }
+            final iconWidget = Icon(
+              isSelected ? tab.selectedIcon : tab.icon,
+              color: isSelected ? AppColors.primary : null,
+            );
 
             return NavigationDestination(
               icon: iconWidget,
@@ -190,80 +174,6 @@ class _HomeViewState extends State<HomeView> {
         );
       }),
     );
-  }
-
-  Widget _buildRoleAvatarIcon(UserRole targetRole, IconData fallbackIcon) {
-    try {
-      final dbService = Get.find<DatabaseService>();
-      final user =
-          dbService.usersList.firstWhereOrNull((u) => u.role == targetRole);
-      if (user != null) {
-        if (user.avatarUrl.isNotEmpty) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              user.avatarUrl,
-              width: 24,
-              height: 24,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Icon(fallbackIcon, size: 22),
-            ),
-          );
-        } else if (user.avatarIconKey.isNotEmpty) {
-          return Icon(_iconForAvatarKey(user.avatarIconKey),
-              size: 22, color: AppColors.primary);
-        }
-      }
-    } catch (_) {}
-    return Icon(fallbackIcon, size: 22);
-  }
-
-  IconData _iconForAvatarKey(String key) {
-    const Map<String, IconData> avatarIcons = {
-      'candidate_rocket': Icons.rocket_launch_rounded,
-      'candidate_code': Icons.code_rounded,
-      'candidate_star': Icons.workspace_premium_rounded,
-      'candidate_palette': Icons.palette_rounded,
-      'candidate_explore': Icons.explore_rounded,
-      'candidate_build': Icons.construction_rounded,
-      'candidate_flash': Icons.bolt_rounded,
-      'candidate_person': Icons.person_rounded,
-      'candidate_trending': Icons.trending_up_rounded,
-      'candidate_terminal': Icons.terminal_rounded,
-      'candidate_trophy': Icons.emoji_events_rounded,
-      'recruiter_business': Icons.business_center_rounded,
-      'recruiter_groups': Icons.groups_rounded,
-      'recruiter_handshake': Icons.handshake_rounded,
-      'recruiter_star': Icons.stars_rounded,
-      'recruiter_search': Icons.manage_search_rounded,
-      'recruiter_badge': Icons.military_tech_rounded,
-      'recruiter_connect': Icons.connect_without_contact_rounded,
-      'recruiter_person': Icons.person_rounded,
-      'recruiter_target': Icons.track_changes_rounded,
-      'recruiter_verified': Icons.verified_rounded,
-      'recruiter_graph': Icons.query_stats_rounded,
-      'mentor_mind': Icons.psychology_rounded,
-      'mentor_bulb': Icons.lightbulb_rounded,
-      'mentor_school': Icons.school_rounded,
-      'mentor_support': Icons.support_agent_rounded,
-      'mentor_compass': Icons.explore_rounded,
-      'mentor_favorite': Icons.favorite_rounded,
-      'mentor_trophy': Icons.emoji_events_rounded,
-      'mentor_person': Icons.person_rounded,
-      'mentor_route': Icons.alt_route_rounded,
-      'mentor_growth': Icons.trending_up_rounded,
-      'mentor_chat': Icons.forum_rounded,
-      'instructor_teach': Icons.cast_for_education_rounded,
-      'instructor_book': Icons.menu_book_rounded,
-      'instructor_science': Icons.science_rounded,
-      'instructor_computer': Icons.computer_rounded,
-      'instructor_draw': Icons.draw_rounded,
-      'instructor_quiz': Icons.quiz_rounded,
-      'instructor_language': Icons.translate_rounded,
-      'instructor_person': Icons.person_rounded,
-      'instructor_award': Icons.workspace_premium_rounded,
-    };
-    return avatarIcons[key] ?? Icons.person_rounded;
   }
 
   static const String _profileTitle = '__profile__';
@@ -316,13 +226,13 @@ class _HomeViewState extends State<HomeView> {
       case UserRole.admin:
         return const [
           _HomeTab('Candidates', Icons.person_outline_rounded,
-              Icons.person_rounded, AdminRoleUsersView(role: UserRole.candidate)),
-          _HomeTab('Recruiters', Icons.business_rounded,
-              Icons.business_center_rounded, AdminRoleUsersView(role: UserRole.recruiter)),
-          _HomeTab('Mentors', Icons.groups_outlined,
-              Icons.groups_rounded, AdminRoleUsersView(role: UserRole.mentor)),
-          _HomeTab('Instructors', Icons.cast_for_education_outlined,
-              Icons.cast_for_education_rounded, AdminRoleUsersView(role: UserRole.instructor)),
+              Icons.person_rounded, AdminCandidatesView()),
+          _HomeTab('Recruiters', Icons.business_outlined,
+              Icons.business_rounded, AdminRecruitersView()),
+          _HomeTab('Mentors', Icons.psychology_outlined,
+              Icons.psychology_alt_rounded, AdminMentorsView()),
+          _HomeTab('Instructors', Icons.school_outlined,
+              Icons.school_rounded, AdminInstructorsView()),
           _HomeTab('Dashboard', Icons.dashboard_outlined,
               Icons.dashboard_rounded, AdminDashboardView()),
         ];

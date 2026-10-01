@@ -99,6 +99,21 @@ class AuthService extends GetxService {
 
           if (credential.user != null) {
             final dbService = Get.find<DatabaseService>();
+
+            // An admin may have removed this account already. Do not silently
+            // recreate the profile, otherwise a deleted user reappears.
+            if (await dbService.isUserDeleted(credential.user!.uid)) {
+              await _auth!.signOut();
+              Get.snackbar(
+                'Account Removed',
+                'This account was deleted by an administrator.',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.red.shade700,
+                colorText: Colors.white,
+              );
+              return false;
+            }
+
             profile = await dbService.getUserProfile(credential.user!.uid);
 
             if (profile != null) {

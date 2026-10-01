@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../models/user_model.dart';
+import 'firestore_service.dart';
 import '../models/job_model.dart';
 import '../models/resume_model.dart';
 import '../models/application_model.dart';
@@ -105,13 +106,163 @@ class DatabaseService extends GetxService {
     return usersList;
   }
 
-  Future<void> deleteUser(String userId) async {
+  /// Removes a user and every record that belongs to them, then leaves a
+  /// tombstone so the account cannot silently be recreated on next login.
+  ///
+  /// Throws a [StateError] when the Realtime Database is unreachable so callers
+  /// can surface the real reason instead of failing silently.
+  Future<UserDeleteResult> deleteUserCascade(String userId) async {
     final db = _db;
     if (db == null) {
-      throw StateError('Firebase Realtime Database is not available');
+      throw StateError(
+        'Firebase Realtime Database is not available. '
+        'Check your internet connection and try again.',
+      );
     }
-    await db.ref(DatabaseKeys.users).child(userId).remove();
+
+    if (userId.isEmpty) {
+      throw StateError('Invalid user id.');
+    }
+
+    final user = usersList.firstWhereOrNull((u) => u.id == userId);
+
+    // Preserve a tombstone BEFORE clearing the profile, so an in-flight login
+    // cannot recreate the account from the deleted profile document.
+    await db.ref(DatabaseKeys.deletedUsers).child(userId).set({
+      'email': user?.email ?? '',
+      'name': user?.name ?? '',
+      'role': user?.role.name ?? '',
+      'deletedAt': DateTime.now().toIso8601String(),
+    });
+
+    await Future.wait([
+      db.ref(DatabaseKeys.users).child(userId).remove(),
+      _purgeResumes(db, userId),
+      _purgeApplications(db, userId),
+      _purgeJobs(db, userId),
+      _purgeMentorshipServices(db, userId),
+      _purgeBookings(db, userId),
+      _purgeChats(db, userId),
+      _purgeFirestoreRecords(userId),
+    ]);
+
+    // Mirror the removal into the local reactive caches so the UI updates
+    // immediately even if a listener has not fired yet.
     usersList.removeWhere((u) => u.id == userId);
+    resumeList.removeWhere((r) => r.userId == userId);
+    applicationsList.removeWhere((a) => a.candidateId == userId);
+    jobsList.removeWhere((j) => j.recruiterId == userId);
+    servicesList.removeWhere((s) => s.mentorId == userId);
+    bookingsList.removeWhere(
+        (b) => b.mentorId == userId || b.candidateId == userId);
+    chatRoomsList.removeWhere(
+        (c) => c.participantIds.contains(userId));
+
+    return UserDeleteResult(
+      removedFirestoreRecords: true,
+      email: user?.email ?? '',
+    );
+  }
+
+  /// Returns true when an admin has previously removed this account.
+  Future<bool> isUserDeleted(String userId) async {
+    try {
+      final snapshot = await _db?.ref(DatabaseKeys.deletedUsers).child(userId).get();
+      return snapshot?.exists == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _purgeResumes(FirebaseDatabase db, String userId) async {
+    final snapshot = await db.ref(DatabaseKeys.resumes).get();
+    final data = snapshot.value;
+    if (data is! Map) return;
+    for (final entry in data.entries) {
+      final map = Map<String, dynamic>.from(entry.value as Map);
+      if (map['userId'] == userId) {
+        await db.ref(DatabaseKeys.resumes).child('${entry.key}').remove();
+      }
+    }
+  }
+
+  Future<void> _purgeApplications(FirebaseDatabase db, String userId) async {
+    final snapshot = await db.ref(DatabaseKeys.applications).get();
+    final data = snapshot.value;
+    if (data is! Map) return;
+    for (final entry in data.entries) {
+      final map = Map<String, dynamic>.from(entry.value as Map);
+      if (map['candidateId'] == userId) {
+        await db.ref(DatabaseKeys.applications).child('${entry.key}').remove();
+      }
+    }
+  }
+
+  Future<void> _purgeJobs(FirebaseDatabase db, String userId) async {
+    final snapshot = await db.ref(DatabaseKeys.jobs).get();
+    final data = snapshot.value;
+    if (data is! Map) return;
+    for (final entry in data.entries) {
+      final map = Map<String, dynamic>.from(entry.value as Map);
+      if (map['recruiterId'] == userId) {
+        await db.ref(DatabaseKeys.jobs).child('${entry.key}').remove();
+      }
+    }
+  }
+
+  Future<void> _purgeMentorshipServices(
+      FirebaseDatabase db, String userId) async {
+    final snapshot = await db.ref(DatabaseKeys.mentorshipServices).get();
+    final data = snapshot.value;
+    if (data is! Map) return;
+    for (final entry in data.entries) {
+      final map = Map<String, dynamic>.from(entry.value as Map);
+      if (map['mentorId'] == userId) {
+        await db
+            .ref(DatabaseKeys.mentorshipServices)
+            .child('${entry.key}')
+            .remove();
+      }
+    }
+  }
+
+  Future<void> _purgeBookings(FirebaseDatabase db, String userId) async {
+    final snapshot = await db.ref(DatabaseKeys.bookings).get();
+    final data = snapshot.value;
+    if (data is! Map) return;
+    for (final entry in data.entries) {
+      final map = Map<String, dynamic>.from(entry.value as Map);
+      if (map['mentorId'] == userId || map['candidateId'] == userId) {
+        await db.ref(DatabaseKeys.bookings).child('${entry.key}').remove();
+      }
+    }
+  }
+
+  Future<void> _purgeChats(FirebaseDatabase db, String userId) async {
+    final snapshot = await db.ref(DatabaseKeys.chats).get();
+    final data = snapshot.value;
+    if (data is! Map) return;
+    for (final entry in data.entries) {
+      final map = Map<String, dynamic>.from(entry.value as Map);
+      final participants = List<String>.from(map['participantIds'] ?? const []);
+      if (participants.contains(userId)) {
+        await db.ref(DatabaseKeys.chats).child('${entry.key}').remove();
+        await db.ref(DatabaseKeys.messages).child('${entry.key}').remove();
+      }
+    }
+  }
+
+  /// Removes the Firestore image/media documents owned by the user.
+  Future<void> _purgeFirestoreRecords(String userId) async {
+    final firestore = Get.find<FirestoreService>();
+    for (final collection in [
+      DatabaseKeys.userImages,
+      DatabaseKeys.portfolioImages,
+    ]) {
+      try {
+        await firestore.deleteImageRecords(collection: collection, userId: userId);
+      } catch (_) {}
+    }
   }
 
   // --- USER PROFILE ---
@@ -359,6 +510,16 @@ class DatabaseService extends GetxService {
     return servicesList;
   }
 
+  Future<void> deleteMentorshipService(String serviceId) async {
+    try {
+      await _db
+          ?.ref(DatabaseKeys.mentorshipServices)
+          .child(serviceId)
+          .remove();
+    } catch (_) {}
+    servicesList.removeWhere((s) => s.id == serviceId);
+  }
+
   Future<void> createBooking(BookingModel booking) async {
     try {
       await _db
@@ -393,6 +554,13 @@ class DatabaseService extends GetxService {
     return coursesList;
   }
 
+  Future<void> deleteCourse(String courseId) async {
+    try {
+      await _db?.ref(DatabaseKeys.courses).child(courseId).remove();
+    } catch (_) {}
+    coursesList.removeWhere((c) => c.id == courseId);
+  }
+
   // --- CHAT MESSAGES ---
   Future<void> sendMessage(String roomId, ChatMessageModel message) async {
     try {
@@ -407,4 +575,18 @@ class DatabaseService extends GetxService {
       });
     } catch (_) {}
   }
+}
+
+/// Outcome of a cascading admin user deletion.
+class UserDeleteResult {
+  /// Whether the profile + related Realtime Database records were removed.
+  final bool removedFirestoreRecords;
+
+  /// Email captured from the tombstone, used to explain the auth side effect.
+  final String email;
+
+  const UserDeleteResult({
+    required this.removedFirestoreRecords,
+    required this.email,
+  });
 }

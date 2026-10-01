@@ -107,4 +107,7 @@ class DatabaseKeys {
   static const String companyLogos = 'company_logos';
   static const String courseThumbnails = 'course_thumbnails';
   static const String portfolioImages = 'portfolio_images';
+
+  // Admin moderation tombstones for removed accounts
+  static const String deletedUsers = 'deleted_users';
 }
