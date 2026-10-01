@@ -263,7 +263,7 @@ class JobListView extends GetView<JobController> {
                                     ),
                                     child: Text(
                                       job.salaryRange,
-                                      textAlign: TextAlign.right,
+                                      textAlign: TextAlign.left,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
