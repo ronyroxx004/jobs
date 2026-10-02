@@ -21,8 +21,17 @@ class DatabaseService extends GetxService {
     try {
       _dbInstance ??= FirebaseDatabase.instance;
       return _dbInstance;
-    } catch (_) {
-      return null;
+    } catch (e) {
+      try {
+        _dbInstance ??= FirebaseDatabase.instanceFor(
+          app: Firebase.app(),
+          databaseURL: 'https://jobs-37214-default-rtdb.firebaseio.com',
+        );
+        return _dbInstance;
+      } catch (err) {
+        debugPrint('FirebaseDatabase initialization error: $err');
+        return null;
+      }
     }
   }
 

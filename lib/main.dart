@@ -7,13 +7,17 @@ import 'bindings/initial_binding.dart';
 import 'controllers/theme_controller.dart';
 import 'controllers/auth_controller.dart';
 
+import 'firebase_options.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
-    debugPrint('Firebase initialized in mock/fallback mode: $e');
+    debugPrint('Firebase initialization error: $e');
   }
 
   Get.put<ThemeController>(ThemeController(), permanent: true);
