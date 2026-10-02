@@ -6,6 +6,8 @@ import '../../controllers/admin_controller.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/utils/constants.dart';
 import '../../models/user_model.dart';
+import '../profile/candidate_profile_view.dart';
+import '../profile/edit_profile_view.dart';
 import 'admin_user_profile_view.dart';
 
 /// Resolves the Material icon stored against a user's `avatarIconKey`.
@@ -381,12 +383,19 @@ class AdminPinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-/// Opens the delete-user confirmation for a user from any admin role screen.
+/// Opens the profile/edit screen for a user from any admin role screen.
 void adminEditUser(UserModel user) {
-  Get.to(
-    () => AdminUserProfileView(user: user, role: user.role),
-    transition: Transition.rightToLeft,
-  );
+  if (user.role == UserRole.candidate) {
+    Get.to(
+      () => CandidateProfileView(candidateUser: user, isAdminView: true),
+      transition: Transition.rightToLeft,
+    );
+  } else {
+    Get.to(
+      () => AdminUserProfileView(user: user, role: user.role),
+      transition: Transition.rightToLeft,
+    );
+  }
 }
 
 /// Bottom sheet with the per-user moderation actions (view / edit / delete).
@@ -477,13 +486,24 @@ void adminShowUserActions(
                     label: const Text('View Profile'),
                     onPressed: () {
                       Get.back();
-                      Get.to(
-                        () => AdminUserProfileView(
-                          user: user,
-                          role: user.role,
-                        ),
-                        transition: Transition.rightToLeft,
-                      );
+                      if (user.role == UserRole.candidate ||
+                          user.role == UserRole.recruiter) {
+                        Get.to(
+                          () => CandidateProfileView(
+                            candidateUser: user,
+                            isAdminView: true,
+                          ),
+                          transition: Transition.rightToLeft,
+                        );
+                      } else {
+                        Get.to(
+                          () => AdminUserProfileView(
+                            user: user,
+                            role: user.role,
+                          ),
+                          transition: Transition.rightToLeft,
+                        );
+                      }
                     },
                   ),
                 ),
@@ -499,10 +519,17 @@ void adminShowUserActions(
                       ),
                     ),
                     icon: const Icon(Icons.edit_rounded, size: 18),
-                    label: const Text('Edit'),
+                    label: const Text('Edit Profile'),
                     onPressed: () {
                       Get.back();
-                      adminEditUser(user);
+                      if (user.role == UserRole.candidate) {
+                        Get.to(
+                          () => EditProfileView(targetUser: user),
+                          transition: Transition.rightToLeft,
+                        );
+                      } else {
+                        adminEditUser(user);
+                      }
                     },
                   ),
                 ),

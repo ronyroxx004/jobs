@@ -7,6 +7,9 @@ class DeletedUserModel {
   final String role;
   final DateTime deletedAt;
   final String deletedBy;
+  final Map<String, dynamic> backedUpJobs;
+  final Map<String, dynamic> backedUpApplications;
+  final Map<String, dynamic> backedUpProfile;
 
   const DeletedUserModel({
     required this.id,
@@ -15,10 +18,16 @@ class DeletedUserModel {
     this.role = 'candidate',
     required this.deletedAt,
     this.deletedBy = '',
+    this.backedUpJobs = const {},
+    this.backedUpApplications = const {},
+    this.backedUpProfile = const {},
   });
 
+  int get jobsCount => backedUpJobs.length;
+  int get applicationsCount => backedUpApplications.length;
+
   Map<String, dynamic> toMap() {
-    return {
+    final map = <String, dynamic>{
       'uid': id,
       'name': name,
       'email': email,
@@ -26,6 +35,16 @@ class DeletedUserModel {
       'deletedAt': deletedAt.toIso8601String(),
       'deletedBy': deletedBy,
     };
+    if (backedUpJobs.isNotEmpty) {
+      map['jobs'] = backedUpJobs;
+    }
+    if (backedUpApplications.isNotEmpty) {
+      map['applications'] = backedUpApplications;
+    }
+    if (backedUpProfile.isNotEmpty) {
+      map['profile'] = backedUpProfile;
+    }
+    return map;
   }
 
   factory DeletedUserModel.fromRaw(dynamic raw, String key) {
@@ -63,6 +82,19 @@ class DeletedUserModel {
         DateTime.now();
     final deletedBy = map['deletedBy']?.toString() ?? '';
 
+    Map<String, dynamic> jobs = {};
+    if (map['jobs'] is Map) {
+      jobs = Map<String, dynamic>.from(map['jobs'] as Map);
+    }
+    Map<String, dynamic> apps = {};
+    if (map['applications'] is Map) {
+      apps = Map<String, dynamic>.from(map['applications'] as Map);
+    }
+    Map<String, dynamic> profile = {};
+    if (map['profile'] is Map) {
+      profile = Map<String, dynamic>.from(map['profile'] as Map);
+    }
+
     return DeletedUserModel(
       id: id,
       name: name,
@@ -70,6 +102,9 @@ class DeletedUserModel {
       role: role,
       deletedAt: deletedAt,
       deletedBy: deletedBy,
+      backedUpJobs: jobs,
+      backedUpApplications: apps,
+      backedUpProfile: profile,
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/admin_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../models/user_model.dart';
+import '../profile/edit_profile_view.dart';
 
 class AdminUserProfileView extends GetView<AdminController> {
   final UserModel user;
@@ -22,7 +23,16 @@ class AdminUserProfileView extends GetView<AdminController> {
           IconButton(
             icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
             tooltip: 'Edit User',
-            onPressed: () => _showEditUserDialog(context, user),
+            onPressed: () {
+              if (role == UserRole.candidate) {
+                Get.to(
+                  () => EditProfileView(targetUser: user),
+                  transition: Transition.rightToLeft,
+                );
+              } else {
+                _showEditUserDialog(context, user);
+              }
+            },
           ),
           if (role == UserRole.candidate)
             IconButton(
@@ -163,7 +173,16 @@ class AdminUserProfileView extends GetView<AdminController> {
                       ),
                       icon: const Icon(Icons.edit_rounded),
                       label: const Text('Edit Profile'),
-                      onPressed: () => _showEditUserDialog(context, user),
+                      onPressed: () {
+                        if (role == UserRole.candidate) {
+                          Get.to(
+                            () => EditProfileView(targetUser: user),
+                            transition: Transition.rightToLeft,
+                          );
+                        } else {
+                          _showEditUserDialog(context, user);
+                        }
+                      },
                     ),
                   ),
                   if (role == UserRole.candidate) ...[

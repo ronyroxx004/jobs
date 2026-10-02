@@ -34,10 +34,69 @@ class AdminController extends GetxController {
   int get totalCourses => _dbService.coursesList.length;
 
   List<UserModel> get allUsers => _dbService.usersList;
-  List<UserModel> get recruiters => _dbService.usersList.where((u) => u.role == UserRole.recruiter).toList();
-  List<UserModel> get mentors => _dbService.usersList.where((u) => u.role == UserRole.mentor).toList();
-  List<UserModel> get instructors => _dbService.usersList.where((u) => u.role == UserRole.instructor).toList();
-  List<UserModel> get candidates => _dbService.usersList.where((u) => u.role == UserRole.candidate).toList();
+
+  List<UserModel> get recruiters => _dbService.usersList.where((u) {
+        if (u.role == UserRole.admin) return false;
+        final raw = u.rawRole.trim().toLowerCase();
+        if (raw.isNotEmpty && raw != 'recruiter' && raw != 'hr') return false;
+        return u.role == UserRole.recruiter;
+      }).toList();
+
+  List<UserModel> get mentors => _dbService.usersList.where((u) {
+        if (u.role == UserRole.admin) return false;
+        final raw = u.rawRole.trim().toLowerCase();
+        if (raw.isNotEmpty && raw != 'mentor') return false;
+        return u.role == UserRole.mentor;
+      }).toList();
+
+  List<UserModel> get instructors => _dbService.usersList.where((u) {
+        if (u.role == UserRole.admin) return false;
+        final raw = u.rawRole.trim().toLowerCase();
+        if (raw.isNotEmpty && raw != 'instructor' && raw != 'course') return false;
+        return u.role == UserRole.instructor;
+      }).toList();
+
+  List<UserModel> get candidates {
+    final currentAdminId = _authService.currentUser.value?.id;
+    final currentAdminEmail =
+        _authService.currentUser.value?.email.trim().toLowerCase();
+
+    return _dbService.usersList.where((u) {
+      // Exclude logged in admin account
+      if (currentAdminId != null &&
+          currentAdminId.isNotEmpty &&
+          u.id == currentAdminId) {
+        return false;
+      }
+      if (currentAdminEmail != null &&
+          currentAdminEmail.isNotEmpty &&
+          u.email.trim().toLowerCase() == currentAdminEmail) {
+        return false;
+      }
+
+      // Exclude admin role or admin email
+      if (u.role == UserRole.admin) {
+        return false;
+      }
+      final email = u.email.trim().toLowerCase();
+      if (email == 'admin@gmail.com' || email.contains('admin')) {
+        return false;
+      }
+
+      // Must be candidate role
+      if (u.role != UserRole.candidate) {
+        return false;
+      }
+
+      // Role in Realtime Database must be explicitly candidate
+      final raw = u.rawRole.trim().toLowerCase();
+      if (raw.isNotEmpty) {
+        return raw == 'candidate';
+      }
+
+      return false;
+    }).toList();
+  }
 
   final RxDouble platformRevenue = 12450.00.obs;
 
@@ -55,7 +114,9 @@ class AdminController extends GetxController {
   int get totalJobsByRecruiters =>
       _dbService.jobsList.where((j) => j.recruiterId.isNotEmpty).length;
 
-  List<ApplicationModel> get allApplications => _dbService.applicationsList;
+  List<ApplicationModel> get allApplications => _dbService.applicationsList
+      .where((a) => _dbService.jobsList.any((j) => j.id == a.jobId))
+      .toList();
 
   Future<void> updateApplicationStage(
       String appId, ApplicationStatus status) async {
@@ -124,12 +185,16 @@ class AdminController extends GetxController {
   // --- Candidate analytics -------------------------------------------------
   List<ApplicationModel> applicationsByCandidate(String candidateId) =>
       _dbService.applicationsList
-          .where((a) => a.candidateId == candidateId)
+          .where((a) =>
+              a.candidateId == candidateId &&
+              _dbService.jobsList.any((j) => j.id == a.jobId))
           .toList();
 
   int offersForCandidate(String candidateId) => _dbService.applicationsList
       .where((a) =>
-          a.candidateId == candidateId && a.status == ApplicationStatus.offered)
+          a.candidateId == candidateId &&
+          a.status == ApplicationStatus.offered &&
+          _dbService.jobsList.any((j) => j.id == a.jobId))
       .length;
 
   int get verifiedCandidates => candidates.where((u) => u.isVerified).length;
@@ -241,6 +306,27 @@ class AdminController extends GetxController {
 
   Future<void> deleteJob(String jobId) => removeJob(jobId);
 
+  Future<void> restoreJob(String jobId) async {
+    try {
+      await _dbService.restoreJob(jobId);
+      Get.snackbar(
+        'Job Restored',
+        'Job listing was restored successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.secondary,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to restore job: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
   Future<void> removeCourse(String courseId, String courseTitle) async {
     await _dbService.deleteCourse(courseId);
     Get.snackbar(
@@ -280,73 +366,117 @@ class AdminController extends GetxController {
       return false;
     }
 
+    // Ensure jobs and applications are backed up before removal
+    DeletedUserModel? backupRecord;
+    try {
+      backupRecord = await _dbService.backupUserDataForRestore(userId);
+    } catch (_) {}
+
     try {
       final result = await _accountAdminService.deleteAccount(userId);
       _applyLocalRemoval(userId);
       await refreshDeletedUsers();
 
+      final isRecruiter = backupRecord?.role.toLowerCase() == 'recruiter';
+      final isCandidate = backupRecord?.role.toLowerCase() == 'candidate';
+      final jobsCount = backupRecord?.jobsCount ?? 0;
+      final appsCount = backupRecord?.applicationsCount ?? 0;
+
+      String details = '';
+      if (isRecruiter && jobsCount > 0) {
+        details = ' ($jobsCount job post${jobsCount == 1 ? '' : 's'} backed up)';
+      } else if (isCandidate && appsCount > 0) {
+        details = ' ($appsCount application${appsCount == 1 ? '' : 's'} backed up)';
+      }
+
       if (result.authDeleted) {
         _notify(
           title: 'Account Deleted',
           message: '$name was removed from Firebase Authentication, '
-              'Realtime Database and Firestore '
-              '(${result.totalRemoved} records cleared).',
+              'Realtime Database and Firestore$details.',
           background: AppColors.secondary,
-          action: TextButton(
-            onPressed: Get.closeAllSnackbars,
-            child: const Text('OK', style: TextStyle(color: Colors.white)),
-          ),
+          action: backupRecord != null
+              ? TextButton(
+                  onPressed: () async {
+                    Get.closeAllSnackbars();
+                    await restoreUser(backupRecord!);
+                  },
+                  child: const Text('UNDO',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                )
+              : TextButton(
+                  onPressed: Get.closeAllSnackbars,
+                  child: const Text('OK', style: TextStyle(color: Colors.white)),
+                ),
         );
       } else {
         _notify(
           title: 'Data Deleted',
-          message: '$name\'s data was removed (${result.totalRemoved} records), '
+          message: '$name\'s data was removed$details, '
               'but the Firebase Auth account could not be deleted: '
               '${result.authError ?? 'unknown error'}. '
               'Remove it in Firebase Console > Authentication.',
           background: AppColors.warning,
+          action: backupRecord != null
+              ? TextButton(
+                  onPressed: () async {
+                    Get.closeAllSnackbars();
+                    await restoreUser(backupRecord!);
+                  },
+                  child: const Text('UNDO',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                )
+              : null,
         );
       }
       return true;
     } on AccountDeletionUnavailable catch (e) {
-      // Cloud Function unavailable -> clean up the data ourselves.
       debugPrint('Cloud delete unavailable: ${e.message}');
-      return _deleteWithoutCloudFunction(userId, name);
+      return _deleteWithoutCloudFunction(userId, name, backupRecord: backupRecord);
     } catch (e) {
       debugPrint('Unexpected delete error: $e');
-      return _deleteWithoutCloudFunction(userId, name);
+      return _deleteWithoutCloudFunction(userId, name, backupRecord: backupRecord);
     }
   }
 
   /// Fallback path: removes profile + related records using the client SDK.
-  Future<bool> _deleteWithoutCloudFunction(String userId, String name) async {
+  Future<bool> _deleteWithoutCloudFunction(String userId, String name,
+      {DeletedUserModel? backupRecord}) async {
     try {
       final result = await _dbService.deleteUserCascade(userId);
       await refreshDeletedUsers();
 
+      final record = result.deletedRecord ?? backupRecord;
+      final isRecruiter = record?.role.toLowerCase() == 'recruiter';
+      final isCandidate = record?.role.toLowerCase() == 'candidate';
+      final jobsCount = record?.jobsCount ?? 0;
+      final appsCount = record?.applicationsCount ?? 0;
+
+      String details = '';
+      if (isRecruiter && jobsCount > 0) {
+        details = ' ($jobsCount job post${jobsCount == 1 ? '' : 's'} backed up for restore)';
+      } else if (isCandidate && appsCount > 0) {
+        details = ' ($appsCount application${appsCount == 1 ? '' : 's'} backed up for restore)';
+      }
+
       final note = result.email.isEmpty ? '' : ' (${result.email})';
       _notify(
-        title: 'Realtime Data Deleted',
-        message: '$name$note was removed from Realtime Database, but the '
-            'Firebase Auth account still exists.\n\n'
-            'Deleting another user\'s login requires the deleteUserAccount '
-            'Cloud Function, which needs the Blaze (pay-as-you-go) plan:\n'
-            '1. Upgrade: console.firebase.google.com/project/jobs-37214/usage/details\n'
-            '2. Deploy: firebase deploy --only functions',
+        title: 'User Removed',
+        message: '$name$note was removed from Realtime Database$details. '
+            'You can restore this account anytime with their data.',
         background: AppColors.warning,
         action: TextButton(
           onPressed: () async {
             Get.closeAllSnackbars();
-            await restoreUser(
-              DeletedUserModel(
-                id: userId,
-                name: name,
-                email: result.email,
-                deletedAt: DateTime.now(),
-              ),
-            );
+            if (record != null) {
+              await restoreUser(record);
+            }
           },
-          child: const Text('UNDO', style: TextStyle(color: Colors.white)),
+          child: const Text('UNDO',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
       );
       return true;
@@ -384,7 +514,7 @@ class AdminController extends GetxController {
   /// jobs, sessions and chats are gone for good.
   Future<bool> restoreUser(DeletedUserModel deleted) async {
     try {
-      await _dbService.restoreUser(
+      final result = await _dbService.restoreUser(
         deleted.id,
         name: deleted.name,
         email: deleted.email,
@@ -396,11 +526,24 @@ class AdminController extends GetxController {
       final displayName = deleted.name.isNotEmpty
           ? deleted.name
           : (deleted.email.isNotEmpty ? deleted.email : 'User ${deleted.id}');
+
+      String extraDetails = '';
+      if (result.user.role == UserRole.recruiter) {
+        if (result.restoredJobsCount > 0) {
+          extraDetails =
+              ' along with ${result.restoredJobsCount} job post${result.restoredJobsCount == 1 ? '' : 's'}';
+        }
+      } else if (result.user.role == UserRole.candidate) {
+        if (result.restoredApplicationsCount > 0) {
+          extraDetails =
+              ' along with ${result.restoredApplicationsCount} application${result.restoredApplicationsCount == 1 ? '' : 's'} (only for active jobs)';
+        }
+      }
+
       _notify(
         title: 'Account Restored',
-        message: '$displayName can log in again. Their profile has been '
-            're-created in Realtime Database. Previous resumes, applications '
-            'and posts were deleted permanently and were not restored.',
+        message:
+            '$displayName has been restored$extraDetails. Profile and content are back in Realtime Database.',
         background: AppColors.secondary,
         action: TextButton(
           onPressed: Get.closeAllSnackbars,
@@ -429,7 +572,7 @@ class AdminController extends GetxController {
     }
 
     try {
-      await _dbService.restoreUser(
+      final result = await _dbService.restoreUser(
         cleanId,
         name: name,
         email: email,
@@ -437,11 +580,25 @@ class AdminController extends GetxController {
       );
       final label = (name != null && name.trim().isNotEmpty)
           ? name.trim()
-          : ((email != null && email.trim().isNotEmpty) ? email.trim() : cleanId);
+          : ((email != null && email.trim().isNotEmpty)
+              ? email.trim()
+              : cleanId);
+
+      String extra = '';
+      if (result.user.role == UserRole.recruiter &&
+          result.restoredJobsCount > 0) {
+        extra =
+            ' with ${result.restoredJobsCount} job post${result.restoredJobsCount == 1 ? '' : 's'}';
+      } else if (result.user.role == UserRole.candidate &&
+          result.restoredApplicationsCount > 0) {
+        extra =
+            ' with ${result.restoredApplicationsCount} application${result.restoredApplicationsCount == 1 ? '' : 's'} to active jobs';
+      }
 
       _notify(
         title: 'Account Restored',
-        message: '$label can now log in again. Profile was successfully recreated in Realtime Database.',
+        message:
+            '$label can now log in again$extra. Profile recreated in Realtime Database.',
         background: AppColors.secondary,
         action: TextButton(
           onPressed: Get.closeAllSnackbars,
@@ -474,22 +631,22 @@ class AdminController extends GetxController {
 
   /// Loads the list of removed accounts.
   ///
-  /// Returns false and reports the reason when the read is denied, so the UI
-  /// never claims "0 deleted accounts" when the list simply could not load.
-  Future<bool> refreshDeletedUsers() async {
+  /// When [silent] is true, suppresses error dialogs/snackbars (useful during
+  /// background login and initial page load).
+  Future<bool> refreshDeletedUsers({bool silent = true}) async {
     try {
       await _dbService.refreshDeletedUsers();
       deletedUsersLoaded.value = true;
       return true;
     } catch (e) {
-      _dbService.deletedUsersList.clear();
       deletedUsersLoaded.value = false;
-      _showError(
-        'Could not load deleted users',
-        'The Realtime Database denied this read. Deploy the latest rules:\n'
-        'firebase deploy --only database\n\n'
-        '(${_friendlyError(e)})',
-      );
+      debugPrint('AdminController.refreshDeletedUsers: $e');
+      if (!silent) {
+        _showError(
+          'Could not load deleted users',
+          'The Realtime Database denied this read: ${_friendlyError(e)}',
+        );
+      }
       return false;
     }
   }

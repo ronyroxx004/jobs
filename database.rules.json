@@ -4,23 +4,18 @@
     ".write": false,
 
     "users": {
-      ".read": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+      ".read": "auth != null",
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || (auth.uid === $uid && (!data.exists() || data.child('role').val() === newData.child('role').val())))",
-        ".validate": "newData.hasChildren(['id', 'name', 'email', 'role']) && newData.child('role').isString() && (newData.child('role').val() === 'candidate' || newData.child('role').val() === 'recruiter' || newData.child('role').val() === 'mentor' || newData.child('role').val() === 'instructor' || newData.child('role').val() === 'admin')",
-        "avatarUrl": { ".validate": "newData.isString()" },
-        "avatarIconKey": { ".validate": "newData.isString()" },
-        "skills": {
-          "$skill": { ".validate": "newData.isString()" }
-        }
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || (auth.uid === $uid && newData.child('role').val() != 'admin'))",
+        ".validate": "newData.hasChildren(['id', 'name', 'email', 'role']) && newData.child('role').isString() && (newData.child('role').val() === 'candidate' || newData.child('role').val() === 'recruiter' || newData.child('role').val() === 'mentor' || newData.child('role').val() === 'instructor' || newData.child('role').val() === 'admin')"
       }
     },
 
     "deleted_users": {
-      ".read": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+      ".read": "auth != null",
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".read": "auth != null",
         ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
@@ -28,29 +23,32 @@
     "resumes": {
       ".read": "auth != null",
       "$resumeId": {
-        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('userId').val())"
+        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === data.child('userId').val() || auth.uid === newData.child('userId').val())"
       }
     },
 
     "applications": {
       ".read": "auth != null",
       "$appId": {
-        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('candidateId').val())"
+        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === data.child('candidateId').val() || auth.uid === newData.child('candidateId').val() || root.child('jobs').child(data.child('jobId').val()).child('recruiterId').val() === auth.uid || root.child('jobs').child(newData.child('jobId').val()).child('recruiterId').val() === auth.uid)"
       }
     },
 
     "jobs": {
-      ".read": "auth != null",
+      ".read": true,
       "$jobId": {
-        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('recruiterId').val())",
-        ".validate": "newData.hasChildren(['title', 'companyName', 'location', 'recruiterId'])"
+        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === data.child('recruiterId').val() || auth.uid === newData.child('recruiterId').val())",
+        ".validate": "newData.hasChildren(['title', 'companyName', 'location', 'recruiterId'])",
+        "applicantCount": {
+          ".write": "auth != null"
+        }
       }
     },
 
     "mentorship_services": {
-      ".read": "auth != null",
+      ".read": true,
       "$serviceId": {
-        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('mentorId').val())",
+        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === data.child('mentorId').val() || auth.uid === newData.child('mentorId').val())",
         ".validate": "newData.hasChildren(['title', 'mentorId', 'price', 'category'])"
       }
     },
@@ -58,14 +56,14 @@
     "bookings": {
       ".read": "auth != null",
       "$bookingId": {
-        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === newData.child('candidateId').val() || auth.uid === newData.child('mentorId').val())"
+        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === data.child('candidateId').val() || auth.uid === newData.child('candidateId').val() || auth.uid === data.child('mentorId').val() || auth.uid === newData.child('mentorId').val())"
       }
     },
 
     "courses": {
-      ".read": "auth != null",
+      ".read": true,
       "$courseId": {
-        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === data.child('instructorId').val() || auth.uid === newData.child('instructorId').val())",
         ".validate": "newData.hasChildren(['title', 'instructorName', 'category'])"
       }
     },

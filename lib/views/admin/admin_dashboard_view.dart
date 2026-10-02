@@ -12,15 +12,12 @@ class AdminDashboardView extends GetView<AdminController> {
 
   @override
   Widget build(BuildContext context) {
-    // Refresh deleted accounts list
-    controller.refreshDeletedUsers();
-
     return RefreshIndicator(
       onRefresh: () async {
         final dbService = Get.find<DatabaseService>();
         await Future.wait([
           dbService.fetchAllData(),
-          controller.refreshDeletedUsers(),
+          controller.refreshDeletedUsers(silent: true),
         ]);
       },
       child: SingleChildScrollView(

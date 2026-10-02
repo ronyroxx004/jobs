@@ -7,7 +7,9 @@ import '../../controllers/job_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../models/user_model.dart';
 import '../../models/job_model.dart';
+import '../../models/deleted_user_model.dart';
 import '../../services/database_service.dart';
+import '../profile/candidate_profile_view.dart';
 import 'admin_shared.dart';
 
 /// Admin screen for recruiters, rendered as a performance table where every row
@@ -23,8 +25,16 @@ class _AdminRecruitersViewState extends State<AdminRecruitersView> {
   final TextEditingController _searchController = TextEditingController();
   final RxString _query = ''.obs;
   final RxString _expandedId = ''.obs;
+  final RxString _filter = 'All'.obs;
 
   late final ScrollController _scrollController;
+
+  static const List<String> _filters = [
+    'All',
+    'Verified',
+    'Active Jobs',
+    'Deleted Recruiters',
+  ];
 
   @override
   void initState() {
@@ -57,10 +67,16 @@ class _AdminRecruitersViewState extends State<AdminRecruitersView> {
             SliverPersistentHeader(
               pinned: true,
               delegate: AdminPinnedHeaderDelegate(
-                height: 56,
+                height: 104,
                 child: Container(
                   color: Theme.of(context).scaffoldBackgroundColor,
-                  child: _buildSearch(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildSearch(),
+                      _buildFilterBar(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -175,23 +191,117 @@ Widget _buildSearch() {
     );
   }
 
+  Widget _buildFilterBar() {
+    return Column(
+      children: [
+        SizedBox(
+          height: 38,
+          child: Obx(
+            () {
+              final selected = _filter.value;
+              return ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _filters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final label = _filters[index];
+                  final isSelected = selected == label;
+                  return ChoiceChip(
+                    label: Text(label),
+                    selected: isSelected,
+                    onSelected: (_) => _filter.value = label,
+                    labelStyle: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : Colors.grey[700],
+                    ),
+                    selectedColor: AppColors.secondary,
+                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.secondary
+                          : AppColors.borderLight,
+                    ),
+                    showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
   Widget _buildRecruiterList(AdminController controller) {
     return Obx(() {
-      // Read both observables up-front: ListView builds items lazily, so reads
-      // inside itemBuilder are outside Obx's reactive scope and would never
-      // trigger a rebuild.
-      final query = _query.value;
+      final query = _query.value.trim().toLowerCase();
       final expandedId = _expandedId.value;
+      final filter = _filter.value;
+
+      if (filter == 'Deleted Recruiters') {
+        final deleted = controller.deletedUsers.where((u) {
+          if (u.role.toLowerCase() != 'recruiter') return false;
+          return query.isEmpty ||
+              u.name.toLowerCase().contains(query) ||
+              u.email.toLowerCase().contains(query) ||
+              u.id.toLowerCase().contains(query);
+        }).toList();
+
+        if (deleted.isEmpty) {
+          return const SliverFillRemaining(
+            hasScrollBody: false,
+            child: AdminEmptyState(
+              icon: Icons.restore_rounded,
+              title: 'No deleted recruiters',
+              subtitle:
+                  'Recruiters removed by admin will appear here so you can restore them with their job posts.',
+              color: AppColors.secondary,
+            ),
+          );
+        }
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                if (index.isOdd) return const SizedBox(height: 10);
+                final itemIndex = index ~/ 2;
+                final record = deleted[itemIndex];
+                return _DeletedRecruiterRow(
+                  record: record,
+                  controller: controller,
+                );
+              },
+              childCount: deleted.isEmpty ? 0 : deleted.length * 2 - 1,
+            ),
+          ),
+        );
+      }
 
       final recruiters = controller.recruiters.where((user) {
         final jobs = controller.jobsByRecruiter(user.id);
-        return adminMatchesQuery(query, [
+        final matchesQuery = adminMatchesQuery(query, [
           user.name,
           user.email,
           user.phone,
           user.companyName,
           ...jobs.map((j) => j.title),
         ]);
+        if (!matchesQuery) return false;
+
+        switch (filter) {
+          case 'Verified':
+            return user.isVerified;
+          case 'Active Jobs':
+            return jobs.any((j) => j.isActive);
+          default:
+            return true;
+        }
       }).toList();
 
       if (recruiters.isEmpty) {
@@ -354,11 +464,15 @@ if (isExpanded) ...[
                       ),
                       icon: const Icon(Icons.person_rounded, size: 16),
                       label: const Text('View Account'),
-                      onPressed: () => adminShowUserActions(
-                        context,
-                        user,
-                        accent: AppColors.secondary,
-                      ),
+                      onPressed: () {
+                        Get.to(
+                          () => CandidateProfileView(
+                            candidateUser: user,
+                            isAdminView: true,
+                          ),
+                          transition: Transition.rightToLeft,
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -430,17 +544,19 @@ class _JobModerationTile extends StatelessWidget {
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
+            margin: const EdgeInsets.only(top: 2),
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.work_outline_rounded,
-              size: 18,
+              size: 19,
               color: AppColors.primary,
             ),
           ),
@@ -449,73 +565,278 @@ class _JobModerationTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Line 1: Job Title
                 Text(
                   job.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
+                // Line 2: Company Name
                 Text(
-                  '${job.location} • ${job.jobType} • ${job.applicantCount} applicants',
+                  job.companyName.isNotEmpty
+                      ? (job.location.isNotEmpty
+                          ? '${job.companyName} • ${job.location}'
+                          : job.companyName)
+                      : (job.location.isNotEmpty
+                          ? job.location
+                          : 'Company'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    fontSize: 11,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                     color: Colors.grey[600],
                   ),
+                ),
+                const SizedBox(height: 8),
+                // Line 3: Live, Edit, Pause, Delete
+                Row(
+                  children: [
+                    // Status Badge (Live / Paused)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (isActive ? AppColors.secondary : AppColors.warning)
+                            .withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: isActive ? AppColors.secondary : AppColors.warning,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isActive ? 'Live' : 'Paused',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isActive
+                                  ? AppColors.secondary
+                                  : AppColors.warning,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    // Edit listing
+                    IconButton(
+                      tooltip: 'Edit listing',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        size: 19,
+                        color: AppColors.primary,
+                      ),
+                      onPressed: () => Get.find<JobController>().openJobEditor(job),
+                    ),
+                    const SizedBox(width: 4),
+                    // Pause / Activate listing
+                    IconButton(
+                      tooltip: isActive ? 'Pause listing' : 'Activate listing',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(
+                        isActive
+                            ? Icons.pause_circle_outline_rounded
+                            : Icons.play_circle_outline_rounded,
+                        size: 20,
+                        color: isActive ? AppColors.warning : AppColors.secondary,
+                      ),
+                      onPressed: () => controller.toggleJobStatus(job.id),
+                    ),
+                    const SizedBox(width: 4),
+                    // Remove listing
+                    IconButton(
+                      tooltip: 'Remove listing',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 20,
+                        color: Colors.redAccent,
+                      ),
+                      onPressed: () => _confirmDeleteJob(context, job),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: (isActive ? AppColors.secondary : Colors.grey)
-                  .withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              isActive ? 'Live' : 'Paused',
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: isActive ? AppColors.secondary : Colors.grey[700],
-              ),
-            ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteJob(BuildContext context, JobModel job) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete Job Listing'),
+        content: Text('Are you sure you want to remove "${job.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
           ),
-          IconButton(
-            tooltip: 'Edit listing',
-            icon: const Icon(
-              Icons.edit_outlined,
-              size: 20,
-              color: AppColors.primary,
-            ),
-            onPressed: () => Get.find<JobController>().openJobEditor(job),
-          ),
-          IconButton(
-            tooltip: isActive ? 'Pause listing' : 'Approve listing',
-            icon: Icon(
-              isActive ? Icons.pause_circle_outline : Icons.check_circle_outline,
-              size: 20,
-              color: isActive ? AppColors.warning : AppColors.secondary,
-            ),
-            onPressed: () => controller.toggleJobStatus(job.id),
-          ),
-          IconButton(
-            tooltip: 'Remove listing',
-            icon: const Icon(
-              Icons.delete_outline_rounded,
-              size: 20,
-              color: Colors.redAccent,
-            ),
-            onPressed: () => controller.removeJob(job.id),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              controller.removeJob(job.id);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DeletedRecruiterRow extends StatelessWidget {
+  final DeletedUserModel record;
+  final AdminController controller;
+
+  const _DeletedRecruiterRow({
+    required this.record,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final jobsCount = record.jobsCount;
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
+                  child: Text(
+                    record.name.isNotEmpty ? record.name[0].toUpperCase() : 'R',
+                    style: const TextStyle(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        record.name.isNotEmpty ? record.name : 'Recruiter',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        record.email,
+                        style: GoogleFonts.inter(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Deleted',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.work_history_rounded,
+                      size: 16, color: AppColors.secondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      jobsCount > 0
+                          ? '$jobsCount job post${jobsCount == 1 ? '' : 's'} backed up & ready to restore'
+                          : 'No job posts recorded',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.restore_rounded, size: 18),
+                label: Text(
+                  jobsCount > 0
+                      ? 'Restore Recruiter & $jobsCount Job${jobsCount == 1 ? '' : 's'}'
+                      : 'Restore Recruiter Profile',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+                onPressed: () => controller.restoreUser(record),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

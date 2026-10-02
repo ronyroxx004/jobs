@@ -107,9 +107,9 @@ class _AdminDeletedUsersViewState extends State<AdminDeletedUsersView> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Restoring an account re-enables its login and recreates the '
-              'profile. Resumes, applications, jobs, mentorship sessions and '
-              'chats were deleted permanently and cannot be brought back.',
+              'Restoring an account re-enables login and recreates the profile. '
+              'Recruiter job posts and candidate applications for existing job posts '
+              'will also be restored automatically.',
               style: GoogleFonts.inter(fontSize: 11, height: 1.5, color: Colors.grey[700]),
             ),
           ),
@@ -621,7 +621,10 @@ class _DeletedUserCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 6),
-        Row(
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -638,14 +641,59 @@ class _DeletedUserCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                'Deleted ${_formatDate(record.deletedAt)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[600]),
+            if (record.jobsCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.work_outline_rounded,
+                        size: 11, color: Colors.blue),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${record.jobsCount} jobs',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue[800],
+                      ),
+                    ),
+                  ],
+                ),
               ),
+            if (record.applicationsCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.description_outlined,
+                        size: 11, color: Colors.teal),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${record.applicationsCount} apps',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.teal[800],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Text(
+              'Deleted ${_formatDate(record.deletedAt)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -658,6 +706,16 @@ class _DeletedUserCard extends StatelessWidget {
         ? record.name
         : (record.email.isNotEmpty ? record.email : 'UID: ${record.id}');
 
+    final String extraDetails;
+    final roleStr = record.role.toLowerCase();
+    if (roleStr == 'recruiter' && record.jobsCount > 0) {
+      extraDetails = '\n\n• ${record.jobsCount} job post(s) will be restored to active listings.';
+    } else if (roleStr == 'candidate' && record.applicationsCount > 0) {
+      extraDetails = '\n\n• Up to ${record.applicationsCount} application(s) will be restored for job posts that are still available.';
+    } else {
+      extraDetails = '';
+    }
+
     Get.dialog(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -667,9 +725,7 @@ class _DeletedUserCard extends StatelessWidget {
         ),
         content: Text(
           '$displayName will be able to '
-          'log in again and will reappear in the candidate, recruiter, mentor '
-          'and instructor lists.\n\nTheir deleted resumes, applications, jobs, '
-          'sessions and chats will NOT come back.',
+          'log in again and will reappear in active lists.$extraDetails',
           style: GoogleFonts.inter(fontSize: 14, height: 1.5),
         ),
         actions: [

@@ -2,13 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/job_controller.dart';
-import '../../core/routes/app_routes.dart';
 import '../../core/utils/constants.dart';
 
 import '../../services/auth_service.dart';
+import '../../models/company_profile.dart';
+import '../profile/edit_profile_view.dart';
 
 class PostJobView extends GetView<JobController> {
   const PostJobView({super.key});
+
+  Future<void> _openAddCompanyDialog(BuildContext context) async {
+    final result = await showDialog<CompanyProfile>(
+      context: context,
+      builder: (_) => const CompanyEditorDialog(),
+    );
+    if (result != null) {
+      controller.addCompanyAndSelect(result);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,12 +130,42 @@ class PostJobView extends GetView<JobController> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _FieldLabel(text: 'Company name', required: true),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _FieldLabel(text: 'Company name', required: true),
+                      InkWell(
+                        onTap: () => _openAddCompanyDialog(context),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.add_business_outlined,
+                                  size: 16, color: AppColors.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Add Company',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 7),
                   Obx(() {
-                    final companies = controller.postCompanyOptions;
-                    final isAdmin = Get.find<AuthService>().currentUser.value?.role == UserRole.admin;
-                    if (companies.isEmpty || isAdmin) {
+                    final companies = controller.postCompanyOptions.toList();
+                    final isAdmin = Get.find<AuthService>().currentUser.value?.role ==
+                        UserRole.admin;
+                    if (isAdmin) {
                       return TextField(
                         controller: controller.postCompanyController,
                         textCapitalization: TextCapitalization.words,
@@ -134,47 +175,91 @@ class PostJobView extends GetView<JobController> {
                         ),
                       );
                     }
+
+                    if (companies.isEmpty) {
+                      return InkWell(
+                        onTap: () => _openAddCompanyDialog(context),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 14),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: isDark
+                                  ? AppColors.borderDark
+                                  : AppColors.borderLight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.business_outlined,
+                                  color: Colors.grey),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'No company added yet. Tap to add company',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                              const Icon(Icons.add_circle_outline,
+                                  color: AppColors.primary),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
                     final selected = companies
                             .contains(controller.postCompanyController.text)
                         ? controller.postCompanyController.text
                         : null;
+
                     return DropdownButtonFormField<String>(
+                      key: ValueKey('company_dropdown_${selected ?? 'none'}'),
                       isExpanded: true,
                       initialValue: selected,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.business_outlined),
                       ),
                       hint: const Text('Select your company'),
-                      items: companies
-                          .map(
-                            (name) => DropdownMenuItem(
-                              value: name,
-                              child: Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                      items: [
+                        ...companies.map(
+                          (name) => DropdownMenuItem(
+                            value: name,
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          )
-                          .toList(),
-                      onChanged: (value) => value == null
-                          ? null
-                          : controller.selectPostCompany(value),
-                    );
-                  }),
-                  Obx(() {
-                    final isAdmin = Get.find<AuthService>().currentUser.value?.role == UserRole.admin;
-                    if (!isAdmin && controller.postCompanyOptions.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: TextButton.icon(
-                          onPressed: () => Get.toNamed(AppRoutes.editProfile),
-                          icon: const Icon(Icons.add_business_outlined, size: 18),
-                          label: const Text('Add company details in your profile'),
+                          ),
                         ),
-                      );
-                    }
-                    return const SizedBox.shrink();
+                        const DropdownMenuItem(
+                          value: '__ADD_NEW__',
+                          child: Row(
+                            children: [
+                              Icon(Icons.add_circle_outline,
+                                  size: 18, color: AppColors.primary),
+                              SizedBox(width: 8),
+                              Text(
+                                '+ Add New Company',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == '__ADD_NEW__') {
+                          _openAddCompanyDialog(context);
+                        } else if (value != null) {
+                          controller.selectPostCompany(value);
+                        }
+                      },
+                    );
                   }),
                   const SizedBox(height: 16),
                   _FieldLabel(text: 'Work location', required: true),

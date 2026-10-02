@@ -1,20 +1,167 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../controllers/admin_controller.dart';
 import '../../controllers/profile_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/utils/company_icons.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/company_profile.dart';
+import '../../models/user_model.dart';
+import '../../services/database_service.dart';
 
-class EditProfileView extends GetView<ProfileController> {
-  const EditProfileView({super.key});
+class EditProfileView extends StatefulWidget {
+  final UserModel? targetUser;
+
+  const EditProfileView({super.key, this.targetUser});
+
+  @override
+  State<EditProfileView> createState() => _EditProfileViewState();
+}
+
+class _EditProfileViewState extends State<EditProfileView> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _headlineController;
+  late final TextEditingController _locationController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _experienceController;
+  late final TextEditingController _bioController;
+  late final TextEditingController _skillInputController;
+
+  final RxList<String> _currentSkills = <String>[].obs;
+  final RxList<CompanyProfile> _companies = <CompanyProfile>[].obs;
+  UserModel? _user;
+  bool _isEditingOtherUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final profileController =
+        Get.isRegistered<ProfileController>() ? Get.find<ProfileController>() : null;
+    
+    // Check if targetUser was passed directly or via Get.arguments
+    _user = widget.targetUser ??
+        (Get.arguments is UserModel ? Get.arguments as UserModel : null) ??
+        profileController?.user;
+
+    final currentLoggedInId = profileController?.user?.id ?? '';
+    _isEditingOtherUser = _user != null && _user!.id != currentLoggedInId;
+
+    _nameController = TextEditingController(text: _user?.name ?? '');
+    _headlineController = TextEditingController(text: _user?.headline ?? '');
+    _locationController = TextEditingController(text: _user?.location ?? '');
+    _phoneController = TextEditingController(text: _user?.phone ?? '');
+    _experienceController =
+        TextEditingController(text: (_user?.experienceYears ?? 0).toString());
+    _bioController = TextEditingController(text: _user?.bio ?? '');
+    _skillInputController = TextEditingController();
+
+    if (_user != null) {
+      _currentSkills.assignAll(_user!.skills);
+      if (_user!.companies.isNotEmpty) {
+        _companies.assignAll(_user!.companies);
+      } else if (_user!.companyName.trim().isNotEmpty) {
+        _companies.assignAll([
+          CompanyProfile(
+            id: 'company_${_user!.id}',
+            name: _user!.companyName,
+            location: _user!.companyLocation,
+            iconKey: _user!.companyIconKey.isNotEmpty
+                ? _user!.companyIconKey
+                : 'business',
+          ),
+        ]);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _headlineController.dispose();
+    _locationController.dispose();
+    _phoneController.dispose();
+    _experienceController.dispose();
+    _bioController.dispose();
+    _skillInputController.dispose();
+    super.dispose();
+  }
+
+  void _addSkill() {
+    final skill = _skillInputController.text.trim();
+    if (skill.isNotEmpty && !_currentSkills.contains(skill)) {
+      _currentSkills.add(skill);
+      _skillInputController.clear();
+    }
+  }
+
+  void _removeSkill(String skill) {
+    _currentSkills.remove(skill);
+  }
+
+  Future<void> _handleSaveProfile() async {
+    if (_user == null) return;
+
+    final primaryCompany = _companies.isNotEmpty ? _companies.first : null;
+    final updated = _user!.copyWith(
+      name: _nameController.text.trim(),
+      headline: _headlineController.text.trim(),
+      phone: _phoneController.text.trim(),
+      bio: _bioController.text.trim(),
+      location: _locationController.text.trim(),
+      experienceYears: int.tryParse(_experienceController.text.trim()) ??
+          _user!.experienceYears,
+      companyName: primaryCompany?.name ?? '',
+      companyLocation: primaryCompany?.location ?? '',
+      companyIconKey: primaryCompany?.iconKey ?? 'business',
+      companies: _companies.toList(),
+      skills: _currentSkills.toList(),
+    );
+
+    if (_isEditingOtherUser) {
+      // Admin editing candidate: Save to DatabaseService and AdminController
+      final dbService = Get.find<DatabaseService>();
+      await dbService.saveUserProfile(updated);
+      final idx = dbService.usersList.indexWhere((u) => u.id == updated.id);
+      if (idx != -1) {
+        dbService.usersList[idx] = updated;
+      }
+      if (Get.isRegistered<AdminController>()) {
+        Get.find<AdminController>().updateUserProfile(updated);
+      }
+      Get.back();
+      Get.snackbar(
+        'Profile Updated',
+        'Candidate profile changes have been saved successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.secondary,
+        colorText: Colors.white,
+      );
+    } else {
+      // Candidate editing their own profile
+      final profileController = Get.find<ProfileController>();
+      profileController.nameController.text = _nameController.text.trim();
+      profileController.headlineController.text =
+          _headlineController.text.trim();
+      profileController.phoneController.text = _phoneController.text.trim();
+      profileController.bioController.text = _bioController.text.trim();
+      profileController.locationController.text =
+          _locationController.text.trim();
+      profileController.currentSkills.assignAll(_currentSkills);
+      profileController.companies.assignAll(_companies);
+      await profileController.saveProfile();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final title = _isEditingOtherUser
+        ? 'Edit ${_user?.name ?? 'Candidate'}\'s Profile'
+        : 'Edit Profile';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Profile'),
+        title: Text(title),
         actions: [
           IconButton(
             tooltip: 'Manage resumes',
@@ -33,7 +180,7 @@ class EditProfileView extends GetView<ProfileController> {
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
-                controller: controller.nameController,
+                controller: _nameController,
                 decoration: const InputDecoration(hintText: 'e.g. Alex Rivera'),
               ),
               const SizedBox(height: 16),
@@ -42,7 +189,7 @@ class EditProfileView extends GetView<ProfileController> {
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
-                controller: controller.headlineController,
+                controller: _headlineController,
                 decoration: const InputDecoration(
                     hintText: 'e.g. Senior Flutter Developer'),
               ),
@@ -52,7 +199,7 @@ class EditProfileView extends GetView<ProfileController> {
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
-                controller: controller.locationController,
+                controller: _locationController,
                 decoration:
                     const InputDecoration(hintText: 'e.g. San Francisco, CA'),
               ),
@@ -62,7 +209,7 @@ class EditProfileView extends GetView<ProfileController> {
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
-                controller: controller.phoneController,
+                controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   hintText: 'e.g. +1 555-0199 or +91 9876543210',
@@ -71,7 +218,20 @@ class EditProfileView extends GetView<ProfileController> {
               ),
               const SizedBox(height: 16),
 
-              if (controller.user?.role == UserRole.recruiter) ...[
+              Text('Experience (Years)',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _experienceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. 3',
+                  prefixIcon: Icon(Icons.work_history_outlined, size: 20),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              if (_user?.role == UserRole.recruiter) ...[
                 Row(
                   children: [
                     Expanded(
@@ -100,7 +260,7 @@ class EditProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 12),
                 Obx(
-                  () => controller.companies.isEmpty
+                  () => _companies.isEmpty
                       ? Card(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -114,7 +274,7 @@ class EditProfileView extends GetView<ProfileController> {
                           ),
                         )
                       : Column(
-                          children: controller.companies.map((company) {
+                          children: _companies.map((company) {
                             final icon = companyIconForKey(company.iconKey);
                             return Card(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -149,7 +309,7 @@ class EditProfileView extends GetView<ProfileController> {
                                 trailing: IconButton(
                                   tooltip: 'Remove company',
                                   onPressed: () =>
-                                      controller.removeCompany(company.id),
+                                      _companies.removeWhere((c) => c.id == company.id),
                                   icon: const Icon(
                                     Icons.delete_outline_rounded,
                                     color: AppColors.error,
@@ -167,7 +327,7 @@ class EditProfileView extends GetView<ProfileController> {
                   style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               TextField(
-                controller: controller.bioController,
+                controller: _bioController,
                 maxLines: 3,
                 decoration: const InputDecoration(
                     hintText:
@@ -183,14 +343,15 @@ class EditProfileView extends GetView<ProfileController> {
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: controller.skillInputController,
+                      controller: _skillInputController,
                       decoration: const InputDecoration(
                           hintText: 'e.g. Flutter, Dart, Firebase'),
+                      onSubmitted: (_) => _addSkill(),
                     ),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
-                    onPressed: controller.addSkill,
+                    onPressed: _addSkill,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(60, 50),
                     ),
@@ -203,21 +364,27 @@ class EditProfileView extends GetView<ProfileController> {
               Obx(() => Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: controller.currentSkills.map((skill) {
+                    children: _currentSkills.map((skill) {
                       return Chip(
                         label: Text(skill),
-                        onDeleted: () => controller.removeSkill(skill),
+                        onDeleted: () => _removeSkill(skill),
                         deleteIcon: const Icon(Icons.close, size: 16),
-                        backgroundColor: AppColors.primary.withOpacity(0.12),
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                         side: BorderSide.none,
                       );
                     }).toList(),
                   )),
 
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: controller.saveProfile,
-                child: const Text('Save Profile Changes'),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: _handleSaveProfile,
+                  child: const Text('Save Profile Changes'),
+                ),
               ),
             ],
           ),
@@ -225,30 +392,68 @@ class EditProfileView extends GetView<ProfileController> {
       ),
     );
   }
+
+  Future<void> _editCompany(
+    BuildContext context, [
+    CompanyProfile? company,
+  ]) async {
+    final result = await showDialog<CompanyProfile>(
+      context: context,
+      builder: (_) => CompanyEditorDialog(company: company),
+    );
+    if (result != null) {
+      final index = _companies.indexWhere((item) => item.id == result.id);
+      if (index == -1) {
+        final duplicate = _companies.any(
+          (item) => item.name.toLowerCase() == result.name.toLowerCase(),
+        );
+        if (duplicate) {
+          Get.snackbar(
+            'Company already added',
+            'Use a different company name.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
+          return;
+        }
+        _companies.add(result);
+      } else {
+        final duplicate = _companies.any(
+          (item) =>
+              item.id != result.id &&
+              item.name.toLowerCase() == result.name.toLowerCase(),
+        );
+        if (duplicate) {
+          Get.snackbar(
+            'Company already added',
+            'Use a different company name.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
+          return;
+        }
+        _companies[index] = result;
+      }
+
+      if (Get.isRegistered<ProfileController>()) {
+        Get.find<ProfileController>().saveCompany(result);
+      }
+    }
+  }
 }
 
-Future<void> _editCompany(
-  BuildContext context, [
-  CompanyProfile? company,
-]) async {
-  final controller = Get.find<ProfileController>();
-  final result = await showDialog<CompanyProfile>(
-    context: context,
-    builder: (_) => _CompanyEditorDialog(company: company),
-  );
-  if (result != null) controller.saveCompany(result);
-}
-
-class _CompanyEditorDialog extends StatefulWidget {
-  const _CompanyEditorDialog({this.company});
+class CompanyEditorDialog extends StatefulWidget {
+  const CompanyEditorDialog({super.key, this.company});
 
   final CompanyProfile? company;
 
   @override
-  State<_CompanyEditorDialog> createState() => _CompanyEditorDialogState();
+  State<CompanyEditorDialog> createState() => _CompanyEditorDialogState();
 }
 
-class _CompanyEditorDialogState extends State<_CompanyEditorDialog> {
+class _CompanyEditorDialogState extends State<CompanyEditorDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _locationController;

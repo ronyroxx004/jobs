@@ -138,12 +138,51 @@ class RecruiterJobsView extends GetView<JobController> {
                                 ),
                               ),
                               const SizedBox(height: 5),
-                              Text(
-                                '${job.companyName} • ${job.location}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.business_rounded,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      job.companyName.isNotEmpty
+                                          ? job.companyName
+                                          : 'Company',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textPrimaryDark
+                                            : AppColors.textPrimaryLight,
+                                      ),
+                                    ),
+                                  ),
+                                  if (job.location.isNotEmpty) ...[
+                                    Text(
+                                      ' • ',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    Flexible(
+                                      child: Text(
+                                        job.location,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               const SizedBox(height: 9),
                               Row(

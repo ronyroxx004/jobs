@@ -40,6 +40,7 @@ class DatabaseService extends GetxService {
   /// Admin-removed accounts kept as tombstones so they can be restored.
   final RxList<DeletedUserModel> deletedUsersList = <DeletedUserModel>[].obs;
   StreamSubscription? _deletedUsersSubscription;
+  StreamSubscription? _jobsSubscription;
 
   @override
   void onInit() {
@@ -52,21 +53,52 @@ class DatabaseService extends GetxService {
   @override
   void onClose() {
     _deletedUsersSubscription?.cancel();
+    _jobsSubscription?.cancel();
     super.onClose();
+  }
+
+  List<JobModel> _parseJobs(dynamic value) {
+    final list = <JobModel>[];
+    if (value is Map) {
+      value.forEach((key, val) {
+        if (val != null && val is Map) {
+          try {
+            final map = Map<String, dynamic>.from(val);
+            list.add(JobModel.fromMap(map, key.toString()));
+          } catch (e) {
+            debugPrint('Failed to parse job $key: $e');
+          }
+        }
+      });
+    } else if (value is List) {
+      for (int i = 0; i < value.length; i++) {
+        final val = value[i];
+        if (val != null && val is Map) {
+          try {
+            final map = Map<String, dynamic>.from(val);
+            list.add(JobModel.fromMap(map, i.toString()));
+          } catch (e) {
+            debugPrint('Failed to parse job at index $i: $e');
+          }
+        }
+      }
+    }
+    list.sort((a, b) => b.postedAt.compareTo(a.postedAt));
+    return list;
   }
 
   void _setupRealtimeListeners() {
     try {
-      _db?.ref(DatabaseKeys.jobs).onValue.listen((event) {
+      _jobsSubscription?.cancel();
+      _jobsSubscription = _db?.ref(DatabaseKeys.jobs).onValue.listen((event) {
         if (event.snapshot.exists && event.snapshot.value != null) {
-          final Map<dynamic, dynamic> map = event.snapshot.value as Map;
-          final list = <JobModel>[];
-          map.forEach((key, value) {
-            list.add(JobModel.fromMap(
-                Map<String, dynamic>.from(value), key.toString()));
-          });
+          final list = _parseJobs(event.snapshot.value);
           jobsList.assignAll(list);
+        } else {
+          jobsList.clear();
         }
+      }, onError: (err) {
+        debugPrint('Jobs listener: $err');
       });
 
       _db?.ref(DatabaseKeys.applications).onValue.listen((event) {
@@ -79,6 +111,8 @@ class DatabaseService extends GetxService {
           });
           applicationsList.assignAll(list);
         }
+      }, onError: (err) {
+        debugPrint('Applications listener: $err');
       });
 
       _db?.ref(DatabaseKeys.users).onValue.listen((event) {
@@ -91,6 +125,8 @@ class DatabaseService extends GetxService {
           });
           usersList.assignAll(list);
         }
+      }, onError: (err) {
+        debugPrint('Users listener: $err');
       });
     } catch (_) {}
   }
@@ -163,8 +199,74 @@ class DatabaseService extends GetxService {
     return usersList;
   }
 
+  /// Backs up a user's jobs, applications, and profile to `deleted_users/{userId}`
+  /// before deletion so they can be restored later.
+  Future<DeletedUserModel> backupUserDataForRestore(String userId) async {
+    final db = _db;
+    final user = usersList.firstWhereOrNull((u) => u.id == userId);
+
+    final Map<String, dynamic> jobsBackup = {};
+    for (final j in jobsList.where((j) => j.recruiterId == userId)) {
+      jobsBackup[j.id] = j.toMap();
+    }
+    if (db != null) {
+      try {
+        final snap = await db.ref(DatabaseKeys.jobs).get();
+        if (snap.exists && snap.value is Map) {
+          final map = Map<String, dynamic>.from(snap.value as Map);
+          map.forEach((k, v) {
+            if (v is Map && v['recruiterId'] == userId) {
+              jobsBackup[k.toString()] = Map<String, dynamic>.from(v);
+            }
+          });
+        }
+      } catch (_) {}
+    }
+
+    final Map<String, dynamic> appsBackup = {};
+    for (final a in applicationsList.where((a) => a.candidateId == userId)) {
+      appsBackup[a.id] = a.toMap();
+    }
+    if (db != null) {
+      try {
+        final snap = await db.ref(DatabaseKeys.applications).get();
+        if (snap.exists && snap.value is Map) {
+          final map = Map<String, dynamic>.from(snap.value as Map);
+          map.forEach((k, v) {
+            if (v is Map && v['candidateId'] == userId) {
+              appsBackup[k.toString()] = Map<String, dynamic>.from(v);
+            }
+          });
+        }
+      } catch (_) {}
+    }
+
+    final deletedRecord = DeletedUserModel(
+      id: userId,
+      email: user?.email ?? '',
+      name: user?.name ?? '',
+      role: user?.role.name ?? UserRole.candidate.name,
+      deletedAt: DateTime.now(),
+      deletedBy: _currentAdminId(),
+      backedUpJobs: jobsBackup,
+      backedUpApplications: appsBackup,
+      backedUpProfile: user?.toMap() ?? {},
+    );
+
+    if (db != null) {
+      await db
+          .ref(DatabaseKeys.deletedUsers)
+          .child(userId)
+          .set(deletedRecord.toMap());
+    }
+    deletedUsersList.removeWhere((u) => u.id == userId);
+    deletedUsersList.insert(0, deletedRecord);
+
+    return deletedRecord;
+  }
+
   /// Removes a user and every record that belongs to them, then leaves a
-  /// tombstone so the account cannot silently be recreated on next login.
+  /// tombstone with backed up jobs and applications so they can be restored.
   ///
   /// Throws a [StateError] when the Realtime Database is unreachable so callers
   /// can surface the real reason instead of failing silently.
@@ -183,22 +285,8 @@ class DatabaseService extends GetxService {
 
     final user = usersList.firstWhereOrNull((u) => u.id == userId);
 
-    final deletedRecord = DeletedUserModel(
-      id: userId,
-      email: user?.email ?? '',
-      name: user?.name ?? '',
-      role: user?.role.name ?? UserRole.candidate.name,
-      deletedAt: DateTime.now(),
-      deletedBy: _currentAdminId(),
-    );
-
-    // Preserve a tombstone BEFORE clearing the profile, so an in-flight login
-    // cannot recreate the account from the deleted profile document.
-    await db.ref(DatabaseKeys.deletedUsers).child(userId).set(deletedRecord.toMap());
-
-    // Update local reactive list immediately
-    deletedUsersList.removeWhere((u) => u.id == userId);
-    deletedUsersList.insert(0, deletedRecord);
+    // Back up user jobs, applications, and profile before purging
+    final deletedRecord = await backupUserDataForRestore(userId);
 
     await Future.wait([
       db.ref(DatabaseKeys.users).child(userId).remove(),
@@ -226,6 +314,7 @@ class DatabaseService extends GetxService {
     return UserDeleteResult(
       removedFirestoreRecords: true,
       email: user?.email ?? '',
+      deletedRecord: deletedRecord,
     );
   }
 
@@ -246,25 +335,28 @@ class DatabaseService extends GetxService {
   Future<List<DeletedUserModel>> fetchDeletedUsers() async {
     final db = _db;
     if (db == null) {
-      throw StateError('Firebase Realtime Database is not available.');
-    }
-
-    final snapshot = await db.ref(DatabaseKeys.deletedUsers).get();
-    if (!snapshot.exists || snapshot.value == null) {
-      deletedUsersList.clear();
       return <DeletedUserModel>[];
     }
 
-    final deleted = _parseDeletedUsers(snapshot.value);
-    deletedUsersList.assignAll(deleted);
-    return deleted;
+    try {
+      final snapshot = await db.ref(DatabaseKeys.deletedUsers).get();
+      if (!snapshot.exists || snapshot.value == null) {
+        deletedUsersList.clear();
+        return <DeletedUserModel>[];
+      }
+
+      final deleted = _parseDeletedUsers(snapshot.value);
+      deletedUsersList.assignAll(deleted);
+      return deleted;
+    } catch (e) {
+      debugPrint('DatabaseService.fetchDeletedUsers: $e');
+      return deletedUsersList;
+    }
   }
 
-  /// Restores a removed account's login + profile.
-  ///
-  /// Can restore using existing tombstone data at `deleted_users/{userId}`,
-  /// or restore directly by ID with optional name/email/role fallbacks.
-  Future<void> restoreUser(
+  /// Restores a removed account's login + profile, along with their job posts
+  /// (if recruiter) and applications (if candidate, only for existing job posts).
+  Future<UserRestoreResult> restoreUser(
     String userId, {
     String? name,
     String? email,
@@ -280,7 +372,8 @@ class DatabaseService extends GetxService {
       throw ArgumentError('User ID cannot be empty.');
     }
 
-    final snapshot = await db.ref(DatabaseKeys.deletedUsers).child(cleanId).get();
+    final snapshot =
+        await db.ref(DatabaseKeys.deletedUsers).child(cleanId).get();
     final raw = snapshot.value;
     Map<String, dynamic> record = {};
     if (snapshot.exists && raw != null) {
@@ -310,23 +403,80 @@ class DatabaseService extends GetxService {
           orElse: () => UserRole.candidate,
         );
 
-    // Re-create the profile, then drop the tombstone so login is allowed again.
-    final restoredUser = UserModel(
-      id: cleanId,
-      name: finalName,
-      email: finalEmail,
-      role: finalRole,
-    );
+    // 1. Re-create the profile (prefer full backed-up profile if present)
+    UserModel restoredUser;
+    if (record['profile'] is Map) {
+      final profMap = Map<String, dynamic>.from(record['profile'] as Map);
+      restoredUser = UserModel.fromMap(profMap, cleanId);
+    } else {
+      restoredUser = UserModel(
+        id: cleanId,
+        name: finalName,
+        email: finalEmail,
+        role: finalRole,
+      );
+    }
 
     await db.ref(DatabaseKeys.users).child(cleanId).set(restoredUser.toMap());
 
+    int restoredJobsCount = 0;
+    int restoredAppsCount = 0;
+
+    // 2. If recruiter: restore their job posts if any
+    if (finalRole == UserRole.recruiter && record['jobs'] is Map) {
+      final jobsMap = Map<String, dynamic>.from(record['jobs'] as Map);
+      for (final entry in jobsMap.entries) {
+        if (entry.value is Map) {
+          final jobData = Map<String, dynamic>.from(entry.value as Map);
+          final jobId = entry.key.toString();
+          final job = JobModel.fromMap(jobData, jobId);
+          await db.ref(DatabaseKeys.jobs).child(jobId).set(job.toMap());
+          jobsList.removeWhere((j) => j.id == jobId);
+          jobsList.add(job);
+          restoredJobsCount++;
+        }
+      }
+    }
+
+    // 3. If candidate: restore applications to any job post IF the job post exists.
+    // If the job post doesn't exist, do not show or restore it!
+    if (finalRole == UserRole.candidate && record['applications'] is Map) {
+      await fetchJobs();
+      final existingJobIds = jobsList.map((j) => j.id).toSet();
+
+      final appsMap = Map<String, dynamic>.from(record['applications'] as Map);
+      for (final entry in appsMap.entries) {
+        if (entry.value is Map) {
+          final appData = Map<String, dynamic>.from(entry.value as Map);
+          final appId = entry.key.toString();
+          final app = ApplicationModel.fromMap(appData, appId);
+
+          if (existingJobIds.contains(app.jobId)) {
+            await db
+                .ref(DatabaseKeys.applications)
+                .child(appId)
+                .set(app.toMap());
+            applicationsList.removeWhere((a) => a.id == appId);
+            applicationsList.add(app);
+            restoredAppsCount++;
+          }
+        }
+      }
+    }
+
+    // 4. Drop the tombstone
     await db.ref(DatabaseKeys.deletedUsers).child(cleanId).remove();
     deletedUsersList.removeWhere((u) => u.id == cleanId);
     usersList.removeWhere((u) => u.id == cleanId);
     usersList.add(restoredUser);
 
-    // Pull the restored profile into the local cache.
-    await fetchUsers();
+    await fetchAllData();
+
+    return UserRestoreResult(
+      user: restoredUser,
+      restoredJobsCount: restoredJobsCount,
+      restoredApplicationsCount: restoredAppsCount,
+    );
   }
 
   /// Removes the tombstone permanently - the account can never be restored.
@@ -498,29 +648,67 @@ class DatabaseService extends GetxService {
     }
   }
 
-  Future<void> deleteJob(String jobId) async {
-    final db = _db;
-    if (db == null) {
-      throw StateError('Firebase Realtime Database is not available');
+  Future<void> softDeleteJob(JobModel job) async {
+    final updated = job.copyWith(isDeleted: true, isActive: false);
+    final index = jobsList.indexWhere((item) => item.id == job.id);
+    if (index != -1) {
+      jobsList[index] = updated;
     }
 
-    await db.ref(DatabaseKeys.jobs).child(jobId).remove();
-    jobsList.removeWhere((job) => job.id == jobId);
+    final db = _db;
+    if (db != null) {
+      try {
+        await db.ref(DatabaseKeys.jobs).child(job.id).update({
+          'isDeleted': true,
+          'isActive': false,
+        });
+      } catch (_) {}
+    }
+  }
+
+  Future<void> restoreJob(String jobId) async {
+    final index = jobsList.indexWhere((item) => item.id == jobId);
+    if (index == -1) return;
+
+    final restored = jobsList[index].copyWith(isDeleted: false, isActive: true);
+    jobsList[index] = restored;
+
+    final db = _db;
+    if (db != null) {
+      try {
+        await db.ref(DatabaseKeys.jobs).child(jobId).update({
+          'isDeleted': false,
+          'isActive': true,
+        });
+      } catch (_) {}
+    }
+  }
+
+  Future<void> deleteJob(String jobId) async {
+    final job = jobsList.firstWhereOrNull((item) => item.id == jobId);
+    if (job != null) {
+      await softDeleteJob(job);
+    } else {
+      jobsList.removeWhere((item) => item.id == jobId);
+      final db = _db;
+      if (db != null) {
+        try {
+          await db.ref(DatabaseKeys.jobs).child(jobId).remove();
+        } catch (_) {}
+      }
+    }
   }
 
   Future<List<JobModel>> fetchJobs() async {
     try {
       final snapshot = await _db?.ref(DatabaseKeys.jobs).get();
       if (snapshot != null && snapshot.exists && snapshot.value != null) {
-        final Map<dynamic, dynamic> map = snapshot.value as Map;
-        final list = <JobModel>[];
-        map.forEach((key, value) {
-          list.add(JobModel.fromMap(
-              Map<String, dynamic>.from(value), key.toString()));
-        });
+        final list = _parseJobs(snapshot.value);
         jobsList.assignAll(list);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('fetchJobs error: $e');
+    }
     return jobsList;
   }
 
@@ -597,32 +785,21 @@ class DatabaseService extends GetxService {
       throw StateError('Firebase Realtime Database is not available');
     }
 
-    final jobRef = db.ref(DatabaseKeys.jobs).child(application.jobId);
-    final jobSnapshot = await jobRef.get();
-    if (!jobSnapshot.exists) {
-      throw StateError('The job listing could not be found');
-    }
-
     final applicationRef =
         db.ref(DatabaseKeys.applications).child(application.id);
-    final applicationResult =
-        await applicationRef.runTransaction((currentData) {
-      if (currentData != null) {
-        return Transaction.abort();
-      }
-      return Transaction.success(application.toMap());
-    });
-    if (!applicationResult.committed) {
-      throw StateError('An application for this job already exists');
-    }
 
-    final countResult =
-        await jobRef.child('applicantCount').runTransaction((value) {
-      final currentCount = (value as num?)?.toInt() ?? 0;
-      return Transaction.success(currentCount + 1);
-    });
-    if (!countResult.committed) {
-      throw StateError('The applicant count could not be updated');
+    // Save application directly
+    await applicationRef.set(application.toMap());
+
+    // Best-effort increment of applicant count on the job
+    try {
+      final jobRef = db.ref(DatabaseKeys.jobs).child(application.jobId);
+      await jobRef.child('applicantCount').runTransaction((value) {
+        final currentCount = (value as num?)?.toInt() ?? 0;
+        return Transaction.success(currentCount + 1);
+      });
+    } catch (e) {
+      debugPrint('Non-critical applicant count update: $e');
     }
 
     applicationsList.removeWhere((item) => item.id == application.id);
@@ -804,8 +981,25 @@ class UserDeleteResult {
   /// Email captured from the tombstone, used to explain the auth side effect.
   final String email;
 
+  /// The backed-up record created before deletion.
+  final DeletedUserModel? deletedRecord;
+
   const UserDeleteResult({
     required this.removedFirestoreRecords,
     required this.email,
+    this.deletedRecord,
+  });
+}
+
+/// Outcome of restoring a user account and their associated content.
+class UserRestoreResult {
+  final UserModel user;
+  final int restoredJobsCount;
+  final int restoredApplicationsCount;
+
+  const UserRestoreResult({
+    required this.user,
+    this.restoredJobsCount = 0,
+    this.restoredApplicationsCount = 0,
   });
 }

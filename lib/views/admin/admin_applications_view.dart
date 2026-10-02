@@ -976,6 +976,7 @@ class _AdminApplicantCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Obx(() => DropdownButtonFormField<ApplicationStatus>(
                       initialValue: statusVal.value,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -983,7 +984,11 @@ class _AdminApplicantCard extends StatelessWidget {
                       items: ApplicationStatus.values
                           .map((s) => DropdownMenuItem(
                                 value: s,
-                                child: Text(s.label),
+                                child: Text(
+                                  s.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ))
                           .toList(),
                       onChanged: (val) {

@@ -40,6 +40,7 @@ class _AdminJobsViewState extends State<AdminJobsView> {
     'All',
     'Live',
     'Paused',
+    'Deleted',
   ];
 
   @override
@@ -117,9 +118,9 @@ class _AdminJobsViewState extends State<AdminJobsView> {
   Widget _buildHeader(DatabaseService dbService) {
     return Obx(() {
       final allJobs = dbService.jobsList;
-      final totalJobs = allJobs.length;
-      final liveJobs = allJobs.where((j) => j.isActive).length;
-      final totalApplicants = allJobs.fold(0, (sum, j) => sum + j.applicantCount);
+      final totalJobs = allJobs.where((j) => !j.isDeleted).length;
+      final liveJobs = allJobs.where((j) => j.isActive && !j.isDeleted).length;
+      final deletedJobs = allJobs.where((j) => j.isDeleted).length;
 
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
@@ -192,10 +193,10 @@ class _AdminJobsViewState extends State<AdminJobsView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _StatMiniCard(
-                    title: 'Applicants',
-                    value: '$totalApplicants',
-                    accent: AppColors.accent,
-                    icon: Icons.people_outline_rounded,
+                    title: 'Deleted',
+                    value: '$deletedJobs',
+                    accent: Colors.red,
+                    icon: Icons.delete_outline_rounded,
                   ),
                 ),
               ],
@@ -282,7 +283,9 @@ class _AdminJobsViewState extends State<AdminJobsView> {
                                       ? AppColors.secondary
                                       : (status == 'Paused'
                                           ? AppColors.warning
-                                          : null)),
+                                          : (status == 'Deleted'
+                                              ? Colors.red
+                                              : null))),
                             ),
                           ),
                           selected: isSelected,
@@ -290,7 +293,9 @@ class _AdminJobsViewState extends State<AdminJobsView> {
                               ? AppColors.secondary
                               : (status == 'Paused'
                                   ? AppColors.warning
-                                  : AppColors.primary),
+                                  : (status == 'Deleted'
+                                      ? Colors.red
+                                      : AppColors.primary)),
                           checkmarkColor: Colors.white,
                           onSelected: (_) => _selectedStatus.value = status,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -355,9 +360,12 @@ class _AdminJobsViewState extends State<AdminJobsView> {
             job.jobType.toLowerCase() == typeFilter.toLowerCase();
 
         // Status match
-        final matchesStatus = statusFilter == 'All' ||
-            (statusFilter == 'Live' && job.isActive) ||
-            (statusFilter == 'Paused' && !job.isActive);
+        final matchesStatus = switch (statusFilter) {
+          'Live' => job.isActive && !job.isDeleted,
+          'Paused' => !job.isActive && !job.isDeleted,
+          'Deleted' => job.isDeleted,
+          _ => true,
+        };
 
         return matchesQuery && matchesType && matchesStatus;
       }).toList();
@@ -631,7 +639,9 @@ class _JobCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: (isActive ? AppColors.secondary : AppColors.warning)
+                        color: (job.isDeleted
+                                ? Colors.red
+                                : (isActive ? AppColors.secondary : AppColors.warning))
                             .withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -642,17 +652,23 @@ class _JobCard extends StatelessWidget {
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: isActive ? AppColors.secondary : AppColors.warning,
+                              color: job.isDeleted
+                                  ? Colors.red
+                                  : (isActive ? AppColors.secondary : AppColors.warning),
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 5),
                           Text(
-                            isActive ? 'Live' : 'Paused',
+                            job.isDeleted
+                                ? 'Deleted'
+                                : (isActive ? 'Live' : 'Paused'),
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: isActive ? AppColors.secondary : AppColors.warning,
+                              color: job.isDeleted
+                                  ? Colors.red
+                                  : (isActive ? AppColors.secondary : AppColors.warning),
                             ),
                           ),
                         ],
@@ -796,29 +812,54 @@ class _JobCard extends StatelessWidget {
 
                     const Spacer(),
 
-                    // Pause / Activate toggle
-                    IconButton(
-                      tooltip: isActive ? 'Pause listing' : 'Activate listing',
-                      icon: Icon(
-                        isActive
-                            ? Icons.pause_circle_outline_rounded
-                            : Icons.play_circle_outline_rounded,
-                        color: isActive ? AppColors.warning : AppColors.secondary,
-                        size: 22,
+                    if (job.isDeleted) ...[
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondary,
+                          foregroundColor: Colors.white,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: const Icon(Icons.restore_rounded, size: 16),
+                        label: Text(
+                          'Restore',
+                          style: GoogleFonts.inter(
+                              fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                        onPressed: () => adminController.restoreJob(job.id),
                       ),
-                      onPressed: () => adminController.toggleJobStatus(job.id),
-                    ),
+                    ] else ...[
+                      // Pause / Activate toggle
+                      IconButton(
+                        tooltip: isActive ? 'Pause listing' : 'Activate listing',
+                        icon: Icon(
+                          isActive
+                              ? Icons.pause_circle_outline_rounded
+                              : Icons.play_circle_outline_rounded,
+                          color: isActive
+                              ? AppColors.warning
+                              : AppColors.secondary,
+                          size: 22,
+                        ),
+                        onPressed: () =>
+                            adminController.toggleJobStatus(job.id),
+                      ),
 
-                    // Delete job button
-                    IconButton(
-                      tooltip: 'Delete job',
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        color: Colors.redAccent,
-                        size: 22,
+                      // Delete job button
+                      IconButton(
+                        tooltip: 'Delete job',
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Colors.redAccent,
+                          size: 22,
+                        ),
+                        onPressed: () => _confirmDeleteJob(context, job),
                       ),
-                      onPressed: () => _confirmDeleteJob(context, job),
-                    ),
+                    ],
                   ],
                 ),
               ],

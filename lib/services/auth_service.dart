@@ -48,11 +48,17 @@ class AuthService extends GetxService {
     return UserRole.candidate;
   }
 
+  bool _isRegistering = false;
+
   void _initAuthListener() {
     currentUser.value = null; // Unauthenticated guest state
     try {
       _auth?.authStateChanges().listen((User? user) async {
         firebaseUser.value = user;
+        if (_isRegistering) {
+          // Registration is in progress; register() is actively handling user profile creation
+          return;
+        }
         if (user != null) {
           final dbService = Get.find<DatabaseService>();
           final profile = await dbService.getUserProfile(user.uid);
@@ -61,24 +67,38 @@ class AuthService extends GetxService {
             if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
               final updatedProfile = profile.copyWith(role: UserRole.admin);
               currentUser.value = updatedProfile;
-              await dbService.saveUserProfile(updatedProfile);
+              try {
+                await dbService.saveUserProfile(updatedProfile);
+              } catch (_) {}
             } else {
               currentUser.value = profile;
             }
-            await dbService.fetchAllData();
+            try {
+              await dbService.fetchAllData();
+            } catch (_) {}
           } else {
-            final detectedRole = _detectRoleFromEmail(user.email);
-            final newProfile = UserModel(
-              id: user.uid,
-              name: user.displayName ?? user.email?.split('@')[0] ?? 'User',
-              email: user.email ?? '',
-              role: detectedRole,
-            );
-            currentUser.value = newProfile;
-            await dbService.saveUserProfile(newProfile);
+            if (currentUser.value == null) {
+              final detectedRole = _detectRoleFromEmail(user.email);
+              final newProfile = UserModel(
+                id: user.uid,
+                name: user.displayName ?? user.email?.split('@')[0] ?? 'User',
+                email: user.email ?? '',
+                role: detectedRole,
+              );
+              currentUser.value = newProfile;
+              try {
+                await dbService.saveUserProfile(newProfile);
+              } catch (_) {}
+            }
           }
         } else {
           currentUser.value = null;
+          final dbService = Get.find<DatabaseService>();
+          try {
+            await dbService.fetchJobs();
+            await dbService.fetchCourses();
+            await dbService.fetchServices();
+          } catch (_) {}
         }
       });
     } catch (_) {}
@@ -119,7 +139,9 @@ class AuthService extends GetxService {
             if (profile != null) {
               if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
                 profile = profile.copyWith(role: UserRole.admin);
-                await dbService.saveUserProfile(profile);
+                try {
+                  await dbService.saveUserProfile(profile);
+                } catch (_) {}
               }
             } else {
               profile = UserModel(
@@ -128,7 +150,9 @@ class AuthService extends GetxService {
                 email: email,
                 role: expectedRole,
               );
-              await dbService.saveUserProfile(profile);
+              try {
+                await dbService.saveUserProfile(profile);
+              } catch (_) {}
             }
           }
         } catch (e) {
@@ -140,7 +164,9 @@ class AuthService extends GetxService {
             role: expectedRole,
           );
           final dbService = Get.find<DatabaseService>();
-          await dbService.saveUserProfile(profile);
+          try {
+            await dbService.saveUserProfile(profile);
+          } catch (_) {}
         }
       } else {
         // Handle offline auth
@@ -151,13 +177,19 @@ class AuthService extends GetxService {
           role: expectedRole,
         );
         final dbService = Get.find<DatabaseService>();
-        await dbService.saveUserProfile(profile);
+        try {
+          await dbService.saveUserProfile(profile);
+        } catch (_) {}
       }
 
       if (profile != null) {
         currentUser.value = profile;
         final dbService = Get.find<DatabaseService>();
-        await dbService.fetchAllData();
+        try {
+          await dbService.fetchAllData();
+        } catch (e) {
+          debugPrint('Non-critical fetchAllData warning during login: $e');
+        }
         return true;
       }
 
@@ -183,6 +215,7 @@ class AuthService extends GetxService {
     required UserRole role,
   }) async {
     try {
+      _isRegistering = true;
       isLoading.value = true;
       String uid = 'user_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -197,7 +230,8 @@ class AuthService extends GetxService {
             await credential.user!.updateDisplayName(name);
           }
         } catch (e) {
-          debugPrint('Firebase Auth offline fallback during register: $e');
+          debugPrint('Firebase Auth error during register: $e');
+          rethrow;
         }
       }
 
@@ -211,7 +245,12 @@ class AuthService extends GetxService {
       final dbService = Get.find<DatabaseService>();
       await dbService.saveUserProfile(newUser);
       currentUser.value = newUser;
-      await dbService.fetchAllData();
+
+      try {
+        await dbService.fetchAllData();
+      } catch (e) {
+        debugPrint('Non-critical fetchAllData warning during register: $e');
+      }
 
       Get.snackbar(
         'Account Registered 🎉',
@@ -233,6 +272,7 @@ class AuthService extends GetxService {
       );
       return false;
     } finally {
+      _isRegistering = false;
       isLoading.value = false;
     }
   }
@@ -257,5 +297,11 @@ class AuthService extends GetxService {
       await _auth?.signOut();
     } catch (_) {}
     currentUser.value = null;
+    try {
+      final dbService = Get.find<DatabaseService>();
+      await dbService.fetchJobs();
+      await dbService.fetchCourses();
+      await dbService.fetchServices();
+    } catch (_) {}
   }
 }

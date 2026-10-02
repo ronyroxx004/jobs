@@ -35,6 +35,19 @@ class JobController extends GetxController {
   final Rx<JobModel?> editingJob = Rx<JobModel?>(null);
   final RxList<String> postCompanyOptions = <String>[].obs;
 
+  @override
+  void onInit() {
+    super.onInit();
+    refreshPostCompanyOptions();
+    ever(_authService.currentUser, (_) {
+      refreshPostCompanyOptions();
+      _dbService.fetchJobs();
+    });
+    if (_dbService.jobsList.isEmpty) {
+      _dbService.fetchJobs();
+    }
+  }
+
   // Selected Resume for Application
   final Rx<ResumeModel?> selectedResumeForApply = Rx<ResumeModel?>(null);
   final coverLetterController = TextEditingController();
@@ -42,22 +55,32 @@ class JobController extends GetxController {
   List<JobModel> get allJobs => _dbService.jobsList;
   List<ApplicationModel> get myApplications {
     final candidateId = _authService.currentUser.value?.id ?? '';
+    final firebaseUid = _authService.firebaseUser.value?.uid ?? '';
     return _dbService.applicationsList
-        .where((a) => a.candidateId == candidateId)
+        .where((a) =>
+            a.candidateId == candidateId ||
+            (firebaseUid.isNotEmpty && a.candidateId == firebaseUid))
         .toList();
   }
 
   bool hasAppliedForJob(String jobId) {
     final candidateId = _authService.currentUser.value?.id ?? '';
-    return _dbService.applicationsList
-        .any((a) => a.candidateId == candidateId && a.jobId == jobId);
+    final firebaseUid = _authService.firebaseUser.value?.uid ?? '';
+    return _dbService.applicationsList.any((a) =>
+        a.jobId == jobId &&
+        (a.candidateId == candidateId ||
+            (firebaseUid.isNotEmpty && a.candidateId == firebaseUid)));
   }
 
   ApplicationModel? getApplicationForJob(String jobId) {
     final candidateId = _authService.currentUser.value?.id ?? '';
+    final firebaseUid = _authService.firebaseUser.value?.uid ?? '';
     return _dbService.applicationsList.firstWhereOrNull(
       (application) =>
-          application.candidateId == candidateId && application.jobId == jobId,
+          application.jobId == jobId &&
+          (application.candidateId == candidateId ||
+              (firebaseUid.isNotEmpty &&
+                  application.candidateId == firebaseUid)),
     );
   }
 
@@ -79,13 +102,35 @@ class JobController extends GetxController {
 
   // Recruiter's posted jobs
   List<JobModel> get recruiterJobs {
-    final recruiterId = _authService.currentUser.value?.id;
-
-    if (recruiterId == null) {
+    final user = _authService.currentUser.value;
+    if (user == null) {
       return [];
     }
 
-    return allJobs.where((job) => job.recruiterId == recruiterId).toList();
+    return allJobs.where((job) {
+      if (job.isDeleted) return false;
+      if (job.recruiterId == user.id) return true;
+      if (user.role == UserRole.recruiter) {
+        if (job.recruiterId.isEmpty || job.recruiterId.startsWith('rec_')) {
+          if (job.recruiterName.isNotEmpty &&
+              user.name.trim().toLowerCase() ==
+                  job.recruiterName.trim().toLowerCase()) {
+            return true;
+          }
+          if (user.companies.any((c) =>
+              c.name.trim().toLowerCase() ==
+              job.companyName.trim().toLowerCase())) {
+            return true;
+          }
+          if (user.companyName.isNotEmpty &&
+              user.companyName.trim().toLowerCase() ==
+                  job.companyName.trim().toLowerCase()) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }).toList();
   }
 
   int getApplicantCountForJob(String jobId) {
@@ -106,6 +151,7 @@ class JobController extends GetxController {
 
   List<JobModel> get filteredJobs {
     return allJobs.where((job) {
+      if (job.isDeleted) return false;
       if (!job.isActive) return false;
 
       final matchesSearch = searchQuery.value.isEmpty ||
@@ -177,28 +223,78 @@ class JobController extends GetxController {
     postCompanyController.text = companyName;
     final profileCompany = _authService.currentUser.value?.companies
         .firstWhereOrNull((company) => company.name == companyName);
-    if (profileCompany != null) {
+    if (profileCompany != null && profileCompany.location.isNotEmpty) {
       postLocationController.text = profileCompany.location;
+    }
+  }
+
+  void refreshPostCompanyOptions() {
+    final user = _authService.currentUser.value;
+    final profileCompanies = user?.companies ?? [];
+    final companyNames = profileCompanies.isNotEmpty
+        ? profileCompanies.map((company) => company.name.trim()).toList()
+        : [if (user?.companyName.trim().isNotEmpty == true) user!.companyName.trim()];
+
+    final previousJobCompanies = recruiterJobs
+        .map((j) => j.companyName.trim())
+        .where((name) => name.isNotEmpty);
+
+    final allOptions = <String>{
+      ...companyNames.where((name) => name.isNotEmpty),
+      ...previousJobCompanies,
+      if (editingJob.value?.companyName.isNotEmpty == true)
+        editingJob.value!.companyName.trim(),
+    };
+
+    postCompanyOptions.assignAll(allOptions);
+  }
+
+  void addCompanyAndSelect(CompanyProfile company) {
+    if (!postCompanyOptions.contains(company.name)) {
+      postCompanyOptions.add(company.name);
+    }
+    postCompanyController.text = company.name;
+    if (company.location.isNotEmpty) {
+      postLocationController.text = company.location;
+    }
+
+    final user = _authService.currentUser.value;
+    if (user != null) {
+      final existingCompanies = user.companies.toList();
+      final idx = existingCompanies.indexWhere(
+        (c) =>
+            c.id == company.id ||
+            c.name.toLowerCase() == company.name.toLowerCase(),
+      );
+      if (idx == -1) {
+        existingCompanies.add(company);
+      } else {
+        existingCompanies[idx] = company;
+      }
+      final updated = user.copyWith(
+        companies: existingCompanies,
+        companyName: user.companyName.isEmpty ? company.name : user.companyName,
+        companyLocation:
+            user.companyLocation.isEmpty ? company.location : user.companyLocation,
+        companyIconKey:
+            user.companyIconKey.isEmpty ? company.iconKey : user.companyIconKey,
+      );
+      _authService.updateUserProfile(updated);
     }
   }
 
   void openJobEditor([JobModel? job]) {
     editingJob.value = job;
-    final user = _authService.currentUser.value;
-    final profileCompanies = user?.companies ?? [];
-    final companyNames = profileCompanies.isNotEmpty
-        ? profileCompanies.map((company) => company.name.trim()).toList()
-        : [user?.companyName.trim() ?? ''];
-    postCompanyOptions.assignAll({
-      ...companyNames.where((name) => name.isNotEmpty),
-      if (job?.companyName.isNotEmpty == true) job!.companyName,
-    });
+    refreshPostCompanyOptions();
     postTitleController.text = job?.title ?? '';
     postCompanyController.text = job?.companyName ??
         (postCompanyOptions.isNotEmpty ? postCompanyOptions.first : '');
     postLocationController.text = job?.location ?? '';
-    if (job == null && postLocationController.text.isEmpty) {
-      final selectedCompany = profileCompanies.firstWhereOrNull(
+    if (job == null &&
+        postLocationController.text.isEmpty &&
+        postCompanyController.text.isNotEmpty) {
+      final user = _authService.currentUser.value;
+      final selectedCompany = user?.companies.firstWhereOrNull(
         (company) => company.name == postCompanyController.text,
       );
       postLocationController.text =
@@ -229,11 +325,31 @@ class JobController extends GetxController {
   Future<void> deleteJob(JobModel job) async {
     final user = _authService.currentUser.value;
     final isAdmin = user?.role == UserRole.admin;
-    if (user == null || (!isAdmin && user.id != job.recruiterId)) {
+    final isRecruiter = user?.role == UserRole.recruiter;
+
+    final isOwner = user != null &&
+        (user.id == job.recruiterId ||
+            job.recruiterId.isEmpty ||
+            job.recruiterId.startsWith('rec_') ||
+            (job.recruiterName.isNotEmpty &&
+                user.name.trim().toLowerCase() ==
+                    job.recruiterName.trim().toLowerCase()) ||
+            (user.companies.any((c) =>
+                c.name.trim().toLowerCase() ==
+                job.companyName.trim().toLowerCase())) ||
+            (user.companyName.isNotEmpty &&
+                user.companyName.trim().toLowerCase() ==
+                    job.companyName.trim().toLowerCase()));
+
+    if (user == null || (!isAdmin && !isRecruiter && !isOwner)) {
       throw StateError('You can only delete your own job posts');
     }
 
-    await _dbService.deleteJob(job.id);
+    await _dbService.softDeleteJob(job);
+  }
+
+  Future<void> restoreJob(JobModel job) async {
+    await _dbService.restoreJob(job.id);
   }
 
   Future<void> submitJobApplication(JobModel job) async {
@@ -261,12 +377,21 @@ class JobController extends GetxController {
       return;
     }
 
+    final currentUid = _authService.firebaseUser.value?.uid;
+    final candidateId = (currentUid != null && currentUid.isNotEmpty)
+        ? currentUid
+        : user.id;
+
+    final sanitizedJobId = job.id.replaceAll(RegExp(r'[.#$\[\]/]'), '_');
+    final sanitizedCandidateId = candidateId.replaceAll(RegExp(r'[.#$\[\]/]'), '_');
+    final appId = 'app_${base64Url.encode(utf8.encode('$sanitizedJobId:$sanitizedCandidateId')).replaceAll('=', '')}';
+
     final application = ApplicationModel(
-      id: 'app_${base64Url.encode(utf8.encode('${job.id}:${user.id}')).replaceAll('=', '')}',
+      id: appId,
       jobId: job.id,
       jobTitle: job.title,
       companyName: job.companyName,
-      candidateId: user.id,
+      candidateId: candidateId,
       candidateName: user.name,
       candidateEmail: user.email,
       candidatePhone: user.phone,
@@ -285,6 +410,17 @@ class JobController extends GetxController {
       await _dbService.submitApplication(application);
     } catch (e) {
       debugPrint('Failed to save job application: $e');
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('already applied') || msg.contains('already exists')) {
+        Get.snackbar(
+          'Already Applied',
+          'You have already applied for this job.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.primary,
+          colorText: Colors.white,
+        );
+        return;
+      }
       Get.snackbar(
         'Application Not Saved',
         'Your application could not be saved. Please check your connection and try again.',

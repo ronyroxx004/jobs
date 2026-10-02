@@ -5,7 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/admin_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../models/user_model.dart';
+import '../../models/deleted_user_model.dart';
+import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
+import '../profile/candidate_profile_view.dart';
 import 'admin_shared.dart';
 
 /// Admin screen for candidates, laid out as a hiring pipeline board with a
@@ -30,6 +33,7 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
     'Experienced',
     'Active Applications',
     'Job Offers',
+    'Deleted Candidates',
   ];
 
   @override
@@ -236,6 +240,49 @@ Widget _buildFilterBar() {
 
   Widget _buildCandidateGrid(AdminController controller) {
     return Obx(() {
+      if (_filter.value == 'Deleted Candidates') {
+        final query = _query.value.toLowerCase().trim();
+        final deleted = controller.deletedUsers.where((u) {
+          if (u.role.toLowerCase() != 'candidate') return false;
+          return query.isEmpty ||
+              u.name.toLowerCase().contains(query) ||
+              u.email.toLowerCase().contains(query) ||
+              u.id.toLowerCase().contains(query);
+        }).toList();
+
+        if (deleted.isEmpty) {
+          return const SliverFillRemaining(
+            hasScrollBody: false,
+            child: AdminEmptyState(
+              icon: Icons.restore_rounded,
+              title: 'No deleted candidates',
+              subtitle:
+                  'Candidates removed by admin will appear here so you can restore them.',
+              color: AppColors.primary,
+            ),
+          );
+        }
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          sliver: SliverGrid(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _DeletedCandidateCard(
+                record: deleted[index],
+                controller: controller,
+              ),
+              childCount: deleted.length,
+            ),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 340,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              mainAxisExtent: 196,
+            ),
+          ),
+        );
+      }
+
       final users = _filteredCandidates(controller);
       if (users.isEmpty) {
         return const SliverFillRemaining(
@@ -270,7 +317,26 @@ Widget _buildFilterBar() {
 
   List<UserModel> _filteredCandidates(AdminController controller) {
     final filter = _filter.value;
+    final authService =
+        Get.isRegistered<AuthService>() ? Get.find<AuthService>() : null;
+    final currentAdminId = authService?.currentUser.value?.id;
+    final currentAdminEmail =
+        authService?.currentUser.value?.email.trim().toLowerCase();
+
     return controller.candidates.where((user) {
+      if (currentAdminId != null &&
+          currentAdminId.isNotEmpty &&
+          user.id == currentAdminId) {
+        return false;
+      }
+      if (currentAdminEmail != null &&
+          currentAdminEmail.isNotEmpty &&
+          user.email.trim().toLowerCase() == currentAdminEmail) {
+        return false;
+      }
+      if (user.role != UserRole.candidate) return false;
+      if (!user.isCandidateInDatabase) return false;
+
       final matchesSearch = adminMatchesQuery(_query.value, [
         user.name,
         user.email,
@@ -312,17 +378,12 @@ class _CandidateCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => adminShowUserActions(
-          context,
-          user,
-          accent: AppColors.primary,
-          extraActions: [
-            _ApplicationsSummary(
-              applications: applications.length,
-              offers: offers,
-            ),
-          ],
-        ),
+        onTap: () {
+          Get.to(
+            () => CandidateProfileView(candidateUser: user, isAdminView: true),
+            transition: Transition.rightToLeft,
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -520,67 +581,139 @@ class _CountBadge extends StatelessWidget {
   }
 }
 
-class _ApplicationsSummary extends StatelessWidget {
-  final int applications;
-  final int offers;
 
-  const _ApplicationsSummary({required this.applications, required this.offers});
+class _DeletedCandidateCard extends StatelessWidget {
+  final DeletedUserModel record;
+  final AdminController controller;
+
+  const _DeletedCandidateCard({
+    required this.record,
+    required this.controller,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final appsCount = record.applicationsCount;
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text(
-                  '$applications',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                  child: Text(
+                    record.name.isNotEmpty ? record.name[0].toUpperCase() : 'C',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
-                Text(
-                  'Applications sent',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: Colors.grey[600],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        record.name.isNotEmpty ? record.name : 'Candidate',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        record.email.isNotEmpty ? record.email : 'No email',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Deleted',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red.shade700,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$offers',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.secondary,
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.send_rounded,
+                      size: 13, color: AppColors.primary),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      appsCount > 0
+                          ? '$appsCount application${appsCount == 1 ? '' : 's'} (restores active jobs)'
+                          : 'No applications saved',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                Text(
-                  'Job offers received',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.restore_rounded, size: 16),
+                label: Text(
+                  'Restore Candidate',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: () => controller.restoreUser(record),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

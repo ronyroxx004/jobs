@@ -2,16 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../controllers/admin_controller.dart';
 import '../../controllers/profile_controller.dart';
-import '../../controllers/job_controller.dart';
 import '../../core/utils/constants.dart';
-import '../../core/routes/app_routes.dart';
 import '../../core/utils/company_icons.dart';
 import '../../services/database_service.dart';
 import '../../models/company_profile.dart';
+import '../../models/user_model.dart';
+import '../../models/job_model.dart';
+import '../../controllers/job_controller.dart';
+import '../../core/routes/app_routes.dart';
+import '../admin/admin_shared.dart';
+import 'edit_profile_view.dart';
 
 class CandidateProfileView extends StatefulWidget {
-  const CandidateProfileView({super.key});
+  final UserModel? candidateUser;
+  final bool isAdminView;
+
+  const CandidateProfileView({
+    super.key,
+    this.candidateUser,
+    this.isAdminView = false,
+  });
 
   @override
   State<CandidateProfileView> createState() => _CandidateProfileViewState();
@@ -20,13 +32,88 @@ class CandidateProfileView extends StatefulWidget {
 class _CandidateProfileViewState extends State<CandidateProfileView> {
   String _selectedSection = 'applications';
 
+  UserModel? get _effectiveUser {
+    final target = widget.candidateUser ??
+        (Get.arguments is UserModel ? Get.arguments as UserModel : null);
+    if (target != null) {
+      if (Get.isRegistered<DatabaseService>()) {
+        final db = Get.find<DatabaseService>();
+        return db.usersList.firstWhereOrNull((u) => u.id == target.id) ??
+            target;
+      }
+      return target;
+    }
+    if (Get.isRegistered<ProfileController>()) {
+      return Get.find<ProfileController>().user;
+    }
+    return null;
+  }
+
+  bool get _isAdminView =>
+      widget.isAdminView ||
+      widget.candidateUser != null ||
+      (Get.arguments is UserModel);
+
+  void _openEditProfile(BuildContext context) {
+    final user = _effectiveUser;
+    if (user == null) return;
+    Get.to(
+      () => EditProfileView(targetUser: user),
+      transition: Transition.rightToLeft,
+    );
+  }
+
+  Future<void> _confirmDeleteJob(BuildContext context, JobModel job) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete job post?'),
+        content: Text(
+          '“${job.title}” will be removed from job listings. Existing application records will be kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) return;
+
+    try {
+      if (Get.isRegistered<JobController>()) {
+        await Get.find<JobController>().deleteJob(job);
+      } else {
+        await Get.find<DatabaseService>().deleteJob(job.id);
+      }
+      Get.snackbar(
+        'Job post deleted',
+        '“${job.title}” has been removed.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (error) {
+      Get.snackbar(
+        'Could not delete job post',
+        'Please try again. $error',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<ProfileController>();
-    final jobController = Get.find<JobController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return RefreshIndicator(
+    final content = RefreshIndicator(
       onRefresh: () async {
         final dbService = Get.find<DatabaseService>();
         await dbService.fetchAllData();
@@ -36,7 +123,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           Obx(() {
-            final user = controller.user;
+            final user = _effectiveUser;
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               shape: RoundedRectangleBorder(
@@ -182,7 +269,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                           ),
                           IconButton(
                             tooltip: 'Edit profile and manage resumes',
-                            onPressed: () => Get.toNamed(AppRoutes.editProfile),
+                            onPressed: () => _openEditProfile(context),
                             icon: const Icon(
                               Icons.edit_outlined,
                               color: AppColors.primary,
@@ -210,7 +297,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                             )
                           else
                             InkWell(
-                              onTap: () => Get.toNamed(AppRoutes.editProfile),
+                              onTap: () => _openEditProfile(context),
                               borderRadius: BorderRadius.circular(6),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -242,93 +329,283 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
             );
           }),
 
-          if (controller.user?.role == UserRole.recruiter) ...[
-            Obx(() {
-              final user = controller.user;
-              final companies = user?.companies.isNotEmpty == true
-                  ? user?.companies ?? []
-                  : (user?.companyName.isNotEmpty == true
-                      ? [
-                          CompanyProfile(
-                            id: 'company_${user?.id ?? ''}',
-                            name: user?.companyName ?? '',
-                            location: user?.companyLocation ?? '',
-                            iconKey: user?.companyIconKey.isNotEmpty == true
-                                ? user?.companyIconKey ?? ''
-                                : 'business',
-                          ),
-                        ]
-                      : <CompanyProfile>[]);
+          Obx(() {
+            final user = _effectiveUser;
+            if (user?.role != UserRole.recruiter) return const SizedBox.shrink();
 
-              if (companies.isEmpty) {
+            final companies = user?.companies.isNotEmpty == true
+                ? user?.companies ?? []
+                : (user?.companyName.isNotEmpty == true
+                    ? [
+                        CompanyProfile(
+                          id: 'company_${user?.id ?? ''}',
+                          name: user?.companyName ?? '',
+                          location: user?.companyLocation ?? '',
+                          iconKey: user?.companyIconKey.isNotEmpty == true
+                              ? user?.companyIconKey ?? ''
+                              : 'business',
+                        ),
+                      ]
+                    : <CompanyProfile>[]);
+
+            if (companies.isEmpty) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.add_business_outlined,
+                      color: AppColors.primary),
+                  title: const Text('Add your companies'),
+                  subtitle:
+                      const Text('Manage the companies you recruit for.'),
+                  onTap: () => _openEditProfile(context),
+                ),
+              );
+            }
+
+            return Column(
+              children: companies.map((company) {
+                final icon = companyIconForKey(company.iconKey);
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
+                  margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: ListTile(
-                    leading: const Icon(Icons.add_business_outlined,
-                        color: AppColors.primary),
-                    title: const Text('Add your companies'),
-                    subtitle:
-                        const Text('Manage the companies you recruit for.'),
-                    onTap: () => Get.toNamed(AppRoutes.editProfile),
+                    leading: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: icon.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(icon.icon, color: icon.color),
+                    ),
+                    title: Text(
+                      company.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: Text(
+                      company.location.isEmpty
+                          ? 'Company place not added'
+                          : company.location,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: IconButton(
+                      tooltip: 'Edit companies',
+                      onPressed: () => _openEditProfile(context),
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                    ),
                   ),
                 );
+              }).toList(),
+            );
+          }),
+
+          Obx(() {
+            final user = _effectiveUser;
+            if (user?.role != UserRole.recruiter) return const SizedBox.shrink();
+
+            final db = Get.find<DatabaseService>();
+            final currentUserId = user?.id ?? '';
+            final recruiterJobs = db.jobsList.where((j) {
+              if (j.isDeleted) return false;
+              if (j.recruiterId == currentUserId) return true;
+              if (currentUserId.isNotEmpty && j.recruiterId.startsWith('rec_')) return true;
+              if (user != null &&
+                  user.companies.any((c) =>
+                      c.name.trim().toLowerCase() ==
+                      j.companyName.trim().toLowerCase())) {
+                return true;
               }
+              if (user != null &&
+                  user.companyName.isNotEmpty &&
+                  user.companyName.trim().toLowerCase() ==
+                      j.companyName.trim().toLowerCase()) {
+                return true;
+              }
+              return false;
+            }).toList();
 
-              return Column(
-                children: companies.map((company) {
-                  final icon = companyIconForKey(company.iconKey);
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Posted Jobs (${recruiterJobs.length})',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (recruiterJobs.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${recruiterJobs.where((j) => j.isActive).length} Live',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.secondary,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    child: ListTile(
-                      leading: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: icon.color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(icon.icon, color: icon.color),
+                    const SizedBox(height: 12),
+                    if (recruiterJobs.isEmpty)
+                      Text(
+                        'No jobs posted yet.',
+                        style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+                      )
+                    else
+                      Column(
+                        children: recruiterJobs.map((job) {
+                          return InkWell(
+                            onTap: () => Get.toNamed(
+                              AppRoutes.recruiterApplicants,
+                              arguments: job,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.work_outline_rounded,
+                                      size: 16,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          job.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${job.companyName.isNotEmpty ? job.companyName : "Company"} • ${job.location}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: (job.isActive
+                                              ? AppColors.secondary
+                                              : AppColors.warning)
+                                          .withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      job.isActive ? 'Live' : 'Paused',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: job.isActive
+                                            ? AppColors.secondary
+                                            : AppColors.warning,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    tooltip: 'Delete job post',
+                                    onPressed: () => _confirmDeleteJob(context, job),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
-                      title: Text(
-                        company.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      subtitle: Text(
-                        company.location.isEmpty
-                            ? 'Company place not added'
-                            : company.location,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: IconButton(
-                        tooltip: 'Edit companies',
-                        onPressed: () => Get.toNamed(AppRoutes.editProfile),
-                        icon: const Icon(
-                          Icons.edit_outlined,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              );
-            }),
-          ],
+                  ],
+                ),
+              ),
+            );
+          }),
 
-          if (controller.user?.role == UserRole.candidate) ...[
-            Card(
+          Obx(() {
+            final user = _effectiveUser;
+            if ((user?.role ?? UserRole.candidate) != UserRole.candidate) {
+              return const SizedBox.shrink();
+            }
+
+            final db = Get.find<DatabaseService>();
+            final appsCount = db.applicationsList
+                .where((a) => a.candidateId == (user?.id ?? ''))
+                .where((a) => db.jobsList.any((j) => j.id == a.jobId))
+                .length;
+            final savedCount = user?.favoriteCompanies.length ?? 0;
+
+            return Card(
               margin: const EdgeInsets.only(bottom: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -349,86 +626,20 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                     Row(
                       children: [
                         Expanded(
-                          child: InkWell(
-                            onTap: () => Get.toNamed(
-                              AppRoutes.candidateActivity,
-                              arguments: {'tab': 'applications'},
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.assignment_rounded,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      'Applied',
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                          child: _buildSectionButton(
+                            label: 'Applied ($appsCount)',
+                            icon: Icons.assignment_rounded,
+                            value: 'applications',
+                            isSelected: _selectedSection == 'applications',
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: InkWell(
-                            onTap: () => Get.toNamed(
-                              AppRoutes.candidateActivity,
-                              arguments: {'tab': 'savedCompanies'},
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.bookmark_rounded,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      'Saved',
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                          child: _buildSectionButton(
+                            label: 'Saved ($savedCount)',
+                            icon: Icons.bookmark_rounded,
+                            value: 'savedCompanies',
+                            isSelected: _selectedSection == 'savedCompanies',
                           ),
                         ),
                       ],
@@ -436,11 +647,11 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                   ],
                 ),
               ),
-            ),
-          ],
+            );
+          }),
 
           Obx(() {
-            final bio = controller.user?.bio ?? '';
+            final bio = _effectiveUser?.bio ?? '';
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               shape: RoundedRectangleBorder(
@@ -479,7 +690,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
           }),
 
           Obx(() {
-            final skills = controller.user?.skills ?? [];
+            final skills = _effectiveUser?.skills ?? [];
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               shape: RoundedRectangleBorder(
@@ -501,11 +712,15 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                       ),
                       const SizedBox(height: 10),
                       if (skills.isEmpty)
-                        Text(
-                          'No skills added yet. Tap Edit Profile to add skills.',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.grey,
+                        InkWell(
+                          onTap: () => _openEditProfile(context),
+                          child: Text(
+                            'No skills added yet. Tap Edit Profile to add skills.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppColors.primary,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         )
                       else
@@ -533,10 +748,65 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
             );
           }),
 
+          Obx(() {
+            final user = _effectiveUser;
+            if ((user?.role ?? UserRole.candidate) != UserRole.candidate) {
+              return const SizedBox.shrink();
+            }
+
+            if (_selectedSection == 'applications') {
+              return _buildJobApplicationsPanel(user);
+            } else if (_selectedSection == 'savedCompanies') {
+              return _buildSavedCompaniesPanel(user);
+            }
+            return const SizedBox.shrink();
+          }),
+
           const SizedBox(height: 8),
         ],
       ),
     );
+
+    if (_isAdminView) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Obx(() => Text(
+                _effectiveUser?.name.isNotEmpty == true
+                    ? _effectiveUser!.name
+                    : (_effectiveUser?.role == UserRole.recruiter
+                        ? 'Recruiter Profile'
+                        : 'Candidate Profile'),
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              )),
+          actions: [
+            IconButton(
+              tooltip: 'Edit Profile',
+              icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+              onPressed: () => _openEditProfile(context),
+            ),
+            IconButton(
+              tooltip: _effectiveUser?.role == UserRole.recruiter
+                  ? 'Delete Recruiter'
+                  : 'Delete Candidate',
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: () {
+                final user = _effectiveUser;
+                if (user != null) {
+                  adminConfirmDeleteUser(user);
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: SafeArea(child: content),
+      );
+    }
+
+    return content;
   }
 
   Widget _buildSectionButton({
@@ -588,9 +858,14 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
     );
   }
 
-  Widget _buildJobApplicationsPanel(JobController jobController) {
+  Widget _buildJobApplicationsPanel(UserModel? user) {
     return Obx(() {
-      final apps = jobController.myApplications;
+      final db = Get.find<DatabaseService>();
+      final candidateId = user?.id ?? '';
+      final apps = db.applicationsList
+          .where((a) => a.candidateId == candidateId)
+          .where((a) => db.jobsList.any((j) => j.id == a.jobId))
+          .toList();
 
       if (apps.isEmpty) {
         return Card(
@@ -648,7 +923,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'My Job Applications',
+                    'Job Applications (${apps.length})',
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -745,7 +1020,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                     ],
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -753,8 +1028,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
     });
   }
 
-  Widget _buildSavedCompaniesPanel(ProfileController controller) {
-    final user = controller.user;
+  Widget _buildSavedCompaniesPanel(UserModel? user) {
     final companies = user?.favoriteCompanies.isNotEmpty == true
         ? user?.favoriteCompanies ?? []
         : <CompanyProfile>[];
@@ -886,7 +1160,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -894,8 +1168,8 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
   }
 
   void _showAvatarPicker(BuildContext context) {
-    final profileController = Get.find<ProfileController>();
-    final role = profileController.user?.role ?? UserRole.candidate;
+    final user = _effectiveUser;
+    final role = user?.role ?? UserRole.candidate;
     final options = _avatarOptionsFor(role);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -947,7 +1221,25 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                     final option = options[index];
                     return InkWell(
                       onTap: () {
-                        profileController.setProfileAvatarIcon(option.key);
+                        if (_isAdminView && user != null) {
+                          final updated = user.copyWith(
+                            avatarIconKey: option.key,
+                            avatarUrl: '',
+                          );
+                          final dbService = Get.find<DatabaseService>();
+                          dbService.saveUserProfile(updated);
+                          final idx = dbService.usersList
+                              .indexWhere((u) => u.id == updated.id);
+                          if (idx != -1) {
+                            dbService.usersList[idx] = updated;
+                          }
+                          if (Get.isRegistered<AdminController>()) {
+                            Get.find<AdminController>().updateUserProfile(updated);
+                          }
+                        } else {
+                          Get.find<ProfileController>()
+                              .setProfileAvatarIcon(option.key);
+                        }
                         Get.back();
                       },
                       borderRadius: BorderRadius.circular(16),
@@ -973,6 +1265,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
       ),
     );
   }
+
 
   IconData _iconForAvatarKey(String key) {
      for (final options in _roleAvatarOptions.values) {

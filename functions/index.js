@@ -72,6 +72,26 @@ exports.deleteUserAccount = onCall(async (request) => {
     profile = {};
   }
 
+  // Backup user jobs and applications so admin can restore them
+  let backedJobs = {};
+  let backedApps = {};
+  try {
+    const jobsSnap = await db.ref('jobs').once('value');
+    const allJobs = jobsSnap.val() || {};
+    for (const [jid, jval] of Object.entries(allJobs)) {
+      if (jval && jval.recruiterId === uid) {
+        backedJobs[jid] = jval;
+      }
+    }
+    const appsSnap = await db.ref('applications').once('value');
+    const allApps = appsSnap.val() || {};
+    for (const [aid, aval] of Object.entries(allApps)) {
+      if (aval && aval.candidateId === uid) {
+        backedApps[aid] = aval;
+      }
+    }
+  } catch (_) {}
+
   // 1. Tombstone first so the account cannot be recreated if this fails midway.
   await db.ref(`deleted_users/${uid}`).set({
     uid,
@@ -80,6 +100,9 @@ exports.deleteUserAccount = onCall(async (request) => {
     role: profile.role || '',
     deletedAt: new Date().toISOString(),
     deletedBy: request.auth.uid,
+    jobs: backedJobs,
+    applications: backedApps,
+    profile: profile,
   });
 
   // 2. Realtime Database records owned by this user.

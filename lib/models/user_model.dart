@@ -7,6 +7,7 @@ class UserModel {
   final String email;
   final String phone;
   final UserRole role;
+  final String rawRole;
   final String headline;
   final String bio;
   final String location;
@@ -31,6 +32,7 @@ class UserModel {
     required this.email,
     this.phone = '',
     required this.role,
+    String? rawRole,
     this.headline = '',
     this.bio = '',
     this.location = '',
@@ -48,7 +50,13 @@ class UserModel {
     this.totalReviews = 0,
     this.isVerified = false,
     DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
+  })  : rawRole = (rawRole != null && rawRole.trim().isNotEmpty)
+            ? rawRole.trim()
+            : role.name,
+        createdAt = createdAt ?? DateTime.now();
+
+  /// True if this user's role in the Realtime Database is explicitly 'candidate'.
+  bool get isCandidateInDatabase => rawRole.trim().toLowerCase() == 'candidate';
 
   Map<String, dynamic> toMap() {
     return {
@@ -78,15 +86,53 @@ class UserModel {
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map, String docId) {
+    final rawRole = map['role']?.toString().trim() ?? '';
+    final normalized = rawRole.toLowerCase();
+
+    UserRole parsedRole;
+    if (normalized == 'candidate') {
+      parsedRole = UserRole.candidate;
+    } else if (normalized == 'recruiter' || normalized == 'hr') {
+      parsedRole = UserRole.recruiter;
+    } else if (normalized == 'instructor' || normalized == 'course') {
+      parsedRole = UserRole.instructor;
+    } else if (normalized == 'mentor') {
+      parsedRole = UserRole.mentor;
+    } else if (normalized == 'admin') {
+      parsedRole = UserRole.admin;
+    } else {
+      UserRole? match;
+      for (final r in UserRole.values) {
+        if (r.name.toLowerCase() == normalized) {
+          match = r;
+          break;
+        }
+      }
+      if (match != null) {
+        parsedRole = match;
+      } else {
+        final email = map['email']?.toString().trim().toLowerCase() ?? '';
+        if (email == 'admin@gmail.com' || email.contains('admin')) {
+          parsedRole = UserRole.admin;
+        } else if (email.contains('recruiter') || email.contains('hr')) {
+          parsedRole = UserRole.recruiter;
+        } else if (email.contains('instructor') || email.contains('course')) {
+          parsedRole = UserRole.instructor;
+        } else if (email.contains('mentor')) {
+          parsedRole = UserRole.mentor;
+        } else {
+          parsedRole = UserRole.candidate;
+        }
+      }
+    }
+
     return UserModel(
       id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? ''),
       name: map['name']?.toString() ?? '',
       email: map['email']?.toString() ?? '',
       phone: map['phone']?.toString() ?? '',
-      role: UserRole.values.firstWhere(
-        (r) => r.name == map['role']?.toString(),
-        orElse: () => UserRole.candidate,
-      ),
+      role: parsedRole,
+      rawRole: rawRole,
       headline: map['headline']?.toString() ?? '',
       bio: map['bio']?.toString() ?? '',
       location: map['location']?.toString() ?? '',
@@ -139,6 +185,7 @@ class UserModel {
     double? rating,
     int? totalReviews,
     bool? isVerified,
+    String? rawRole,
   }) {
     return UserModel(
       id: id,
@@ -146,6 +193,7 @@ class UserModel {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       role: role ?? this.role,
+      rawRole: rawRole ?? (role != null ? role.name : this.rawRole),
       headline: headline ?? this.headline,
       bio: bio ?? this.bio,
       location: location ?? this.location,
