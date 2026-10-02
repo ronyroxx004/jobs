@@ -6,6 +6,7 @@ import '../../controllers/admin_controller.dart';
 import '../../controllers/profile_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/utils/company_icons.dart';
+import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../../models/company_profile.dart';
 import '../../models/user_model.dart';
@@ -13,6 +14,7 @@ import '../../models/job_model.dart';
 import '../../controllers/job_controller.dart';
 import '../../core/routes/app_routes.dart';
 import '../admin/admin_shared.dart';
+import '../candidate_activity_view.dart';
 import 'edit_profile_view.dart';
 
 class CandidateProfileView extends StatefulWidget {
@@ -30,8 +32,6 @@ class CandidateProfileView extends StatefulWidget {
 }
 
 class _CandidateProfileViewState extends State<CandidateProfileView> {
-  String _selectedSection = 'applications';
-
   UserModel? get _effectiveUser {
     final target = widget.candidateUser ??
         (Get.arguments is UserModel ? Get.arguments as UserModel : null);
@@ -599,11 +599,23 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
             }
 
             final db = Get.find<DatabaseService>();
-            final appsCount = db.applicationsList
-                .where((a) => a.candidateId == (user?.id ?? ''))
-                .where((a) => db.jobsList.any((j) => j.id == a.jobId))
-                .length;
-            final savedCount = user?.favoriteCompanies.length ?? 0;
+            final authService = Get.isRegistered<AuthService>() ? Get.find<AuthService>() : null;
+            final candidateId = (user?.id ?? '').trim();
+            final candidateEmail = (user?.email ?? '').trim().toLowerCase();
+            final myFirebaseUid = !_isAdminView ? (authService?.firebaseUser.value?.uid ?? '').trim() : '';
+
+            final appsCount = db.applicationsList.where((a) {
+              if (candidateId.isNotEmpty && a.candidateId.trim() == candidateId) return true;
+              if (myFirebaseUid.isNotEmpty && a.candidateId.trim() == myFirebaseUid) return true;
+              if (candidateEmail.isNotEmpty && a.candidateEmail.trim().toLowerCase() == candidateEmail) return true;
+              return false;
+            }).length;
+
+            final profileController = Get.isRegistered<ProfileController>() ? Get.find<ProfileController>() : null;
+            final savedCompaniesList = profileController != null && profileController.favoriteCompanies.isNotEmpty
+                ? profileController.favoriteCompanies
+                : (user?.favoriteCompanies ?? <CompanyProfile>[]);
+            final savedCount = savedCompaniesList.length;
 
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
@@ -626,20 +638,28 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                     Row(
                       children: [
                         Expanded(
-                          child: _buildSectionButton(
-                            label: 'Applied ($appsCount)',
+                          child: _buildOverviewNavButton(
+                            label: 'Applied',
+                            count: appsCount,
                             icon: Icons.assignment_rounded,
                             value: 'applications',
-                            isSelected: _selectedSection == 'applications',
+                            onTap: () {
+                              Get.to(() => CandidateApplicationsView(candidateUser: user));
+                            },
+                            isSelected: false,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: _buildSectionButton(
-                            label: 'Saved ($savedCount)',
+                          child: _buildOverviewNavButton(
+                            label: 'Saved',
+                            count: savedCount,
                             icon: Icons.bookmark_rounded,
                             value: 'savedCompanies',
-                            isSelected: _selectedSection == 'savedCompanies',
+                            onTap: () {
+                              Get.to(() => SavedCompaniesView(candidateUser: user));
+                            },
+                            isSelected: false,
                           ),
                         ),
                       ],
@@ -710,20 +730,8 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      if (skills.isEmpty)
-                        InkWell(
-                          onTap: () => _openEditProfile(context),
-                          child: Text(
-                            'No skills added yet. Tap Edit Profile to add skills.',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.primary,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        )
-                      else
+                      if (skills.isNotEmpty) ...[
+                        const SizedBox(height: 10),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -741,25 +749,12 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                             );
                           }).toList(),
                         ),
+                      ],
                     ],
                   ),
                 ),
               ),
             );
-          }),
-
-          Obx(() {
-            final user = _effectiveUser;
-            if ((user?.role ?? UserRole.candidate) != UserRole.candidate) {
-              return const SizedBox.shrink();
-            }
-
-            if (_selectedSection == 'applications') {
-              return _buildJobApplicationsPanel(user);
-            } else if (_selectedSection == 'savedCompanies') {
-              return _buildSavedCompaniesPanel(user);
-            }
-            return const SizedBox.shrink();
           }),
 
           const SizedBox(height: 8),
@@ -809,10 +804,12 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
     return content;
   }
 
-  Widget _buildSectionButton({
+  Widget _buildOverviewNavButton({
     required String label,
+    required int count,
     required IconData icon,
     required String value,
+    required VoidCallback onTap,
     required bool isSelected,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -822,346 +819,74 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
           ? AppColors.primary
           : isDark
               ? AppColors.cardDark
-              : Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(14),
+              : Colors.grey.shade50,
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: () => setState(() => _selectedSection = value),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.primary
+                  : Colors.grey.withValues(alpha: isDark ? 0.2 : 0.15),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? Colors.white : AppColors.primary,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isSelected) ...[
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? Colors.white
+                          : (isDark ? Colors.white : Colors.black87),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Flexible(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  '$count',
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.bold,
                     color: isSelected ? Colors.white : AppColors.primary,
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildJobApplicationsPanel(UserModel? user) {
-    return Obx(() {
-      final db = Get.find<DatabaseService>();
-      final candidateId = user?.id ?? '';
-      final apps = db.applicationsList
-          .where((a) => a.candidateId == candidateId)
-          .where((a) => db.jobsList.any((j) => j.id == a.jobId))
-          .toList();
-
-      if (apps.isEmpty) {
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.assignment_outlined,
-                    size: 48,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'You have not applied for any jobs yet',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }
-
-      return Card(
-        margin: const EdgeInsets.only(bottom: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.assignment_rounded,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Job Applications (${apps.length})',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              ...apps.map((app) {
-                final isDark = Theme.of(context).brightness == Brightness.dark;
-                final statusBg = _applicationStatusBackground(app.status, isDark);
-                final statusColor = _applicationStatusColor(app.status, isDark);
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.cardDark : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Colors.grey.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.work_history_rounded,
-                          size: 20,
-                          color: statusColor,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              app.jobTitle,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              app.companyName,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: isDark
-                                    ? AppColors.textSecondaryDark
-                                    : AppColors.textSecondaryLight,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Applied ${app.appliedAt.day}/${app.appliedAt.month}/${app.appliedAt.year}',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          app.status.label,
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      );
-    });
-  }
-
-  Widget _buildSavedCompaniesPanel(UserModel? user) {
-    final companies = user?.favoriteCompanies.isNotEmpty == true
-        ? user?.favoriteCompanies ?? []
-        : <CompanyProfile>[];
-
-    if (companies.isEmpty) {
-      return Card(
-        margin: const EdgeInsets.only(bottom: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.bookmark_border_rounded,
-                  size: 48,
-                  color: Colors.grey,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'No saved companies yet',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.bookmark_rounded,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Saved Companies',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            ...companies.map((company) {
-              final icon = companyIconForKey(company.iconKey);
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.cardDark
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Colors.grey.withValues(alpha: 0.12),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: icon.color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(icon.icon, color: icon.color),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            company.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (company.location.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              company.location,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.bookmark_rounded,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
         ),
       ),
     );
@@ -1377,36 +1102,6 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
           Icons.tips_and_updates_rounded, const Color(0xFF4F46E5)),
     ],
   };
-
-  Color _applicationStatusBackground(ApplicationStatus status, bool isDark) {
-    switch (status) {
-      case ApplicationStatus.applied:
-        return isDark ? const Color(0xFF1E3A5F) : const Color(0xFFE0F2FE);
-      case ApplicationStatus.shortlisted:
-        return isDark ? const Color(0xFF2E2A5F) : const Color(0xFFEDE9FE);
-      case ApplicationStatus.interviewing:
-        return isDark ? const Color(0xFF3F2A1A) : const Color(0xFFFEF3C7);
-      case ApplicationStatus.offered:
-        return isDark ? const Color(0xFF123C2D) : const Color(0xFFDCFCE7);
-      case ApplicationStatus.rejected:
-        return isDark ? const Color(0xFF4A1D1D) : const Color(0xFFFEE2E2);
-    }
-  }
-
-  Color _applicationStatusColor(ApplicationStatus status, bool isDark) {
-    switch (status) {
-      case ApplicationStatus.applied:
-        return isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8);
-      case ApplicationStatus.shortlisted:
-        return isDark ? const Color(0xFFC4B5FD) : const Color(0xFF6D28D9);
-      case ApplicationStatus.interviewing:
-        return isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309);
-      case ApplicationStatus.offered:
-        return isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D);
-      case ApplicationStatus.rejected:
-        return isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C);
-    }
-  }
 }
 
 class _AvatarOption {

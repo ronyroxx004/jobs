@@ -16,6 +16,8 @@ import '../../views/candidate_activity_view.dart';
 import '../../views/admin/admin_deleted_users_view.dart';
 import '../../views/admin/admin_jobs_view.dart';
 import '../../views/admin/admin_applications_view.dart';
+import '../../controllers/job_controller.dart';
+import '../../controllers/admin_controller.dart';
 
 class AppPages {
   static const initial = AppRoutes.splash;
@@ -80,10 +82,23 @@ class AppPages {
     GetPage(
       name: AppRoutes.adminJobs,
       page: () => const AdminJobsView(),
+      binding: BindingsBuilder(() {
+        if (!Get.isRegistered<JobController>()) {
+          Get.put(JobController(), permanent: true);
+        }
+        if (!Get.isRegistered<AdminController>()) {
+          Get.lazyPut(() => AdminController(), fenix: true);
+        }
+      }),
     ),
     GetPage(
       name: AppRoutes.adminApplications,
       page: () => const AdminApplicationsView(),
+      binding: BindingsBuilder(() {
+        if (!Get.isRegistered<AdminController>()) {
+          Get.lazyPut(() => AdminController(), fenix: true);
+        }
+      }),
     ),
   ];
 }

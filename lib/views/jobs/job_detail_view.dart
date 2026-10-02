@@ -18,79 +18,56 @@ import '../../core/utils/company_icons.dart';
 import 'apply_job_modal.dart';
 
 class JobDetailView extends GetView<JobController> {
-  const JobDetailView({super.key});
+  final JobModel? job;
+  const JobDetailView({super.key, this.job});
 
   static final GlobalKey _shareKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
-    final JobModel job = Get.arguments as JobModel;
+    final JobModel job = this.job ?? (Get.arguments as JobModel);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final authService = Get.find<AuthService>();
     final profileController = Get.find<ProfileController>();
-    final isFavorite = profileController.user != null &&
-        profileController.user!.favoriteCompanies.any(
-          (company) => company.name.toLowerCase() == job.companyName.toLowerCase(),
-        );
-
     return Stack(
       children: [
         Scaffold(
           appBar: AppBar(
             title: Text(job.companyName),
             actions: [
-              IconButton(
-                icon: Icon(
-                  isFavorite ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                  color: isFavorite ? AppColors.primary : null,
-                ),
-                onPressed: () {
-                  if (!authService.isLoggedIn) {
-                    Get.snackbar(
-                      'Sign In Required',
-                      'Please sign in to save job listings',
-                      snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: AppColors.primary,
-                      colorText: Colors.white,
-                    );
-                    Get.toNamed(AppRoutes.login);
-                    return;
-                  }
-
-                  final company = CompanyProfile(
-                    id: 'company_${job.companyName}_${job.recruiterId}',
-                    name: job.companyName,
-                    location: job.location,
-                    iconKey: job.companyIconKey.isNotEmpty
-                        ? job.companyIconKey
-                        : 'business',
-                  );
-
-                  final currentIsFavorite = profileController.user != null &&
-                      profileController.user!.favoriteCompanies.any(
-                        (item) => item.id == company.id ||
-                            item.name.toLowerCase() == company.name.toLowerCase(),
+              Obx(() {
+                final isFav = profileController.isFavoriteCompany(job.companyName);
+                return IconButton(
+                  icon: Icon(
+                    isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                    color: isFav ? AppColors.primary : null,
+                  ),
+                  onPressed: () {
+                    if (!authService.isLoggedIn) {
+                      Get.snackbar(
+                        'Sign In Required',
+                        'Please sign in to save job listings',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: AppColors.primary,
+                        colorText: Colors.white,
                       );
+                      Get.toNamed(AppRoutes.login);
+                      return;
+                    }
 
-                  profileController.toggleFavoriteCompany(company);
-                  final updatedUser = authService.currentUser.value?.copyWith(
-                    favoriteCompanies: profileController.favoriteCompanies.toList(),
-                  );
-                  if (updatedUser != null) {
-                    authService.updateUserProfile(updatedUser);
-                  }
+                    final company = CompanyProfile(
+                      id: 'company_${job.companyName}_${job.recruiterId}',
+                      name: job.companyName,
+                      location: job.location,
+                      iconKey: job.companyIconKey.isNotEmpty
+                          ? job.companyIconKey
+                          : 'business',
+                    );
 
-                  Get.snackbar(
-                    currentIsFavorite ? 'Removed from favorites' : 'Job company saved',
-                    currentIsFavorite
-                        ? 'Removed from your saved companies list'
-                        : 'Added to your saved companies list',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: AppColors.primary,
-                    colorText: Colors.white,
-                  );
-                },
-              ),
+                    profileController.toggleFavoriteCompany(company);
+                  },
+                );
+              }),
               IconButton(
                 icon: const Icon(Icons.share_outlined),
                 onPressed: () => _handleShare(context, job),
@@ -459,48 +436,111 @@ class JobDetailView extends GetView<JobController> {
                         job;
                     final isPaused = !currentJob.isActive;
                     final alreadyApplied = controller.hasAppliedForJob(job.id);
+                    if (isPaused) {
+                      return ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade400,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: null,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.pause_circle_outline_rounded,
+                                color: Colors.white, size: 18),
+                            SizedBox(width: 8),
+                            Text('Listing Paused'),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (alreadyApplied) {
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                side: const BorderSide(
+                                    color: AppColors.primary, width: 1.5),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.check_circle_rounded,
+                                  color: AppColors.primary, size: 18),
+                              label: Text(
+                                'Applied',
+                                style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary),
+                              ),
+                              onPressed: () {
+                                Get.bottomSheet(
+                                  ApplyJobModal(job: job, isEditing: true),
+                                  isScrollControlled: true,
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                backgroundColor: AppColors.secondary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.edit_document,
+                                  size: 18, color: Colors.white),
+                              label: Text(
+                                'Change Resume',
+                                style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
+                              ),
+                              onPressed: () {
+                                Get.bottomSheet(
+                                  ApplyJobModal(job: job, isEditing: true),
+                                  isScrollControlled: true,
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
                     return ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: (isPaused || alreadyApplied)
-                            ? Colors.grey.shade400
-                            : AppColors.primary,
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: (isPaused || alreadyApplied)
-                          ? null
-                          : () {
-                              if (!authService.isLoggedIn) {
-                                Get.snackbar(
-                                  'Sign In Required',
-                                  'Please sign in or register to apply for jobs',
-                                  snackPosition: SnackPosition.BOTTOM,
-                                  backgroundColor: AppColors.primary,
-                                  colorText: Colors.white,
-                                );
-                                Get.toNamed(AppRoutes.login);
-                                return;
-                              }
-                              Get.bottomSheet(
-                                ApplyJobModal(job: job),
-                                isScrollControlled: true,
-                              );
-                            },
-                      child: Row(
+                      onPressed: () {
+                        if (!authService.isLoggedIn) {
+                          Get.snackbar(
+                            'Sign In Required',
+                            'Please sign in or register to apply for jobs',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: AppColors.primary,
+                            colorText: Colors.white,
+                          );
+                          Get.toNamed(AppRoutes.login);
+                          return;
+                        }
+                        Get.bottomSheet(
+                          ApplyJobModal(job: job),
+                          isScrollControlled: true,
+                        );
+                      },
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (isPaused) ...[
-                            const Icon(Icons.pause_circle_outline_rounded,
-                                color: Colors.white, size: 18),
-                            const SizedBox(width: 8),
-                          ] else if (alreadyApplied) ...[
-                            const Icon(Icons.check_circle_rounded,
-                                color: Colors.white, size: 18),
-                            const SizedBox(width: 8),
-                          ],
-                          Text(isPaused
-                              ? 'Listing Paused'
-                              : (alreadyApplied
-                                  ? 'Already Applied'
-                                  : 'Apply Now')),
+                          Text('Apply Now'),
                         ],
                       ),
                     );

@@ -23,6 +23,7 @@ class AdminController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _dbService.fetchUsers();
     refreshDeletedUsers();
     refreshAccountDeletionAvailability();
   }
@@ -35,26 +36,86 @@ class AdminController extends GetxController {
 
   List<UserModel> get allUsers => _dbService.usersList;
 
-  List<UserModel> get recruiters => _dbService.usersList.where((u) {
-        if (u.role == UserRole.admin) return false;
-        final raw = u.rawRole.trim().toLowerCase();
-        if (raw.isNotEmpty && raw != 'recruiter' && raw != 'hr') return false;
-        return u.role == UserRole.recruiter;
-      }).toList();
+  List<UserModel> get recruiters {
+    final currentAdminId = _authService.currentUser.value?.id;
+    final currentAdminEmail =
+        _authService.currentUser.value?.email.trim().toLowerCase();
 
-  List<UserModel> get mentors => _dbService.usersList.where((u) {
-        if (u.role == UserRole.admin) return false;
-        final raw = u.rawRole.trim().toLowerCase();
-        if (raw.isNotEmpty && raw != 'mentor') return false;
-        return u.role == UserRole.mentor;
-      }).toList();
+    return _dbService.usersList.where((u) {
+      if (currentAdminId != null &&
+          currentAdminId.isNotEmpty &&
+          u.id == currentAdminId) {
+        return false;
+      }
+      if (currentAdminEmail != null &&
+          currentAdminEmail.isNotEmpty &&
+          u.email.trim().toLowerCase() == currentAdminEmail) {
+        return false;
+      }
+      if (u.role == UserRole.admin) return false;
+      final email = u.email.trim().toLowerCase();
+      if (email == 'admin@gmail.com') return false;
 
-  List<UserModel> get instructors => _dbService.usersList.where((u) {
-        if (u.role == UserRole.admin) return false;
-        final raw = u.rawRole.trim().toLowerCase();
-        if (raw.isNotEmpty && raw != 'instructor' && raw != 'course') return false;
-        return u.role == UserRole.instructor;
-      }).toList();
+      if (u.role == UserRole.recruiter) return true;
+      final raw = u.rawRole.trim().toLowerCase();
+      return raw == 'recruiter' || raw == 'hr';
+    }).toList();
+  }
+
+  List<UserModel> get mentors {
+    final currentAdminId = _authService.currentUser.value?.id;
+    final currentAdminEmail =
+        _authService.currentUser.value?.email.trim().toLowerCase();
+
+    return _dbService.usersList.where((u) {
+      if (currentAdminId != null &&
+          currentAdminId.isNotEmpty &&
+          u.id == currentAdminId) {
+        return false;
+      }
+      if (currentAdminEmail != null &&
+          currentAdminEmail.isNotEmpty &&
+          u.email.trim().toLowerCase() == currentAdminEmail) {
+        return false;
+      }
+      if (u.role == UserRole.admin) return false;
+      final email = u.email.trim().toLowerCase();
+      if (email == 'admin@gmail.com') return false;
+
+      if (u.role == UserRole.mentor) return true;
+      final raw = u.rawRole.trim().toLowerCase();
+      return raw == 'mentor';
+    }).toList();
+  }
+
+  List<UserModel> get instructors {
+    final currentAdminId = _authService.currentUser.value?.id;
+    final currentAdminEmail =
+        _authService.currentUser.value?.email.trim().toLowerCase();
+
+    return _dbService.usersList.where((u) {
+      if (currentAdminId != null &&
+          currentAdminId.isNotEmpty &&
+          u.id == currentAdminId) {
+        return false;
+      }
+      if (currentAdminEmail != null &&
+          currentAdminEmail.isNotEmpty &&
+          u.email.trim().toLowerCase() == currentAdminEmail) {
+        return false;
+      }
+      if (u.role == UserRole.admin) return false;
+      final email = u.email.trim().toLowerCase();
+      if (email == 'admin@gmail.com') return false;
+
+      if (u.role == UserRole.instructor) return true;
+      final raw = u.rawRole.trim().toLowerCase();
+      return raw == 'instructor' ||
+          raw == 'course' ||
+          raw == 'trainer' ||
+          raw == 'trainor';
+    }).toList();
+  }
 
   List<UserModel> get candidates {
     final currentAdminId = _authService.currentUser.value?.id;
@@ -79,22 +140,16 @@ class AdminController extends GetxController {
         return false;
       }
       final email = u.email.trim().toLowerCase();
-      if (email == 'admin@gmail.com' || email.contains('admin')) {
+      if (email == 'admin@gmail.com') {
         return false;
       }
 
-      // Must be candidate role
-      if (u.role != UserRole.candidate) {
-        return false;
+      if (u.role == UserRole.candidate) {
+        return true;
       }
 
-      // Role in Realtime Database must be explicitly candidate
       final raw = u.rawRole.trim().toLowerCase();
-      if (raw.isNotEmpty) {
-        return raw == 'candidate';
-      }
-
-      return false;
+      return raw == 'candidate';
     }).toList();
   }
 
@@ -183,19 +238,20 @@ class AdminController extends GetxController {
   }
 
   // --- Candidate analytics -------------------------------------------------
-  List<ApplicationModel> applicationsByCandidate(String candidateId) =>
-      _dbService.applicationsList
-          .where((a) =>
-              a.candidateId == candidateId &&
-              _dbService.jobsList.any((j) => j.id == a.jobId))
-          .toList();
+  List<ApplicationModel> applicationsByCandidate(String candidateId, {String? email}) {
+    final cId = candidateId.trim();
+    final cEmail = (email ?? '').trim().toLowerCase();
+    return _dbService.applicationsList.where((a) {
+      if (cId.isNotEmpty && a.candidateId.trim() == cId) return true;
+      if (cEmail.isNotEmpty && a.candidateEmail.trim().toLowerCase() == cEmail) return true;
+      return false;
+    }).toList();
+  }
 
-  int offersForCandidate(String candidateId) => _dbService.applicationsList
-      .where((a) =>
-          a.candidateId == candidateId &&
-          a.status == ApplicationStatus.offered &&
-          _dbService.jobsList.any((j) => j.id == a.jobId))
-      .length;
+  int offersForCandidate(String candidateId, {String? email}) =>
+      applicationsByCandidate(candidateId, email: email)
+          .where((a) => a.status == ApplicationStatus.offered)
+          .length;
 
   int get verifiedCandidates => candidates.where((u) => u.isVerified).length;
 

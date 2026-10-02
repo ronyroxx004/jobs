@@ -28,6 +28,12 @@ class _AdminInstructorsViewState extends State<AdminInstructorsView> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    if (Get.isRegistered<DatabaseService>()) {
+      final db = Get.find<DatabaseService>();
+      if (db.usersList.isEmpty) {
+        db.fetchUsers();
+      }
+    }
   }
 
   @override

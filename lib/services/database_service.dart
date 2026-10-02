@@ -618,6 +618,40 @@ class DatabaseService extends GetxService {
         return UserModel.fromMap(data, userId);
       }
     } catch (_) {}
+
+    // Check in-memory list
+    final inMemory = usersList.firstWhereOrNull((u) => u.id == userId);
+    if (inMemory != null) return inMemory;
+
+    return null;
+  }
+
+  Future<UserModel?> getUserProfileByEmail(String email) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty) return null;
+
+    // Check in-memory list first
+    final inMemory = usersList.firstWhereOrNull(
+      (u) => u.email.trim().toLowerCase() == cleanEmail,
+    );
+    if (inMemory != null) return inMemory;
+
+    try {
+      final snapshot = await _db?.ref(DatabaseKeys.users).get();
+      if (snapshot != null && snapshot.exists && snapshot.value is Map) {
+        final map = snapshot.value as Map;
+        for (final entry in map.entries) {
+          if (entry.value is Map) {
+            final data = Map<String, dynamic>.from(entry.value as Map);
+            final userEmail = data['email']?.toString().trim().toLowerCase();
+            if (userEmail == cleanEmail) {
+              return UserModel.fromMap(data, entry.key.toString());
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
     return null;
   }
 

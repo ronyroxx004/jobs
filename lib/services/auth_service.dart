@@ -1,11 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../core/utils/constants.dart';
 import 'database_service.dart';
 
 class AuthService extends GetxService {
+  static const String _sessionUserKey = 'jobs_saved_session_user';
+  static const String _sessionRoleKey = 'jobs_saved_session_role';
+
   FirebaseAuth? _authInstance;
 
   FirebaseAuth? get _auth {
@@ -27,7 +32,52 @@ class AuthService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+    _restoreLocalSession();
     _initAuthListener();
+  }
+
+  Future<void> ensureSessionLoaded() async {
+    if (currentUser.value != null) return;
+    await _restoreLocalSession();
+  }
+
+  Future<void> _persistSession(UserModel user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_sessionUserKey, jsonEncode(user.toMap()));
+      await prefs.setString(_sessionRoleKey, user.role.name);
+      debugPrint('Persisted local session for ${user.email} (${user.role.name})');
+    } catch (e) {
+      debugPrint('Error persisting local session: $e');
+    }
+  }
+
+  Future<void> _clearLocalSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_sessionUserKey);
+      await prefs.remove(_sessionRoleKey);
+      debugPrint('Cleared local session');
+    } catch (e) {
+      debugPrint('Error clearing local session: $e');
+    }
+  }
+
+  Future<void> _restoreLocalSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(_sessionUserKey);
+      if (userJson != null && userJson.trim().isNotEmpty) {
+        final map = jsonDecode(userJson) as Map<String, dynamic>;
+        final restored = UserModel.fromMap(map, map['id']?.toString() ?? '');
+        if (currentUser.value == null) {
+          currentUser.value = restored;
+          debugPrint('Successfully restored local session: ${restored.email} with role: ${restored.role.name}');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error restoring local session: $e');
+    }
   }
 
   UserRole _detectRoleFromEmail(String? email) {
@@ -39,7 +89,10 @@ class AuthService extends GetxService {
     if (cleanEmail.contains('recruiter') || cleanEmail.contains('hr')) {
       return UserRole.recruiter;
     }
-    if (cleanEmail.contains('instructor') || cleanEmail.contains('course')) {
+    if (cleanEmail.contains('instructor') ||
+        cleanEmail.contains('course') ||
+        cleanEmail.contains('trainer') ||
+        cleanEmail.contains('trainor')) {
       return UserRole.instructor;
     }
     if (cleanEmail.contains('mentor')) {
@@ -51,33 +104,47 @@ class AuthService extends GetxService {
   bool _isRegistering = false;
 
   void _initAuthListener() {
-    currentUser.value = null; // Unauthenticated guest state
     try {
       _auth?.authStateChanges().listen((User? user) async {
         firebaseUser.value = user;
         if (_isRegistering) {
-          // Registration is in progress; register() is actively handling user profile creation
+          // Registration is in progress; register() handles profile creation
           return;
         }
+
         if (user != null) {
           final dbService = Get.find<DatabaseService>();
-          final profile = await dbService.getUserProfile(user.uid);
+          UserModel? profile = await dbService.getUserProfile(user.uid);
+          if (profile == null && user.email != null) {
+            profile = await dbService.getUserProfileByEmail(user.email!);
+          }
+
           final expectedRole = _detectRoleFromEmail(user.email);
           if (profile != null) {
             if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
               final updatedProfile = profile.copyWith(role: UserRole.admin);
               currentUser.value = updatedProfile;
+              await _persistSession(updatedProfile);
               try {
                 await dbService.saveUserProfile(updatedProfile);
               } catch (_) {}
             } else {
               currentUser.value = profile;
+              await _persistSession(profile);
             }
             try {
               await dbService.fetchAllData();
             } catch (_) {}
           } else {
-            if (currentUser.value == null) {
+            // Profile not yet found in database: check if we have an active local session for this user
+            if (currentUser.value != null &&
+                (currentUser.value!.id == user.uid ||
+                    (user.email != null &&
+                        currentUser.value!.email.toLowerCase() ==
+                            user.email!.toLowerCase()))) {
+              // Maintain existing restored session
+              await _persistSession(currentUser.value!);
+            } else {
               final detectedRole = _detectRoleFromEmail(user.email);
               final newProfile = UserModel(
                 id: user.uid,
@@ -86,19 +153,25 @@ class AuthService extends GetxService {
                 role: detectedRole,
               );
               currentUser.value = newProfile;
+              await _persistSession(newProfile);
               try {
                 await dbService.saveUserProfile(newProfile);
               } catch (_) {}
             }
           }
         } else {
-          currentUser.value = null;
-          final dbService = Get.find<DatabaseService>();
-          try {
-            await dbService.fetchJobs();
-            await dbService.fetchCourses();
-            await dbService.fetchServices();
-          } catch (_) {}
+          // If firebaseUser is null, only clear if we don't have a persisted offline/demo session
+          final prefs = await SharedPreferences.getInstance();
+          final hasSavedSession = prefs.getString(_sessionUserKey) != null;
+          if (!hasSavedSession) {
+            currentUser.value = null;
+            final dbService = Get.find<DatabaseService>();
+            try {
+              await dbService.fetchJobs();
+              await dbService.fetchCourses();
+              await dbService.fetchServices();
+            } catch (_) {}
+          }
         }
       });
     } catch (_) {}
@@ -120,10 +193,10 @@ class AuthService extends GetxService {
           if (credential.user != null) {
             final dbService = Get.find<DatabaseService>();
 
-            // An admin may have removed this account already. Do not silently
-            // recreate the profile, otherwise a deleted user reappears.
+            // An admin may have removed this account already
             if (await dbService.isUserDeleted(credential.user!.uid)) {
               await _auth!.signOut();
+              await _clearLocalSession();
               Get.snackbar(
                 'Account Removed',
                 'This account was deleted by an administrator.',
@@ -135,6 +208,7 @@ class AuthService extends GetxService {
             }
 
             profile = await dbService.getUserProfile(credential.user!.uid);
+            profile ??= await dbService.getUserProfileByEmail(email);
 
             if (profile != null) {
               if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
@@ -155,35 +229,61 @@ class AuthService extends GetxService {
               } catch (_) {}
             }
           }
-        } catch (e) {
-          // Fallback profile creation for local demo testing
-          profile = UserModel(
-            id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-            name: email.split('@')[0],
-            email: email,
-            role: expectedRole,
+        } on FirebaseAuthException catch (e) {
+          String message = 'Authentication failed';
+          if (e.code == 'user-not-found') {
+            message = 'No account found with this email. Please register first.';
+          } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+            message = 'Incorrect password. Please verify your credentials.';
+          } else if (e.code == 'invalid-email') {
+            message = 'The email address is formatted incorrectly.';
+          } else if (e.code == 'user-disabled') {
+            message = 'This account has been disabled.';
+          } else if (e.code == 'too-many-requests') {
+            message = 'Too many attempts. Please try again in a few moments.';
+          } else {
+            message = e.message ?? 'Authentication error (${e.code}).';
+          }
+          Get.snackbar(
+            'Login Failed',
+            message,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 4),
           );
-          final dbService = Get.find<DatabaseService>();
-          try {
-            await dbService.saveUserProfile(profile);
-          } catch (_) {}
+          return false;
+        } catch (e) {
+          debugPrint('Auth service error during login: $e');
+          Get.snackbar(
+            'Login Failed',
+            'Could not sign in: ${e.toString()}',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 4),
+          );
+          return false;
         }
       } else {
-        // Handle offline auth
-        profile = UserModel(
-          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-          name: email.split('@')[0],
-          email: email,
-          role: expectedRole,
-        );
+        // Offline / mock mode when Firebase is not initialized
         final dbService = Get.find<DatabaseService>();
-        try {
-          await dbService.saveUserProfile(profile);
-        } catch (_) {}
+        profile = await dbService.getUserProfileByEmail(email);
+        if (profile == null) {
+          Get.snackbar(
+            'Account Not Found',
+            'No account exists for $email. Please register first.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
+          return false;
+        }
       }
 
       if (profile != null) {
         currentUser.value = profile;
+        await _persistSession(profile);
         final dbService = Get.find<DatabaseService>();
         try {
           await dbService.fetchAllData();
@@ -245,6 +345,7 @@ class AuthService extends GetxService {
       final dbService = Get.find<DatabaseService>();
       await dbService.saveUserProfile(newUser);
       currentUser.value = newUser;
+      await _persistSession(newUser);
 
       try {
         await dbService.fetchAllData();
@@ -281,6 +382,7 @@ class AuthService extends GetxService {
     if (currentUser.value != null) {
       final updated = currentUser.value!.copyWith(role: newRole);
       currentUser.value = updated;
+      await _persistSession(updated);
       final dbService = Get.find<DatabaseService>();
       await dbService.saveUserProfile(updated);
     }
@@ -288,6 +390,7 @@ class AuthService extends GetxService {
 
   Future<void> updateUserProfile(UserModel updatedUser) async {
     currentUser.value = updatedUser;
+    await _persistSession(updatedUser);
     final dbService = Get.find<DatabaseService>();
     await dbService.saveUserProfile(updatedUser);
   }
@@ -296,6 +399,7 @@ class AuthService extends GetxService {
     try {
       await _auth?.signOut();
     } catch (_) {}
+    await _clearLocalSession();
     currentUser.value = null;
     try {
       final dbService = Get.find<DatabaseService>();

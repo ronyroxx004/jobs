@@ -39,7 +39,7 @@ class AdminDashboardView extends GetView<AdminController> {
                 const SizedBox(height: 16),
 
                 // Revenue & Metrics Overview
-                Row(
+                Obx(() => Row(
                   children: [
                     Expanded(
                       child: _buildMetricCard(
@@ -56,14 +56,17 @@ class AdminDashboardView extends GetView<AdminController> {
                         '${controller.activeJobs}',
                         Icons.work_rounded,
                         AppColors.primary,
-                        onTap: () => Get.toNamed(AppRoutes.adminJobs),
+                        onTap: () => Get.toNamed(
+                          AppRoutes.adminJobs,
+                          arguments: {'status': 'Live'},
+                        ),
                         subtitle: '${controller.totalJobs} total • View all →',
                       ),
                     ),
                   ],
-                ),
+                )),
                 const SizedBox(height: 12),
-                Row(
+                Obx(() => Row(
                   children: [
                     Expanded(
                       child: _buildMetricCard(
@@ -85,7 +88,7 @@ class AdminDashboardView extends GetView<AdminController> {
                       ),
                     ),
                   ],
-                ),
+                )),
                 const SizedBox(height: 20),
 
                 // Deleted Users Entry moved to the bottom

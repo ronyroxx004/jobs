@@ -47,6 +47,16 @@ class _AdminJobsViewState extends State<AdminJobsView> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    final args = Get.arguments;
+    if (args is Map && args['status'] != null) {
+      _selectedStatus.value = args['status'] as String;
+    }
+    final dbService = Get.isRegistered<DatabaseService>()
+        ? Get.find<DatabaseService>()
+        : Get.put(DatabaseService());
+    if (dbService.jobsList.isEmpty) {
+      dbService.fetchJobs();
+    }
   }
 
   @override
@@ -58,9 +68,15 @@ class _AdminJobsViewState extends State<AdminJobsView> {
 
   @override
   Widget build(BuildContext context) {
-    final adminController = Get.find<AdminController>();
-    final jobController = Get.find<JobController>();
-    final dbService = Get.find<DatabaseService>();
+    final adminController = Get.isRegistered<AdminController>()
+        ? Get.find<AdminController>()
+        : Get.put(AdminController());
+    final jobController = Get.isRegistered<JobController>()
+        ? Get.find<JobController>()
+        : Get.put(JobController());
+    final dbService = Get.isRegistered<DatabaseService>()
+        ? Get.find<DatabaseService>()
+        : Get.put(DatabaseService());
 
     return Scaffold(
       appBar: AppBar(
@@ -211,6 +227,7 @@ class _AdminJobsViewState extends State<AdminJobsView> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Search box
           SizedBox(
@@ -220,6 +237,7 @@ class _AdminJobsViewState extends State<AdminJobsView> {
               onChanged: (val) => _query.value = val,
               style: GoogleFonts.inter(fontSize: 13),
               decoration: InputDecoration(
+                isDense: true,
                 hintText: 'Search by title, company, recruiter, location...',
                 hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
@@ -234,7 +252,7 @@ class _AdminJobsViewState extends State<AdminJobsView> {
                         )
                       : const SizedBox.shrink(),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 filled: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -262,74 +280,80 @@ class _AdminJobsViewState extends State<AdminJobsView> {
           // Horizontal Filter Chips
           SizedBox(
             height: 38,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                ..._statusFilters.map((status) => Obx(() {
-                      final isSelected = _selectedStatus.value == status;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: FilterChip(
-                          label: Text(
-                            status == 'All' ? 'All Status' : status,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? Colors.white
-                                  : (status == 'Live'
-                                      ? AppColors.secondary
-                                      : (status == 'Paused'
-                                          ? AppColors.warning
-                                          : (status == 'Deleted'
-                                              ? Colors.red
-                                              : null))),
-                            ),
+            child: Obx(() {
+              final currentStatus = _selectedStatus.value;
+              final currentType = _selectedType.value;
+              return ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  ..._statusFilters.map((status) {
+                    final isSelected = currentStatus == status;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: FilterChip(
+                        label: Text(
+                          status == 'All' ? 'All Status' : status,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : (status == 'Live'
+                                    ? AppColors.secondary
+                                    : (status == 'Paused'
+                                        ? AppColors.warning
+                                        : (status == 'Deleted'
+                                            ? Colors.red
+                                            : null))),
                           ),
-                          selected: isSelected,
-                          selectedColor: status == 'Live'
-                              ? AppColors.secondary
-                              : (status == 'Paused'
-                                  ? AppColors.warning
-                                  : (status == 'Deleted'
-                                      ? Colors.red
-                                      : AppColors.primary)),
-                          checkmarkColor: Colors.white,
-                          onSelected: (_) => _selectedStatus.value = status,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          visualDensity: VisualDensity.compact,
                         ),
-                      );
-                    })),
-                const VerticalDivider(width: 12, indent: 6, endIndent: 6),
-                ..._typeFilters.map((type) => Obx(() {
-                      final isSelected = _selectedType.value == type;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: FilterChip(
-                          label: Text(
-                            type == 'All' ? 'All Types' : type,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected ? Colors.white : null,
-                            ),
+                        selected: isSelected,
+                        selectedColor: status == 'Live'
+                            ? AppColors.secondary
+                            : (status == 'Paused'
+                                ? AppColors.warning
+                                : (status == 'Deleted'
+                                    ? Colors.red
+                                    : AppColors.primary)),
+                        checkmarkColor: Colors.white,
+                        onSelected: (_) => _selectedStatus.value = status,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    );
+                  }),
+                  const VerticalDivider(width: 12, indent: 6, endIndent: 6),
+                  ..._typeFilters.map((type) {
+                    final isSelected = currentType == type;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: FilterChip(
+                        label: Text(
+                          type == 'All' ? 'All Types' : type,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected ? Colors.white : null,
                           ),
-                          selected: isSelected,
-                          selectedColor: AppColors.primary,
-                          checkmarkColor: Colors.white,
-                          onSelected: (_) => _selectedType.value = type,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          visualDensity: VisualDensity.compact,
                         ),
-                      );
-                    })),
-              ],
-            ),
+                        selected: isSelected,
+                        selectedColor: AppColors.primary,
+                        checkmarkColor: Colors.white,
+                        onSelected: (_) => _selectedType.value = type,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    );
+                  }),
+                ],
+              );
+            }),
           ),
         ],
       ),

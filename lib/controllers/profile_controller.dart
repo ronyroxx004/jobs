@@ -108,20 +108,38 @@ class ProfileController extends GetxController {
   }
 
   bool toggleFavoriteCompany(CompanyProfile company) {
-    final existing = favoriteCompanies.indexWhere((item) => item.id == company.id);
+    final existing = favoriteCompanies.indexWhere(
+      (item) =>
+          item.id == company.id ||
+          item.name.trim().toLowerCase() == company.name.trim().toLowerCase(),
+    );
+    final bool isNowFavorite;
     if (existing == -1) {
       favoriteCompanies.add(company);
-      Get.snackbar('Company saved', '${company.name} marked as favorite.');
-      return true;
+      Get.snackbar('Company Saved', '${company.name} added to your saved list.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.secondary,
+          colorText: Colors.white);
+      isNowFavorite = true;
+    } else {
+      favoriteCompanies.removeAt(existing);
+      Get.snackbar('Company Removed', '${company.name} removed from saved list.',
+          snackPosition: SnackPosition.BOTTOM);
+      isNowFavorite = false;
     }
 
-    favoriteCompanies.removeAt(existing);
-    Get.snackbar('Company removed', '${company.name} removed from favorites.');
-    return false;
+    if (user != null) {
+      final updated = user!.copyWith(favoriteCompanies: favoriteCompanies.toList());
+      _authService.updateUserProfile(updated);
+    }
+    return isNowFavorite;
   }
 
-  bool isFavoriteCompany(String companyId) {
-    return favoriteCompanies.any((company) => company.id == companyId);
+  bool isFavoriteCompany(String companyIdOrName) {
+    final clean = companyIdOrName.trim().toLowerCase();
+    return favoriteCompanies.any((company) =>
+        company.id.toLowerCase() == clean ||
+        company.name.trim().toLowerCase() == clean);
   }
 
   void removeCompany(String companyId) {

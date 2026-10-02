@@ -94,7 +94,7 @@ class UserModel {
       parsedRole = UserRole.candidate;
     } else if (normalized == 'recruiter' || normalized == 'hr') {
       parsedRole = UserRole.recruiter;
-    } else if (normalized == 'instructor' || normalized == 'course') {
+    } else if (normalized == 'instructor' || normalized == 'course' || normalized == 'trainer' || normalized == 'trainor') {
       parsedRole = UserRole.instructor;
     } else if (normalized == 'mentor') {
       parsedRole = UserRole.mentor;

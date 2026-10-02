@@ -40,6 +40,12 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    if (Get.isRegistered<DatabaseService>()) {
+      final db = Get.find<DatabaseService>();
+      if (db.usersList.isEmpty) {
+        db.fetchUsers();
+      }
+    }
   }
 
   @override
@@ -334,8 +340,9 @@ Widget _buildFilterBar() {
           user.email.trim().toLowerCase() == currentAdminEmail) {
         return false;
       }
-      if (user.role != UserRole.candidate) return false;
-      if (!user.isCandidateInDatabase) return false;
+      if (user.role != UserRole.candidate && !user.isCandidateInDatabase) {
+        return false;
+      }
 
       final matchesSearch = adminMatchesQuery(_query.value, [
         user.name,
@@ -353,9 +360,11 @@ Widget _buildFilterBar() {
         case 'Experienced':
           return user.experienceYears > 0;
         case 'Active Applications':
-          return controller.applicationsByCandidate(user.id).isNotEmpty;
+          return controller
+              .applicationsByCandidate(user.id, email: user.email)
+              .isNotEmpty;
         case 'Job Offers':
-          return controller.offersForCandidate(user.id) > 0;
+          return controller.offersForCandidate(user.id, email: user.email) > 0;
         default:
           return true;
       }
@@ -371,11 +380,13 @@ class _CandidateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final applications = controller.applicationsByCandidate(user.id);
-    final offers = controller.offersForCandidate(user.id);
+    return Obx(() {
+      final applications =
+          controller.applicationsByCandidate(user.id, email: user.email);
+      final offers = controller.offersForCandidate(user.id, email: user.email);
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: () {
@@ -515,6 +526,7 @@ class _CandidateCard extends StatelessWidget {
         ),
       ),
     );
+    });
   }
 }
 

@@ -86,14 +86,26 @@ class ApplicationModel {
       resumeUrl: map['resumeUrl'] ?? '',
       resumeName: map['resumeName'] ?? 'Resume.pdf',
       coverLetter: map['coverLetter'] ?? '',
-      status: ApplicationStatus.values.firstWhere(
-        (s) => s.name == map['status'],
-        orElse: () => ApplicationStatus.applied,
-      ),
+      status: _parseStatus(map['status']),
       appliedAt: map['appliedAt'] != null
-          ? DateTime.tryParse(map['appliedAt']) ?? DateTime.now()
+          ? DateTime.tryParse(map['appliedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
+  }
+
+  static ApplicationStatus _parseStatus(dynamic value) {
+    if (value == null) return ApplicationStatus.applied;
+    final str = value.toString().trim().toLowerCase();
+    for (final s in ApplicationStatus.values) {
+      if (s.name.toLowerCase() == str) return s;
+    }
+    if (str.contains('shortlist')) return ApplicationStatus.shortlisted;
+    if (str.contains('interview')) return ApplicationStatus.interviewing;
+    if (str.contains('offer')) return ApplicationStatus.offered;
+    if (str.contains('reject') || str.contains('decline') || str.contains('not selected')) {
+      return ApplicationStatus.rejected;
+    }
+    return ApplicationStatus.applied;
   }
 
   ApplicationModel copyWith({

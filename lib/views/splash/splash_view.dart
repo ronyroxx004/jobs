@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/jobs_loading_icon.dart';
 
 class SplashView extends StatefulWidget {
@@ -20,7 +21,17 @@ class _SplashViewState extends State<SplashView> {
   }
 
   void _navigateToNext() async {
-    await Future.delayed(const Duration(seconds: 2));
+    final startTime = DateTime.now();
+    final authService =
+        Get.isRegistered<AuthService>() ? Get.find<AuthService>() : null;
+    if (authService != null) {
+      await authService.ensureSessionLoaded();
+    }
+    final elapsed = DateTime.now().difference(startTime);
+    final remaining = 1500 - elapsed.inMilliseconds;
+    if (remaining > 0) {
+      await Future.delayed(Duration(milliseconds: remaining));
+    }
     Get.offAllNamed(AppRoutes.home);
   }
 

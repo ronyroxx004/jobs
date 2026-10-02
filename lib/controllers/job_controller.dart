@@ -56,31 +56,38 @@ class JobController extends GetxController {
   List<ApplicationModel> get myApplications {
     final candidateId = _authService.currentUser.value?.id ?? '';
     final firebaseUid = _authService.firebaseUser.value?.uid ?? '';
+    final userEmail = _authService.currentUser.value?.email.toLowerCase().trim() ?? '';
     return _dbService.applicationsList
         .where((a) =>
-            a.candidateId == candidateId ||
-            (firebaseUid.isNotEmpty && a.candidateId == firebaseUid))
+            (candidateId.isNotEmpty && a.candidateId == candidateId) ||
+            (firebaseUid.isNotEmpty && a.candidateId == firebaseUid) ||
+            (userEmail.isNotEmpty && a.candidateEmail.toLowerCase().trim() == userEmail))
         .toList();
   }
 
   bool hasAppliedForJob(String jobId) {
     final candidateId = _authService.currentUser.value?.id ?? '';
     final firebaseUid = _authService.firebaseUser.value?.uid ?? '';
+    final userEmail = _authService.currentUser.value?.email.toLowerCase().trim() ?? '';
     return _dbService.applicationsList.any((a) =>
         a.jobId == jobId &&
-        (a.candidateId == candidateId ||
-            (firebaseUid.isNotEmpty && a.candidateId == firebaseUid)));
+        ((candidateId.isNotEmpty && a.candidateId == candidateId) ||
+            (firebaseUid.isNotEmpty && a.candidateId == firebaseUid) ||
+            (userEmail.isNotEmpty && a.candidateEmail.toLowerCase().trim() == userEmail)));
   }
 
   ApplicationModel? getApplicationForJob(String jobId) {
     final candidateId = _authService.currentUser.value?.id ?? '';
     final firebaseUid = _authService.firebaseUser.value?.uid ?? '';
+    final userEmail = _authService.currentUser.value?.email.toLowerCase().trim() ?? '';
     return _dbService.applicationsList.firstWhereOrNull(
       (application) =>
           application.jobId == jobId &&
-          (application.candidateId == candidateId ||
+          ((candidateId.isNotEmpty && application.candidateId == candidateId) ||
               (firebaseUid.isNotEmpty &&
-                  application.candidateId == firebaseUid)),
+                  application.candidateId == firebaseUid) ||
+              (userEmail.isNotEmpty &&
+                  application.candidateEmail.toLowerCase().trim() == userEmail)),
     );
   }
 
@@ -352,14 +359,15 @@ class JobController extends GetxController {
     await _dbService.restoreJob(job.id);
   }
 
-  Future<void> submitJobApplication(JobModel job) async {
+  Future<void> submitJobApplication(JobModel job, {bool isUpdating = false}) async {
     final user = _authService.currentUser.value;
     if (user == null) {
       Get.snackbar('Error', 'Please login to apply for jobs');
       return;
     }
 
-    if (hasAppliedForJob(job.id)) {
+    final hasApplied = hasAppliedForJob(job.id);
+    if (hasApplied && !isUpdating) {
       Get.snackbar('Already Applied', 'You have already applied for this job');
       return;
     }
@@ -382,9 +390,11 @@ class JobController extends GetxController {
         ? currentUid
         : user.id;
 
+    final existingApp = getApplicationForJob(job.id);
     final sanitizedJobId = job.id.replaceAll(RegExp(r'[.#$\[\]/]'), '_');
     final sanitizedCandidateId = candidateId.replaceAll(RegExp(r'[.#$\[\]/]'), '_');
-    final appId = 'app_${base64Url.encode(utf8.encode('$sanitizedJobId:$sanitizedCandidateId')).replaceAll('=', '')}';
+    final appId = existingApp?.id ??
+        'app_${base64Url.encode(utf8.encode('$sanitizedJobId:$sanitizedCandidateId')).replaceAll('=', '')}';
 
     final application = ApplicationModel(
       id: appId,
@@ -403,7 +413,11 @@ class JobController extends GetxController {
       candidateAvatar: user.avatarUrl,
       resumeUrl: selectedResume.fileUrl,
       resumeName: selectedResume.fileName,
-      coverLetter: coverLetterController.text.trim(),
+      coverLetter: coverLetterController.text.trim().isNotEmpty
+          ? coverLetterController.text.trim()
+          : (existingApp?.coverLetter ?? ''),
+      status: existingApp?.status ?? ApplicationStatus.applied,
+      appliedAt: existingApp?.appliedAt ?? DateTime.now(),
     );
 
     try {
@@ -411,7 +425,7 @@ class JobController extends GetxController {
     } catch (e) {
       debugPrint('Failed to save job application: $e');
       final msg = e.toString().toLowerCase();
-      if (msg.contains('already applied') || msg.contains('already exists')) {
+      if (!isUpdating && (msg.contains('already applied') || msg.contains('already exists'))) {
         Get.snackbar(
           'Already Applied',
           'You have already applied for this job.',
@@ -423,7 +437,7 @@ class JobController extends GetxController {
       }
       Get.snackbar(
         'Application Not Saved',
-        'Your application could not be saved. Please check your connection and try again.',
+        'Your application could not be saved ($e). Please try again.',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.redAccent,
         colorText: Colors.white,
@@ -434,8 +448,10 @@ class JobController extends GetxController {
     coverLetterController.clear();
     Get.back(); // close modal
     Get.snackbar(
-      'Application Submitted! 🎉',
-      'Your resume was submitted to ${job.companyName}',
+      isUpdating ? 'Resume Updated! 🎉' : 'Application Submitted! 🎉',
+      isUpdating
+          ? 'Your resume for ${job.companyName} was updated successfully.'
+          : 'Your resume was submitted to ${job.companyName}',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.secondary,
       colorText: Colors.white,

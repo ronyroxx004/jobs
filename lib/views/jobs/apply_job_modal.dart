@@ -8,12 +8,41 @@ import '../../core/utils/constants.dart';
 
 class ApplyJobModal extends GetView<JobController> {
   final JobModel job;
-  const ApplyJobModal({super.key, required this.job});
+  final bool isEditing;
+
+  const ApplyJobModal({
+    super.key,
+    required this.job,
+    this.isEditing = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final profileController = Get.find<ProfileController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // If editing existing application, pre-select applied resume and cover letter
+    if (isEditing) {
+      final existingApp = controller.getApplicationForJob(job.id);
+      if (existingApp != null) {
+        if (controller.coverLetterController.text.isEmpty &&
+            existingApp.coverLetter.isNotEmpty) {
+          controller.coverLetterController.text = existingApp.coverLetter;
+        }
+        if (controller.selectedResumeForApply.value == null) {
+          final matched = profileController.userResumes.firstWhereOrNull(
+            (r) =>
+                r.fileName == existingApp.resumeName ||
+                (r.fileUrl.isNotEmpty && r.fileUrl == existingApp.resumeUrl),
+          );
+          if (matched != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              controller.selectResumeForApply(matched);
+            });
+          }
+        }
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -38,17 +67,39 @@ class ApplyJobModal extends GetView<JobController> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Apply for ${job.title}',
+              isEditing ? 'Change Application Resume' : 'Apply for ${job.title}',
               style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 4),
             Text(
-              'Submitting application to ${job.companyName}',
+              isEditing
+                  ? 'Select or upload a different resume for ${job.title} at ${job.companyName}'
+                  : 'Submitting application to ${job.companyName}',
               style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
             ),
             const SizedBox(height: 20),
 
-            // Select Resume Section
-            Text('Select Resume', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+            // Select Resume Section with Upload New option
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Select Resume',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
+                TextButton.icon(
+                  icon: const Icon(Icons.upload_file_rounded, size: 16),
+                  label: const Text('Upload New PDF',
+                      style: TextStyle(fontSize: 12)),
+                  onPressed: () async {
+                    await profileController.pickAndUploadResume();
+                    if (profileController.userResumes.isNotEmpty) {
+                      controller.selectResumeForApply(
+                          profileController.userResumes.first);
+                    }
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
 
             Obx(() {
@@ -57,13 +108,14 @@ class ApplyJobModal extends GetView<JobController> {
                 return Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.1),
+                    color: Colors.amber.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.amber),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                      const Icon(Icons.warning_amber_rounded,
+                          color: Colors.amber),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -72,7 +124,13 @@ class ApplyJobModal extends GetView<JobController> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () => profileController.pickAndUploadResume(),
+                        onPressed: () async {
+                          await profileController.pickAndUploadResume();
+                          if (profileController.userResumes.isNotEmpty) {
+                            controller.selectResumeForApply(
+                                profileController.userResumes.first);
+                          }
+                        },
                         child: const Text('Upload PDF'),
                       ),
                     ],
@@ -93,18 +151,26 @@ class ApplyJobModal extends GetView<JobController> {
                       onTap: () => controller.selectResumeForApply(resume),
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: selected ? AppColors.primary.withOpacity(0.1) : (isDark ? AppColors.bgDark : AppColors.bgLight),
+                          color: selected
+                              ? AppColors.primary.withValues(alpha: 0.1)
+                              : (isDark ? AppColors.bgDark : AppColors.bgLight),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: selected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                            color: selected
+                                ? AppColors.primary
+                                : (isDark
+                                    ? AppColors.borderDark
+                                    : AppColors.borderLight),
                             width: selected ? 2 : 1,
                           ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 28),
+                            const Icon(Icons.picture_as_pdf_rounded,
+                                color: Colors.redAccent, size: 28),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -112,16 +178,21 @@ class ApplyJobModal extends GetView<JobController> {
                                 children: [
                                   Text(
                                     resume.fileName,
-                                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+                                    style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13),
                                   ),
                                   Text(
                                     '${resume.fileSize} • Skills: ${resume.extractedSkills.take(3).join(', ')}',
-                                    style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
+                                    style: GoogleFonts.inter(
+                                        fontSize: 11, color: Colors.grey),
                                   ),
                                 ],
                               ),
                             ),
-                            if (selected) const Icon(Icons.check_circle_rounded, color: AppColors.primary),
+                            if (selected)
+                              const Icon(Icons.check_circle_rounded,
+                                  color: AppColors.primary),
                           ],
                         ),
                       ),
@@ -133,21 +204,44 @@ class ApplyJobModal extends GetView<JobController> {
             const SizedBox(height: 16),
 
             // Cover Letter Input
-            Text('Cover Letter / Message (Optional)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text('Cover Letter / Message (Optional)',
+                style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
               controller: controller.coverLetterController,
               maxLines: 3,
               decoration: const InputDecoration(
-                hintText: 'Introduce yourself and share why you are a great fit for this position...',
+                hintText:
+                    'Introduce yourself and share why you are a great fit for this position...',
               ),
             ),
             const SizedBox(height: 24),
 
-            // Apply Button
-            ElevatedButton(
-              onPressed: () => controller.submitJobApplication(job),
-              child: const Text('Submit Application'),
+            // Submit / Update Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isEditing ? AppColors.secondary : AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => controller.submitJobApplication(
+                  job,
+                  isUpdating: isEditing,
+                ),
+                child: Text(
+                  isEditing ? 'Update Application Resume' : 'Submit Application',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
           ],
