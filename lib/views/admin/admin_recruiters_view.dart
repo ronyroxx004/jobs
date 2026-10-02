@@ -31,8 +31,6 @@ class _AdminRecruitersViewState extends State<AdminRecruitersView> {
 
   static const List<String> _filters = [
     'All',
-    'Verified',
-    'Active Jobs',
     'Deleted Recruiters',
   ];
 

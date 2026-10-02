@@ -44,7 +44,7 @@ class AdminDashboardView extends GetView<AdminController> {
                     Expanded(
                       child: _buildMetricCard(
                         'Platform Revenue',
-                        '\$12,450.00',
+                        '\₹0.00',
                         Icons.account_balance_wallet_rounded,
                         AppColors.secondary,
                       ),

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:jobs/controllers/admin_controller.dart';
@@ -168,16 +168,16 @@ void main() {
 
     expect(find.text('Ada Candidate'), findsOneWidget);
 
-    // "Experienced" -> only candidates with experienceYears > 0
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Experienced'));
-    await tester.pump();
-    expect(find.text('Ada Candidate'), findsOneWidget);
-
-    // "Job Offers" -> nobody has offers yet
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Job Offers'));
+    // "Deleted Candidates" -> shows deleted candidates view (initially empty)
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Deleted Candidates'));
     await tester.pumpAndSettle();
     expect(find.text('Ada Candidate'), findsNothing);
-    expect(find.text('No candidates found'), findsOneWidget);
+    expect(find.text('No deleted candidates'), findsOneWidget);
+
+    // Switch back to "All"
+    await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ada Candidate'), findsOneWidget);
   });
 
   testWidgets('Recruiter row expands to reveal job postings', (tester) async {

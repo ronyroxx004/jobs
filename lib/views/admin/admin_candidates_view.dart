@@ -29,10 +29,6 @@ class _AdminCandidatesViewState extends State<AdminCandidatesView> {
 
   static const List<String> _filters = [
     'All',
-    'Verified',
-    'Experienced',
-    'Active Applications',
-    'Job Offers',
     'Deleted Candidates',
   ];
 
@@ -246,7 +242,8 @@ Widget _buildFilterBar() {
 
   Widget _buildCandidateGrid(AdminController controller) {
     return Obx(() {
-      if (_filter.value == 'Deleted Candidates') {
+      if (_filter.value == 'Deleted Candidates' ||
+          _filter.value == 'Deleted Contacts') {
         final query = _query.value.toLowerCase().trim();
         final deleted = controller.deletedUsers.where((u) {
           if (u.role.toLowerCase() != 'candidate') return false;
