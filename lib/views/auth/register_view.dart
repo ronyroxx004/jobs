@@ -94,7 +94,6 @@ class RegisterView extends GetView<AuthController> {
                       children: [
                         UserRole.candidate,
                         UserRole.recruiter,
-                        UserRole.instructor,
                         UserRole.mentor,
                       ].map((role) {
                         final isSelected = controller.selectedRole.value == role;

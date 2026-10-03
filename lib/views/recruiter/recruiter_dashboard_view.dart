@@ -65,11 +65,15 @@ class RecruiterDashboardView extends GetView<JobController> {
                       ],
                     ),
                   ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Post Job'),
-                    onPressed: () => Get.toNamed(AppRoutes.postJob),
-                  ),
+ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+              ),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Post Job'),
+              onPressed: () => Get.toNamed(AppRoutes.postJob),
+            ),
                 ],
               ),
             ),

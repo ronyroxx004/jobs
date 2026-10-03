@@ -81,9 +81,9 @@ class AdminDashboardView extends GetView<AdminController> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildMetricCard(
-                        'Mentors & Instructors',
-                        '${controller.totalMentors + controller.totalCourses}',
-                        Icons.groups_rounded,
+                        'Mentors',
+                        '${controller.totalMentors}',
+                        Icons.psychology_rounded,
                         AppColors.warning,
                       ),
                     ),

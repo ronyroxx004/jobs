@@ -838,16 +838,17 @@ class _JobCard extends StatelessWidget {
 
                     if (job.isDeleted) ...[
                       ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondary,
-                          foregroundColor: Colors.white,
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                         icon: const Icon(Icons.restore_rounded, size: 16),
                         label: Text(
                           'Restore',

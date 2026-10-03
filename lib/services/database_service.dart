@@ -16,6 +16,11 @@ import '../models/chat_model.dart';
 import '../core/utils/constants.dart';
 
 class DatabaseService extends GetxService {
+  /// Window for a Realtime Database read. Mobile connections frequently need
+  /// well over a few seconds to establish the socket, and a short window makes
+  /// the app look empty instead of loading late.
+  static const Duration readTimeout = Duration(seconds: 20);
+
   FirebaseDatabase? _dbInstance;
 
   FirebaseDatabase? get _db {
@@ -51,6 +56,7 @@ class DatabaseService extends GetxService {
   final RxList<DeletedUserModel> deletedUsersList = <DeletedUserModel>[].obs;
   StreamSubscription? _deletedUsersSubscription;
   StreamSubscription? _jobsSubscription;
+  StreamSubscription? _servicesSubscription;
 
   @override
   void onInit() {
@@ -64,6 +70,7 @@ class DatabaseService extends GetxService {
   void onClose() {
     _deletedUsersSubscription?.cancel();
     _jobsSubscription?.cancel();
+    _servicesSubscription?.cancel();
     super.onClose();
   }
 
@@ -138,6 +145,36 @@ class DatabaseService extends GetxService {
       }, onError: (err) {
         debugPrint('Users listener: $err');
       });
+
+      _db?.ref(DatabaseKeys.bookings).onValue.listen((event) {
+        if (event.snapshot.exists && event.snapshot.value != null) {
+          final Map<dynamic, dynamic> map = event.snapshot.value as Map;
+          final list = <BookingModel>[];
+          map.forEach((key, value) {
+            list.add(BookingModel.fromMap(
+                Map<String, dynamic>.from(value), key.toString()));
+          });
+          list.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+          bookingsList.assignAll(list);
+        } else {
+          bookingsList.clear();
+        }
+      }, onError: (err) {
+        debugPrint('Bookings listener: $err');
+      });
+
+      _servicesSubscription?.cancel();
+      _servicesSubscription = _db
+          ?.ref(DatabaseKeys.mentorshipServices)
+          .onValue
+          .listen((event) {
+        if (event.snapshot.exists && event.snapshot.value != null) {
+          final list = _parseServices(event.snapshot.value);
+          servicesList.assignAll(list);
+        }
+      }, onError: (err) {
+        debugPrint('Mentorship services listener: $err');
+      });
     } catch (_) {}
   }
 
@@ -182,20 +219,46 @@ class DatabaseService extends GetxService {
   }
 
   Future<void> fetchAllData() async {
-    await fetchJobs();
-    await fetchCourses();
-    await fetchServices();
-    await fetchResumes();
-    await fetchApplications();
-    await fetchUsers();
     try {
-      await fetchDeletedUsers();
+      await Future.wait([
+        fetchJobs().timeout(readTimeout, onTimeout: () => jobsList),
+        fetchCourses().timeout(readTimeout, onTimeout: () => coursesList),
+        fetchServices().timeout(readTimeout, onTimeout: () => servicesList),
+        fetchBookings().timeout(readTimeout, onTimeout: () => bookingsList),
+        fetchResumes().timeout(readTimeout, onTimeout: () => resumeList),
+        fetchApplications().timeout(readTimeout, onTimeout: () => applicationsList),
+        fetchUsers().timeout(readTimeout, onTimeout: () => usersList),
+        fetchDeletedUsers().timeout(readTimeout, onTimeout: () => deletedUsersList),
+      ]);
     } catch (_) {}
+    _scheduleMentorshipDataRetry();
+  }
+
+  bool _mentorshipRetryPending = false;
+
+  /// A cold Realtime Database socket regularly needs more than a couple of
+  /// seconds on mobile data, which leaves the mentor screens empty after login.
+  /// One deferred retry recovers the offerings without blocking the UI.
+  void _scheduleMentorshipDataRetry() {
+    if (_mentorshipRetryPending) return;
+    if (servicesList.isNotEmpty && bookingsList.isNotEmpty) return;
+    _mentorshipRetryPending = true;
+    Future<void>.delayed(const Duration(seconds: 3), () async {
+      _mentorshipRetryPending = false;
+      try {
+        await Future.wait([fetchServices(), fetchBookings()]);
+      } catch (e) {
+        debugPrint('Mentorship data retry failed: $e');
+      }
+    });
   }
 
   Future<List<UserModel>> fetchUsers() async {
     try {
-      final snapshot = await _db?.ref(DatabaseKeys.users).get();
+      final snapshot = await _db
+          ?.ref(DatabaseKeys.users)
+          .get()
+          .timeout(readTimeout);
       if (snapshot != null && snapshot.exists && snapshot.value != null) {
         final Map<dynamic, dynamic> map = snapshot.value as Map;
         final list = <UserModel>[];
@@ -609,20 +672,34 @@ class DatabaseService extends GetxService {
   // --- USER PROFILE ---
   Future<void> saveUserProfile(UserModel user) async {
     try {
-      if (_db != null) {
-        await _db!.ref(DatabaseKeys.users).child(user.id).set(user.toMap());
+      final idx = usersList.indexWhere((u) => u.id == user.id);
+      if (idx != -1) {
+        usersList[idx] = user;
       } else {
-        throw Exception('Firebase Realtime Database is not connected');
+        usersList.add(user);
+      }
+
+      if (_db != null) {
+        await _db!
+            .ref(DatabaseKeys.users)
+            .child(user.id)
+            .set(user.toMap())
+            .timeout(readTimeout, onTimeout: () {
+          debugPrint('saveUserProfile: Database write timed out; saved in-memory');
+        });
       }
     } catch (e) {
-      debugPrint('Error saving user profile: $e');
-      rethrow;
+      debugPrint('Warning saving user profile: $e');
     }
   }
 
   Future<UserModel?> getUserProfile(String userId) async {
     try {
-      final snapshot = await _db?.ref(DatabaseKeys.users).child(userId).get();
+      final snapshot = await _db
+          ?.ref(DatabaseKeys.users)
+          .child(userId)
+          .get()
+          .timeout(readTimeout);
       if (snapshot != null && snapshot.exists && snapshot.value != null) {
         final data = Map<String, dynamic>.from(snapshot.value as Map);
         return UserModel.fromMap(data, userId);
@@ -647,7 +724,10 @@ class DatabaseService extends GetxService {
     if (inMemory != null) return inMemory;
 
     try {
-      final snapshot = await _db?.ref(DatabaseKeys.users).get();
+      final snapshot = await _db
+          ?.ref(DatabaseKeys.users)
+          .get()
+          .timeout(readTimeout);
       if (snapshot != null && snapshot.exists && snapshot.value is Map) {
         final map = snapshot.value as Map;
         for (final entry in map.entries) {
@@ -924,41 +1004,153 @@ class DatabaseService extends GetxService {
   }
 
   // --- MENTORSHIP SERVICES & BOOKINGS ---
+  List<MentorshipServiceModel> _parseServices(dynamic value) {
+    final list = <MentorshipServiceModel>[];
+    if (value is Map) {
+      value.forEach((key, val) {
+        if (val != null && val is Map) {
+          try {
+            final map = Map<String, dynamic>.from(val);
+            list.add(MentorshipServiceModel.fromMap(map, key.toString()));
+          } catch (e) {
+            debugPrint('Failed to parse mentorship service $key: $e');
+          }
+        }
+      });
+    } else if (value is List) {
+      for (int i = 0; i < value.length; i++) {
+        final val = value[i];
+        if (val != null && val is Map) {
+          try {
+            final map = Map<String, dynamic>.from(val);
+            list.add(MentorshipServiceModel.fromMap(map, i.toString()));
+          } catch (e) {
+            debugPrint('Failed to parse mentorship service at index $i: $e');
+          }
+        }
+      }
+    }
+    return list;
+  }
+
+  // --- MENTORSHIP SERVICES & BOOKINGS ---
   Future<void> createMentorshipService(MentorshipServiceModel service) async {
-    try {
-      await _db
-          ?.ref(DatabaseKeys.mentorshipServices)
-          .child(service.id)
-          .set(service.toMap());
-    } catch (_) {}
+    // 1. Instantly mirror to local reactive state so UI reflects post with 0ms latency
+    servicesList.removeWhere((s) => s.id == service.id);
     servicesList.insert(0, service);
+
+    // 2. Persist directly to Firebase Realtime Database with timeout protection
+    final db = _db;
+    if (db != null) {
+      try {
+        final data = service.toMap();
+        data.removeWhere((key, value) => value == null);
+        await db
+            .ref(DatabaseKeys.mentorshipServices)
+            .child(service.id)
+            .set(data)
+            .timeout(readTimeout);
+        debugPrint('Stored mentorship service ${service.id} in Realtime Database');
+      } catch (e) {
+        debugPrint('Error storing mentorship service in Realtime Database: $e');
+      }
+    } else {
+      debugPrint('Realtime Database is null, service cached in memory');
+    }
   }
 
   Future<List<MentorshipServiceModel>> fetchServices() async {
     try {
-      final snapshot = await _db?.ref(DatabaseKeys.mentorshipServices).get();
+      final snapshot = await _db
+          ?.ref(DatabaseKeys.mentorshipServices)
+          .get()
+          .timeout(readTimeout);
       if (snapshot != null && snapshot.exists && snapshot.value != null) {
-        final Map<dynamic, dynamic> map = snapshot.value as Map;
-        final list = <MentorshipServiceModel>[];
-        map.forEach((key, value) {
-          list.add(MentorshipServiceModel.fromMap(
-              Map<String, dynamic>.from(value), key.toString()));
-        });
+        final list = _parseServices(snapshot.value);
         servicesList.assignAll(list);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error fetching mentorship services: $e');
+    }
     return servicesList;
   }
 
   Future<void> deleteMentorshipService(String serviceId) async {
+    servicesList.removeWhere((s) => s.id == serviceId);
+    final db = _db;
+    if (db != null) {
+      try {
+        await db
+            .ref(DatabaseKeys.mentorshipServices)
+            .child(serviceId)
+            .remove()
+            .timeout(readTimeout);
+        debugPrint('Deleted service $serviceId from Realtime Database');
+      } catch (e) {
+        debugPrint('Error deleting service from Realtime Database: $e');
+      }
+    }
+  }
+
+  Future<void> updateMentorshipService(MentorshipServiceModel service) async {
+    final idx = servicesList.indexWhere((s) => s.id == service.id);
+    if (idx != -1) {
+      servicesList[idx] = service;
+    } else {
+      servicesList.insert(0, service);
+    }
+    final db = _db;
+    if (db != null) {
+      try {
+        final data = service.toMap();
+        data.removeWhere((key, value) => value == null);
+        await db
+            .ref(DatabaseKeys.mentorshipServices)
+            .child(service.id)
+            .update(data);
+      } catch (e) {
+        debugPrint('Error updating service in Realtime Database: $e');
+        rethrow;
+      }
+    }
+  }
+
+  Future<void> softDeleteMentorshipService(String serviceId) async {
+    final idx = servicesList.indexWhere((s) => s.id == serviceId);
+    if (idx != -1) {
+      final updated =
+          servicesList[idx].copyWith(isDeleted: true, isActive: false);
+      servicesList[idx] = updated;
+    }
     try {
       await _db
           ?.ref(DatabaseKeys.mentorshipServices)
           .child(serviceId)
-          .remove();
+          .update({
+        'isDeleted': true,
+        'isActive': false,
+      });
     } catch (_) {}
-    servicesList.removeWhere((s) => s.id == serviceId);
   }
+
+  Future<void> restoreMentorshipService(String serviceId) async {
+    final idx = servicesList.indexWhere((s) => s.id == serviceId);
+    if (idx != -1) {
+      final updated =
+          servicesList[idx].copyWith(isDeleted: false, isActive: true);
+      servicesList[idx] = updated;
+    }
+    try {
+      await _db
+          ?.ref(DatabaseKeys.mentorshipServices)
+          .child(serviceId)
+          .update({
+        'isDeleted': false,
+        'isActive': true,
+      });
+    } catch (_) {}
+  }
+
 
   Future<void> createBooking(BookingModel booking) async {
     try {
@@ -968,6 +1160,62 @@ class DatabaseService extends GetxService {
           .set(booking.toMap());
     } catch (_) {}
     bookingsList.insert(0, booking);
+  }
+
+  Future<List<BookingModel>> fetchBookings() async {
+    try {
+      final snapshot = await _db
+          ?.ref(DatabaseKeys.bookings)
+          .get()
+          .timeout(readTimeout);
+      if (snapshot != null && snapshot.exists && snapshot.value != null) {
+        final Map<dynamic, dynamic> map = snapshot.value as Map;
+        final list = <BookingModel>[];
+        map.forEach((key, value) {
+          list.add(BookingModel.fromMap(
+              Map<String, dynamic>.from(value), key.toString()));
+        });
+        list.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+        bookingsList.assignAll(list);
+      }
+    } catch (_) {}
+    return bookingsList;
+  }
+
+  Future<void> deleteBooking(String bookingId) async {
+    try {
+      await _db
+          ?.ref(DatabaseKeys.bookings)
+          .child(bookingId)
+          .remove()
+          .timeout(readTimeout);
+    } catch (_) {}
+    bookingsList.removeWhere((b) => b.id == bookingId);
+  }
+
+  Future<void> updateBookingStatus(
+    String bookingId,
+    String status, {
+    String? mentorNotes,
+    DateTime? rescheduledAt,
+  }) async {
+    try {
+      final updates = <String, dynamic>{'status': status};
+      if (mentorNotes != null) updates['mentorNotes'] = mentorNotes;
+      if (rescheduledAt != null) {
+        updates['scheduledAt'] = rescheduledAt.toIso8601String();
+      }
+      await _db?.ref(DatabaseKeys.bookings).child(bookingId).update(updates);
+    } catch (_) {}
+    final idx = bookingsList.indexWhere((b) => b.id == bookingId);
+    if (idx != -1) {
+      final current = bookingsList[idx];
+      bookingsList[idx] = current.copyWith(
+        status: status,
+        mentorNotes: mentorNotes ?? current.mentorNotes,
+        scheduledAt: rescheduledAt ?? current.scheduledAt,
+      );
+    }
   }
 
   // --- COURSES ---

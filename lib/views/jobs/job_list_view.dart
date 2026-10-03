@@ -56,35 +56,70 @@ class JobListView extends GetView<JobController> {
                         child: Center(
                           child: Padding(
                             padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.work_off_outlined,
-                                    size: 64, color: Colors.grey),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No job listings available',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Recruiters can log in to publish active job postings.',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(
-                                      fontSize: 13, color: Colors.grey),
-                                ),
-                                const SizedBox(height: 16),
-                                if (!authService.isLoggedIn)
-                                  ElevatedButton.icon(
-                                    icon: const Icon(Icons.login),
-                                    label: const Text('Log in'),
-                                    onPressed: () =>
-                                        Get.toNamed(AppRoutes.login),
+                            child: Obx(() {
+                              final hasFilters = controller.searchQuery.value.isNotEmpty ||
+                                  controller.selectedTypeFilter.value != 'All' ||
+                                  controller.selectedExperienceFilter.value != 'All' ||
+                                  controller.selectedApplicationFilter.value != 'All';
+                              if (hasFilters) {
+                                return Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.filter_alt_off_outlined,
+                                        size: 64, color: Colors.grey),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No matching jobs found',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Try adjusting your search terms or clearing active filters.',
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.inter(
+                                          fontSize: 13, color: Colors.grey),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    OutlinedButton.icon(
+                                      icon: const Icon(Icons.clear_all_rounded),
+                                      label: const Text('Reset filters'),
+                                      onPressed: controller.resetFilters,
+                                    ),
+                                  ],
+                                );
+                              }
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.work_off_outlined,
+                                      size: 64, color: Colors.grey),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No job listings available',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
                                   ),
-                              ],
-                            ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Recruiters can log in to publish active job postings.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                        fontSize: 13, color: Colors.grey),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  if (!authService.isLoggedIn)
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.login),
+                                      label: const Text('Log in'),
+                                      onPressed: () =>
+                                          Get.toNamed(AppRoutes.login),
+                                    ),
+                                ],
+                              );
+                            }),
                           ),
                         ),
                       ),
@@ -310,14 +345,23 @@ class JobListView extends GetView<JobController> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Filter jobs',
-                    style: GoogleFonts.inter(
-                      fontSize: 19,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Filter jobs',
+                        style: GoogleFonts.inter(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: controller.resetFilters,
+                        child: const Text('Reset'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   Text(
                     'Job type',
                     style: GoogleFonts.inter(

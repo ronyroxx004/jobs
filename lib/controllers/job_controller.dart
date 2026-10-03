@@ -41,6 +41,7 @@ class JobController extends GetxController {
     refreshPostCompanyOptions();
     ever(_authService.currentUser, (_) {
       refreshPostCompanyOptions();
+      resetFilters();
       _dbService.fetchJobs();
     });
     if (_dbService.jobsList.isEmpty) {
@@ -206,6 +207,14 @@ class JobController extends GetxController {
 
   void setApplicationFilter(String filter) {
     selectedApplicationFilter.value = filter;
+  }
+
+  void resetFilters() {
+    searchQuery.value = '';
+    searchController.clear();
+    selectedTypeFilter.value = 'All';
+    selectedExperienceFilter.value = 'All';
+    selectedApplicationFilter.value = 'All';
   }
 
   void selectResumeForApply(ResumeModel resume) {

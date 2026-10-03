@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/home_controller.dart';
@@ -7,16 +7,18 @@ import '../../controllers/theme_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/routes/app_routes.dart';
 import '../jobs/job_list_view.dart';
-import '../courses/course_list_view.dart';
 import '../mentorship/mentor_list_view.dart';
 import '../profile/candidate_profile_view.dart';
 import '../admin/admin_dashboard_view.dart';
 import '../admin/admin_candidates_view.dart';
 import '../admin/admin_recruiters_view.dart';
 import '../admin/admin_mentors_view.dart';
-import '../admin/admin_instructors_view.dart';
-import '../instructor/instructor_dashboard_view.dart';
 import '../recruiter/recruiter_jobs_view.dart';
+import '../../controllers/mentorship_controller.dart';
+import '../mentorship/mentor_storefront_view.dart';
+import '../mentorship/mentor_services_view.dart';
+import '../mentorship/mentor_bookings_view.dart';
+import '../mentorship/mentor_earnings_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -101,13 +103,18 @@ class _HomeViewState extends State<HomeView> {
 
             return Row(
               children: [
-                if (role == UserRole.instructor)
+                if (role == UserRole.mentor) ...[
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline,
-                        color: AppColors.primary, size: 28),
-                    tooltip: 'Post New Course',
-                    onPressed: () => Get.toNamed(AppRoutes.postCourse),
+                    icon: const Icon(Icons.share_outlined,
+                        color: AppColors.primary, size: 22),
+                    tooltip: 'Share Topmate Storefront',
+                    onPressed: () {
+                      if (Get.isRegistered<MentorshipController>()) {
+                        Get.find<MentorshipController>().copyStorefrontLink();
+                      }
+                    },
                   ),
+                ],
                 IconButton(
                   icon: Obx(() => Icon(
                         themeController.isDarkMode.value
@@ -137,41 +144,49 @@ class _HomeViewState extends State<HomeView> {
         final role = controller.currentRole;
         final tabs = _tabsFor(isLoggedIn, role);
         final selectedIndex =
-            controller.selectedTabIndex.clamp(0, tabs.length - 1);
-        return SizedBox.expand(
-          child: tabs[selectedIndex].page,
-        );
+            controller.currentIndex.value.clamp(0, tabs.length - 1);
+        return tabs[selectedIndex].page;
       }),
       bottomNavigationBar: Obx(() {
         final isLoggedIn = controller.isLoggedIn;
         final role = controller.currentRole;
         final tabs = _tabsFor(isLoggedIn, role);
         final selectedIndex =
-            controller.selectedTabIndex.clamp(0, tabs.length - 1);
+            controller.currentIndex.value.clamp(0, tabs.length - 1);
 
         return NavigationBar(
           selectedIndex: selectedIndex,
           onDestinationSelected: (index) {
-            setState(() => controller.changeTab(index));
+            controller.changeTab(index);
           },
           indicatorColor: AppColors.primary.withValues(alpha: 0.15),
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-          destinations: tabs.asMap().entries.map((entry) {
-            final tab = entry.value;
-            final isSelected = selectedIndex == entry.key;
-
-            final iconWidget = Icon(
-              isSelected ? tab.selectedIcon : tab.icon,
-              color: isSelected ? AppColors.primary : null,
-            );
-
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: tabs.map((tab) {
             return NavigationDestination(
-              icon: iconWidget,
-              selectedIcon: iconWidget,
-              label: '',
+              icon: Icon(tab.icon),
+              selectedIcon: Icon(tab.selectedIcon, color: AppColors.primary),
+              label: tab.title == _profileTitle ? 'Profile' : tab.title,
             );
           }).toList(),
         );
+      }),
+      floatingActionButton: Obx(() {
+        final isLoggedIn = controller.isLoggedIn;
+        final role = controller.currentRole;
+        if (isLoggedIn && role == UserRole.mentor) {
+          return FloatingActionButton(
+            key: const ValueKey('mentor_fab_add_post'),
+            heroTag: 'mentor_fab_add_post',
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            elevation: 4,
+            tooltip: 'Add Post',
+            onPressed: () =>
+                MentorStorefrontView.showAddOfferingSelector(context),
+            child: const Icon(Icons.add_rounded, size: 32),
+          );
+        }
+        return const SizedBox.shrink();
       }),
     );
   }
@@ -185,8 +200,6 @@ class _HomeViewState extends State<HomeView> {
             JobListView()),
         _HomeTab('Mentors', Icons.groups_outlined, Icons.groups_rounded,
             MentorListView()),
-        _HomeTab('Courses', Icons.local_library_outlined,
-            Icons.local_library_rounded, CourseListView()),
       ];
     }
     if (role == UserRole.candidate) {
@@ -195,8 +208,6 @@ class _HomeViewState extends State<HomeView> {
             JobListView()),
         _HomeTab('Mentors', Icons.groups_outlined, Icons.groups_rounded,
             MentorListView()),
-        _HomeTab('Courses', Icons.local_library_outlined,
-            Icons.local_library_rounded, CourseListView()),
         _HomeTab(_profileTitle, Icons.person_outline_rounded,
             Icons.person_rounded, CandidateProfileView()),
       ];
@@ -211,15 +222,21 @@ class _HomeViewState extends State<HomeView> {
         ];
       case UserRole.mentor:
         return const [
-          _HomeTab('Mentors', Icons.groups_outlined, Icons.groups_rounded,
-              MentorListView()),
+          _HomeTab('Storefront', Icons.storefront_outlined,
+              Icons.storefront_rounded, MentorStorefrontView()),
+          _HomeTab('Services', Icons.grid_view_outlined,
+              Icons.grid_view_rounded, MentorServicesView()),
+          _HomeTab('Bookings', Icons.calendar_month_outlined,
+              Icons.calendar_month_rounded, MentorBookingsView()),
+          _HomeTab('Earnings', Icons.payments_outlined,
+              Icons.payments_rounded, MentorEarningsView()),
           _HomeTab(_profileTitle, Icons.person_outline_rounded,
               Icons.person_rounded, CandidateProfileView()),
         ];
       case UserRole.instructor:
         return const [
-          _HomeTab('Instructor Portal', Icons.cast_for_education_outlined,
-              Icons.cast_for_education_rounded, InstructorDashboardView()),
+          _HomeTab('Jobs', Icons.work_outline_rounded, Icons.work_rounded,
+              JobListView()),
           _HomeTab(_profileTitle, Icons.person_outline_rounded,
               Icons.person_rounded, CandidateProfileView()),
         ];
@@ -231,8 +248,6 @@ class _HomeViewState extends State<HomeView> {
               Icons.business_rounded, AdminRecruitersView()),
           _HomeTab('Mentors', Icons.psychology_outlined,
               Icons.psychology_alt_rounded, AdminMentorsView()),
-          _HomeTab('Instructors', Icons.school_outlined,
-              Icons.school_rounded, AdminInstructorsView()),
           _HomeTab('Dashboard', Icons.dashboard_outlined,
               Icons.dashboard_rounded, AdminDashboardView()),
         ];
@@ -242,8 +257,6 @@ class _HomeViewState extends State<HomeView> {
               JobListView()),
           _HomeTab('Mentors', Icons.groups_outlined, Icons.groups_rounded,
               MentorListView()),
-          _HomeTab('Courses', Icons.local_library_outlined,
-              Icons.local_library_rounded, CourseListView()),
           _HomeTab(_profileTitle, Icons.person_outline_rounded,
               Icons.person_rounded, CandidateProfileView()),
         ];

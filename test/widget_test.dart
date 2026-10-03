@@ -136,7 +136,7 @@ void main() {
     seed();
     await pumpScreen(tester, const AdminMentorsView());
 
-    expect(find.text('Mentorship Program'), findsOneWidget);
+    expect(find.text('Mentorship Management'), findsOneWidget);
     expect(find.text('Mia Mentor'), findsOneWidget);
     expect(find.text('Resume Review'), findsOneWidget);
   });

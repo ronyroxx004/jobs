@@ -37,11 +37,9 @@ class AuthController extends GetxController {
     if (Get.isRegistered<HomeController>()) {
       Get.find<HomeController>().currentIndex.value = 0;
     }
-
-    if (Get.currentRoute == AppRoutes.home) {
-      return;
-    }
-
+    // Re-navigating to the route we are already on leaves a redundant
+    // transition on the stack and can leave the shell blank and unresponsive.
+    if (Get.currentRoute == AppRoutes.home) return;
     Get.offAllNamed(AppRoutes.home);
   }
 
@@ -60,7 +58,11 @@ class AuthController extends GetxController {
       return;
     }
 
-    final success = await _authService.login(email: email, password: password);
+    final success = await _authService.login(
+      email: email,
+      password: password,
+      requestedRole: selectedRole.value,
+    );
     if (success) {
       Get.closeAllSnackbars();
       _goHomeIfNeeded();

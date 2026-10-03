@@ -67,9 +67,17 @@ class AuthService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString(_sessionUserKey);
+      final savedRoleName = prefs.getString(_sessionRoleKey);
       if (userJson != null && userJson.trim().isNotEmpty) {
         final map = jsonDecode(userJson) as Map<String, dynamic>;
-        final restored = UserModel.fromMap(map, map['id']?.toString() ?? '');
+        var restored = UserModel.fromMap(map, map['id']?.toString() ?? '');
+        if (savedRoleName != null && savedRoleName.isNotEmpty) {
+          final matchedRole = UserRole.values.firstWhere(
+            (r) => r.name == savedRoleName,
+            orElse: () => restored.role,
+          );
+          restored = restored.copyWith(role: matchedRole);
+        }
         if (currentUser.value == null) {
           currentUser.value = restored;
           debugPrint('Successfully restored local session: ${restored.email} with role: ${restored.role.name}');
@@ -113,6 +121,9 @@ class AuthService extends GetxService {
         }
 
         if (user != null) {
+          final prefs = await SharedPreferences.getInstance();
+          final savedRoleName = prefs.getString(_sessionRoleKey);
+
           final dbService = Get.find<DatabaseService>();
           UserModel? profile = await dbService.getUserProfile(user.uid);
           if (profile == null && user.email != null) {
@@ -120,21 +131,34 @@ class AuthService extends GetxService {
           }
 
           final expectedRole = _detectRoleFromEmail(user.email);
+          final currentSessionRole = currentUser.value?.role;
+
+          // Never downgrade an active mentor or admin session to candidate
+          UserRole targetRole = profile?.role ?? expectedRole;
+          if (currentSessionRole == UserRole.mentor ||
+              savedRoleName == UserRole.mentor.name ||
+              expectedRole == UserRole.mentor) {
+            targetRole = UserRole.mentor;
+          } else if (currentSessionRole == UserRole.admin ||
+              savedRoleName == UserRole.admin.name ||
+              expectedRole == UserRole.admin) {
+            targetRole = UserRole.admin;
+          } else if (currentSessionRole != null) {
+            targetRole = currentSessionRole;
+          }
+
           if (profile != null) {
-            if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
-              final updatedProfile = profile.copyWith(role: UserRole.admin);
-              currentUser.value = updatedProfile;
-              await _persistSession(updatedProfile);
+            if (profile.role != targetRole) {
+              profile = profile.copyWith(role: targetRole);
               try {
-                await dbService.saveUserProfile(updatedProfile);
+                await dbService.saveUserProfile(profile);
               } catch (_) {}
-            } else {
-              currentUser.value = profile;
-              await _persistSession(profile);
             }
-            try {
-              await dbService.fetchAllData();
-            } catch (_) {}
+            currentUser.value = profile;
+            await _persistSession(profile);
+            dbService.fetchAllData().catchError((e) {
+              debugPrint('Background fetch error: $e');
+            });
           } else {
             // Profile not yet found in database: check if we have an active local session for this user
             if (currentUser.value != null &&
@@ -142,15 +166,18 @@ class AuthService extends GetxService {
                     (user.email != null &&
                         currentUser.value!.email.toLowerCase() ==
                             user.email!.toLowerCase()))) {
-              // Maintain existing restored session
-              await _persistSession(currentUser.value!);
+              final activeUser = currentUser.value!.copyWith(role: targetRole);
+              currentUser.value = activeUser;
+              await _persistSession(activeUser);
+              try {
+                await dbService.saveUserProfile(activeUser);
+              } catch (_) {}
             } else {
-              final detectedRole = _detectRoleFromEmail(user.email);
               final newProfile = UserModel(
                 id: user.uid,
                 name: user.displayName ?? user.email?.split('@')[0] ?? 'User',
                 email: user.email ?? '',
-                role: detectedRole,
+                role: targetRole,
               );
               currentUser.value = newProfile;
               await _persistSession(newProfile);
@@ -177,18 +204,28 @@ class AuthService extends GetxService {
     } catch (_) {}
   }
 
-  Future<bool> login({required String email, required String password}) async {
+  Future<bool> login({
+    required String email,
+    required String password,
+    UserRole? requestedRole,
+  }) async {
     try {
       isLoading.value = true;
       UserModel? profile;
       final expectedRole = _detectRoleFromEmail(email);
+      final effectiveRole = requestedRole ?? expectedRole;
 
       if (_auth != null) {
         try {
           final credential = await _auth!.signInWithEmailAndPassword(
             email: email,
             password: password,
-          );
+          ).timeout(const Duration(seconds: 10), onTimeout: () {
+            throw FirebaseAuthException(
+              code: 'timeout',
+              message: 'Authentication timed out. Please check your internet connection.',
+            );
+          });
 
           if (credential.user != null) {
             final dbService = Get.find<DatabaseService>();
@@ -211,8 +248,18 @@ class AuthService extends GetxService {
             profile ??= await dbService.getUserProfileByEmail(email);
 
             if (profile != null) {
-              if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
+              if (requestedRole != null && profile.role != requestedRole) {
+                profile = profile.copyWith(role: requestedRole);
+                try {
+                  await dbService.saveUserProfile(profile);
+                } catch (_) {}
+              } else if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
                 profile = profile.copyWith(role: UserRole.admin);
+                try {
+                  await dbService.saveUserProfile(profile);
+                } catch (_) {}
+              } else if (expectedRole == UserRole.mentor && profile.role != UserRole.mentor) {
+                profile = profile.copyWith(role: UserRole.mentor);
                 try {
                   await dbService.saveUserProfile(profile);
                 } catch (_) {}
@@ -222,7 +269,7 @@ class AuthService extends GetxService {
                 id: credential.user!.uid,
                 name: credential.user!.displayName ?? email.split('@')[0],
                 email: email,
-                role: expectedRole,
+                role: effectiveRole,
               );
               try {
                 await dbService.saveUserProfile(profile);
@@ -279,17 +326,21 @@ class AuthService extends GetxService {
           );
           return false;
         }
+        if (requestedRole != null && profile.role != requestedRole) {
+          profile = profile.copyWith(role: requestedRole);
+          try {
+            await dbService.saveUserProfile(profile);
+          } catch (_) {}
+        }
       }
 
       if (profile != null) {
         currentUser.value = profile;
         await _persistSession(profile);
         final dbService = Get.find<DatabaseService>();
-        try {
-          await dbService.fetchAllData();
-        } catch (e) {
+        dbService.fetchAllData().catchError((e) {
           debugPrint('Non-critical fetchAllData warning during login: $e');
-        }
+        });
         return true;
       }
 

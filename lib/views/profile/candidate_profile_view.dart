@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../controllers/admin_controller.dart';
+import '../../controllers/auth_controller.dart';
 import '../../controllers/profile_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../core/utils/company_icons.dart';
@@ -320,6 +321,111 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                                 ),
                               ),
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  user?.role.displayName ?? 'Role',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Active Mode',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                          PopupMenuButton<UserRole>(
+                            tooltip: 'Switch Active Role',
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.4)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.swap_horiz_rounded,
+                                      size: 16, color: AppColors.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Switch Role',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            onSelected: (newRole) {
+                              if (Get.isRegistered<AuthController>()) {
+                                Get.find<AuthController>()
+                                    .switchRoleAndNavigate(newRole);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              UserRole.candidate,
+                              UserRole.mentor,
+                              UserRole.recruiter,
+                              UserRole.admin,
+                            ].map((r) {
+                              final isCurrent = user?.role == r;
+                              return PopupMenuItem<UserRole>(
+                                value: r,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isCurrent
+                                          ? Icons.check_circle_rounded
+                                          : Icons.radio_button_unchecked,
+                                      size: 16,
+                                      color: isCurrent
+                                          ? AppColors.primary
+                                          : Colors.grey,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      r.displayName,
+                                      style: GoogleFonts.inter(
+                                        fontWeight: isCurrent
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        color:
+                                            isCurrent ? AppColors.primary : null,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
                         ],
                       ),
                     ],

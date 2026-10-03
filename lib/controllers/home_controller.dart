@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../core/utils/constants.dart';
@@ -17,31 +19,39 @@ class HomeController extends GetxController {
     super.onInit();
     _wasLoggedIn = isLoggedIn;
     _lastRole = currentRole;
-    _authWorker = ever(_authService.currentUser, (_) {
-      if (_wasLoggedIn != isLoggedIn || _lastRole != currentRole) {
+    _authWorker = ever<UserModel?>(_authService.currentUser, (_) {
+      final roleChanged = _wasLoggedIn != isLoggedIn || _lastRole != currentRole;
+      if (!roleChanged) return;
+      _wasLoggedIn = isLoggedIn;
+      _lastRole = currentRole;
+      // Deferred: writing an observable while another observable is notifying
+      // its listeners rebuilds the home tabs mid-notification and leaves the
+      // scaffold half-built, which shows up as a blank, unresponsive screen.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (isClosed) return;
         currentIndex.value = 0;
-        _wasLoggedIn = isLoggedIn;
-        _lastRole = currentRole;
-      }
+      });
     });
   }
 
   bool get isLoggedIn => _authService.isLoggedIn;
   UserRole get currentRole => _authService.currentRole;
   int get pageCount {
-    if (!isLoggedIn) {
-      return 3;
+    if (!isLoggedIn) return 2;
+    switch (currentRole) {
+      case UserRole.mentor:
+        return 5;
+      case UserRole.admin:
+        return 4;
+      case UserRole.candidate:
+        return 3;
+      case UserRole.recruiter:
+      case UserRole.instructor:
+        return 2;
     }
-    if (currentRole == UserRole.candidate) {
-      return 4;
-    }
-    if (currentRole == UserRole.admin) {
-      return 5;
-    }
-    return 2;
   }
 
-  int get selectedTabIndex => currentIndex.value.clamp(0, pageCount - 1);
+  int get selectedTabIndex => currentIndex.value;
   String get userName => _authService.currentUser.value?.name ?? 'User';
 
   int get totalJobsCount => _dbService.jobsList.where((j) => j.isActive).length;
@@ -50,7 +60,9 @@ class HomeController extends GetxController {
   int get activeCoursesCount => _dbService.coursesList.length;
 
   void changeTab(int index) {
-    currentIndex.value = index.clamp(0, pageCount - 1);
+    if (index >= 0 && index < pageCount) {
+      currentIndex.value = index;
+    }
   }
 
   @override

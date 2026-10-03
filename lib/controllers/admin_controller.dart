@@ -67,7 +67,7 @@ class AdminController extends GetxController {
     final currentAdminEmail =
         _authService.currentUser.value?.email.trim().toLowerCase();
 
-    return _dbService.usersList.where((u) {
+    final userMentors = _dbService.usersList.where((u) {
       if (currentAdminId != null &&
           currentAdminId.isNotEmpty &&
           u.id == currentAdminId) {
@@ -86,6 +86,33 @@ class AdminController extends GetxController {
       final raw = u.rawRole.trim().toLowerCase();
       return raw == 'mentor';
     }).toList();
+
+    // Also ensure any mentor who created a service is represented
+    final existingIds = userMentors.map((m) => m.id).toSet();
+    for (final s in _dbService.servicesList) {
+      if (s.mentorId.isNotEmpty && !existingIds.contains(s.mentorId)) {
+        existingIds.add(s.mentorId);
+        final found = _dbService.usersList
+            .firstWhereOrNull((u) => u.id == s.mentorId);
+        if (found != null) {
+          userMentors.add(found);
+        } else {
+          userMentors.add(
+            UserModel(
+              id: s.mentorId,
+              name: s.mentorName.isNotEmpty ? s.mentorName : 'Mentor',
+              email: '',
+              role: UserRole.mentor,
+              headline: s.mentorHeadline,
+              rating: s.rating,
+              totalReviews: s.reviewCount,
+            ),
+          );
+        }
+      }
+    }
+
+    return userMentors;
   }
 
   List<UserModel> get instructors {
@@ -399,11 +426,78 @@ class AdminController extends GetxController {
     await _dbService.deleteMentorshipService(serviceId);
     Get.snackbar(
       'Service Removed',
-      '"$serviceTitle" was taken down by admin moderation',
+      '"$serviceTitle" was permanently deleted by admin moderation',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: Colors.redAccent,
       colorText: Colors.white,
     );
+  }
+
+  /// Saves an admin correction to a mentor's offering. Ownership fields are
+  /// never taken from the admin, so the service stays with its mentor.
+  Future<void> editMentorshipService(MentorshipServiceModel service) async {
+    try {
+      await _dbService.updateMentorshipService(service);
+      Get.snackbar(
+        'Service Updated',
+        '"${service.title}" was updated by admin moderation',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.primary,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Update Failed',
+        'Could not update service: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> softDeleteMentorshipService(
+      String serviceId, String serviceTitle) async {
+    try {
+      await _dbService.softDeleteMentorshipService(serviceId);
+      Get.snackbar(
+        'Service Soft Deleted',
+        '"$serviceTitle" is hidden from candidates and public view',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange[800] ?? Colors.orange,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to soft delete service: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> restoreMentorshipService(
+      String serviceId, String serviceTitle) async {
+    try {
+      await _dbService.restoreMentorshipService(serviceId);
+      Get.snackbar(
+        'Service Restored',
+        '"$serviceTitle" is now active and visible to candidates',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFF059669),
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to restore service: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    }
   }
 
   /// Deletes a user and all of their data.

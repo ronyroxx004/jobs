@@ -60,7 +60,81 @@ class LoginView extends GetView<AuthController> {
                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Role Selector
+              Text('Sign in as:', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 76,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Obx(() => Row(
+                        children: [
+                          UserRole.candidate,
+                          UserRole.mentor,
+                          UserRole.recruiter,
+                          UserRole.admin,
+                        ].map((role) {
+                          final isSelected = controller.selectedRole.value == role;
+                          return Container(
+                            width: 120,
+                            margin: const EdgeInsets.only(right: 10),
+                            child: InkWell(
+                              onTap: () => controller.selectRole(role),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.primary.withValues(alpha: 0.12)
+                                      : (isDark ? AppColors.cardDark : Colors.white),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      role == UserRole.candidate
+                                          ? Icons.person_search_rounded
+                                          : role == UserRole.mentor
+                                              ? Icons.school_rounded
+                                              : role == UserRole.recruiter
+                                                  ? Icons.business_center_rounded
+                                                  : Icons.admin_panel_settings_rounded,
+                                      color: isSelected ? AppColors.primary : AppColors.textSecondaryLight,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      role.displayName,
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : (isDark ? Colors.white : AppColors.textPrimaryLight),
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      )),
+                ),
+              ),
+              const SizedBox(height: 24),
 
               // Email Field
               Text('Email Address', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
