@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../models/service_model.dart';
 import '../core/utils/constants.dart';
 import '../views/call/agora_video_call_view.dart';
+import '../views/chat/priority_dm_chat_view.dart';
 
 class MentorshipController extends GetxController {
   final DatabaseService _dbService = Get.find<DatabaseService>();
@@ -660,6 +661,126 @@ class MentorshipController extends GetxController {
 
     Get.snackbar(
       '1:1 Video Call Started 🎥',
+      'Session "${service.title}" is now live.',
+      backgroundColor: const Color(0xFF059669),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+    );
+  }
+
+  Future<void> startPriorityDm(BuildContext context, BookingModel booking) async {
+    final now = DateTime.now();
+    await _dbService.updateBookingStatus(
+      booking.id,
+      'Started',
+      rescheduledAt: now,
+    );
+    final targetContext = Get.context ?? context;
+    PriorityDmChatView.openChat(
+      targetContext,
+      booking: booking.copyWith(status: 'Started', scheduledAt: now),
+      isMentor: true,
+    );
+    Get.snackbar(
+      'Priority DM Live 💬',
+      'Session with ${booking.candidateName.isNotEmpty ? booking.candidateName : "Candidate"} is live. Candidate can now chat.',
+      backgroundColor: const Color(0xFF059669),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 4),
+    );
+  }
+
+  Future<void> endPriorityDm(String bookingId) async {
+    await _dbService.updateBookingStatus(bookingId, 'Completed');
+    Get.snackbar(
+      'Priority DM Ended ✅',
+      'Session marked as completed. Chat history is permanently preserved.',
+      backgroundColor: const Color(0xFF2563EB),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+    );
+  }
+
+  Future<void> cancelPriorityDm(String bookingId) async {
+    await _dbService.updateBookingStatus(bookingId, 'Cancelled');
+    Get.snackbar(
+      'Priority DM Cancelled ❌',
+      'Session marked as cancelled. Chat history is permanently preserved.',
+      backgroundColor: const Color(0xFFDC2626),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+    );
+  }
+
+  Future<void> restartPriorityDm(BuildContext context, BookingModel booking) async {
+    final now = DateTime.now();
+    await _dbService.updateBookingStatus(
+      booking.id,
+      'Started',
+      rescheduledAt: now,
+    );
+    final targetContext = Get.context ?? context;
+    PriorityDmChatView.openChat(
+      targetContext,
+      booking: booking.copyWith(status: 'Started', scheduledAt: now),
+      isMentor: true,
+    );
+    Get.snackbar(
+      'Priority DM Re-Opened 💬',
+      'Session is live again. Candidate can now resume chatting.',
+      backgroundColor: const Color(0xFF059669),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 4),
+    );
+  }
+
+  Future<void> startServicePriorityDmFromOffering(
+    BuildContext context,
+    MentorshipServiceModel service,
+  ) async {
+    final bookingsForService = allBookings
+        .where((b) => b.serviceId == service.id)
+        .toList();
+
+    if (bookingsForService.isNotEmpty) {
+      bookingsForService.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      final latest = bookingsForService.first;
+      await startPriorityDm(context, latest);
+      return;
+    }
+
+    final mentorId = _authService.currentUser.value?.id ?? service.mentorId;
+    final mentorName = _authService.currentUser.value?.name ?? service.mentorName;
+
+    final onDemandBooking = BookingModel(
+      id: 'session_${DateTime.now().millisecondsSinceEpoch}',
+      serviceId: service.id,
+      serviceTitle: service.title,
+      mentorId: mentorId,
+      mentorName: mentorName,
+      candidateId: '',
+      candidateName: 'Candidate / Mentee',
+      candidateEmail: '',
+      amount: service.price,
+      scheduledAt: DateTime.now(),
+      status: 'Started',
+      serviceType: service.serviceType,
+      userQuery: 'Priority DM Session',
+    );
+
+    await _dbService.createBooking(onDemandBooking);
+
+    final targetContext = Get.context ?? context;
+    PriorityDmChatView.openChat(
+      targetContext,
+      booking: onDemandBooking,
+      isMentor: true,
+    );
+
+    Get.snackbar(
+      'Priority DM Started 💬',
       'Session "${service.title}" is now live.',
       backgroundColor: const Color(0xFF059669),
       colorText: Colors.white,

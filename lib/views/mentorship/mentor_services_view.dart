@@ -291,6 +291,20 @@ class MentorServicesView extends GetView<MentorshipController> {
                   ),
                 ),
               ],
+              if (service.serviceType == 'Priority DM') ...[
+                TextButton.icon(
+                  onPressed: () => controller.startServicePriorityDmFromOffering(context, service),
+                  icon: const Icon(Icons.chat_bubble_rounded, size: 16, color: Color(0xFF059669)),
+                  label: Text(
+                    'Start Chat',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF059669),
+                    ),
+                  ),
+                ),
+              ],
               // Edit button
               TextButton.icon(
                 onPressed: () => _showEditServiceDialog(context, service),

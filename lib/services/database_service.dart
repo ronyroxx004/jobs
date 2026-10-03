@@ -1263,7 +1263,74 @@ class DatabaseService extends GetxService {
   }
 
   // --- CHAT MESSAGES ---
+  final RxMap<String, List<ChatMessageModel>> priorityDmMessages =
+      <String, List<ChatMessageModel>>{}.obs;
+
+  Stream<List<ChatMessageModel>> streamMessages(String roomId) {
+    final ref = _db?.ref(DatabaseKeys.messages).child(roomId);
+    if (ref == null) {
+      return Stream.value(priorityDmMessages[roomId] ?? []);
+    }
+    return ref.onValue.map((event) {
+      final list = <ChatMessageModel>[];
+      if (event.snapshot.exists && event.snapshot.value != null) {
+        final val = event.snapshot.value;
+        if (val is Map) {
+          val.forEach((key, data) {
+            if (data != null && data is Map) {
+              try {
+                list.add(ChatMessageModel.fromMap(
+                  Map<String, dynamic>.from(data),
+                  key.toString(),
+                ));
+              } catch (e) {
+                debugPrint('Error parsing message $key: $e');
+              }
+            }
+          });
+        }
+      }
+      list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      priorityDmMessages[roomId] = list;
+      return list;
+    });
+  }
+
+  Future<List<ChatMessageModel>> fetchMessages(String roomId) async {
+    try {
+      final snapshot = await _db?.ref(DatabaseKeys.messages).child(roomId).get();
+      if (snapshot != null && snapshot.exists && snapshot.value != null) {
+        final list = <ChatMessageModel>[];
+        final val = snapshot.value;
+        if (val is Map) {
+          val.forEach((key, data) {
+            if (data != null && data is Map) {
+              try {
+                list.add(ChatMessageModel.fromMap(
+                  Map<String, dynamic>.from(data),
+                  key.toString(),
+                ));
+              } catch (_) {}
+            }
+          });
+        }
+        list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        priorityDmMessages[roomId] = list;
+        return list;
+      }
+    } catch (_) {}
+    return priorityDmMessages[roomId] ?? [];
+  }
+
   Future<void> sendMessage(String roomId, ChatMessageModel message) async {
+    // Optimistically insert into local cache
+    final currentList = List<ChatMessageModel>.from(priorityDmMessages[roomId] ?? []);
+    if (!currentList.any((m) => m.id == message.id)) {
+      currentList.add(message);
+      currentList.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      priorityDmMessages[roomId] = currentList;
+    }
+
     try {
       await _db
           ?.ref(DatabaseKeys.messages)
@@ -1274,7 +1341,9 @@ class DatabaseService extends GetxService {
         'lastMessage': message.text,
         'lastMessageTime': message.timestamp.toIso8601String(),
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error sending message to roomId $roomId: $e');
+    }
   }
 }
 

@@ -22,6 +22,7 @@ import '../mentorship/mentor_services_view.dart';
 import '../mentorship/mentor_bookings_view.dart';
 import '../mentorship/mentor_earnings_view.dart';
 import '../call/agora_video_call_view.dart';
+import '../chat/priority_dm_chat_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -349,20 +350,37 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildLiveCallBanner(BuildContext context, BookingModel booking, bool isMentor) {
+    final isPriorityDm = booking.serviceType.toLowerCase().contains('priority dm') ||
+        booking.serviceType.toLowerCase().contains('dm');
     final otherName = isMentor
         ? (booking.candidateName.trim().isNotEmpty ? booking.candidateName : 'Candidate')
         : (booking.mentorName.trim().isNotEmpty ? booking.mentorName : 'Mentor');
+
+    final gradientColors = isPriorityDm
+        ? const [Color(0xFF4338CA), Color(0xFF6366F1)]
+        : const [Color(0xFF065F46), Color(0xFF047857)];
+    final shadowColor = isPriorityDm
+        ? const Color(0xFF6366F1).withOpacity(0.3)
+        : const Color(0xFF059669).withOpacity(0.3);
+    final iconData = isPriorityDm
+        ? Icons.chat_bubble_rounded
+        : Icons.videocam_rounded;
+    final bannerTitle = isPriorityDm
+        ? 'Priority DM with $otherName'
+        : '1:1 Call with $otherName';
+    final actionBtnColor = isPriorityDm
+        ? const Color(0xFF4338CA)
+        : const Color(0xFF065F46);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF065F46), Color(0xFF047857)],
-        ),
+        gradient: LinearGradient(colors: gradientColors),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF059669).withOpacity(0.3),
+            color: shadowColor,
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -376,7 +394,7 @@ class _HomeViewState extends State<HomeView> {
               color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.videocam_rounded, color: Colors.white, size: 20),
+            child: Icon(iconData, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -397,7 +415,7 @@ class _HomeViewState extends State<HomeView> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '1:1 Call with $otherName',
+                        bannerTitle,
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -424,14 +442,16 @@ class _HomeViewState extends State<HomeView> {
           if (isMentor) ...[
             IconButton(
               icon: const Icon(Icons.check_circle_outline, color: Colors.white70, size: 22),
-              tooltip: 'Mark Complete & Dismiss',
+              tooltip: isPriorityDm ? 'End Chat & Dismiss' : 'Mark Complete & Dismiss',
               onPressed: () async {
                 final db = Get.find<DatabaseService>();
                 await db.updateBookingStatus(booking.id, 'Completed');
                 Get.snackbar(
-                  '1:1 Call Completed',
-                  'Live session marked complete and banner removed from top.',
-                  backgroundColor: const Color(0xFF065F46),
+                  isPriorityDm ? 'Priority DM Completed' : '1:1 Call Completed',
+                  isPriorityDm
+                      ? 'Live chat marked complete. Chat history is preserved.'
+                      : 'Live session marked complete and banner removed from top.',
+                  backgroundColor: isPriorityDm ? const Color(0xFF4338CA) : const Color(0xFF065F46),
                   colorText: Colors.white,
                   snackPosition: SnackPosition.TOP,
                 );
@@ -442,21 +462,29 @@ class _HomeViewState extends State<HomeView> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF065F46),
+              foregroundColor: actionBtnColor,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               minimumSize: Size.zero,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
-              AgoraVideoCallView.startCall(
-                context,
-                booking: booking,
-                isMentor: isMentor,
-              );
+              if (isPriorityDm) {
+                PriorityDmChatView.openChat(
+                  context,
+                  booking: booking,
+                  isMentor: isMentor,
+                );
+              } else {
+                AgoraVideoCallView.startCall(
+                  context,
+                  booking: booking,
+                  isMentor: isMentor,
+                );
+              }
             },
             child: Text(
-              'Join Call',
+              isPriorityDm ? 'Open Chat' : 'Join Call',
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,

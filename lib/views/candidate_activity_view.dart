@@ -12,6 +12,7 @@ import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import 'jobs/job_detail_view.dart';
 import 'call/agora_video_call_view.dart';
+import 'chat/priority_dm_chat_view.dart';
 
 class CandidateApplicationsView extends StatelessWidget {
   final UserModel? candidateUser;
@@ -927,6 +928,8 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
       children: sessions.map((booking) {
         final formattedDate =
             '${booking.scheduledAt.day}/${booking.scheduledAt.month}/${booking.scheduledAt.year} • ${booking.scheduledAt.hour > 12 ? booking.scheduledAt.hour - 12 : (booking.scheduledAt.hour == 0 ? 12 : booking.scheduledAt.hour)}:${booking.scheduledAt.minute.toString().padLeft(2, '0')} ${booking.scheduledAt.hour >= 12 ? 'PM' : 'AM'}';
+        final isDm = booking.serviceType.toLowerCase().contains('priority dm') ||
+            booking.serviceType.toLowerCase().contains('dm');
 
         return Container(
           margin: const EdgeInsets.only(bottom: 14),
@@ -1085,36 +1088,68 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
 
               // Action Buttons
               if (booking.status == 'Completed') ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        '1:1 Session Completed',
+                if (isDm) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                      onPressed: () {
+                        PriorityDmChatView.openChat(
+                          context,
+                          booking: booking,
+                          isMentor: false,
+                        );
+                      },
+                      icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                      label: Text(
+                        'View Chat History (Preserved)',
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF059669),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ] else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          '1:1 Session Completed',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF059669),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ] else if (booking.status != 'Cancelled') ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF059669),
+                      backgroundColor: isDm ? const Color(0xFF4F46E5) : const Color(0xFF059669),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -1123,15 +1158,54 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                           horizontal: 14, vertical: 12),
                     ),
                     onPressed: () {
-                      AgoraVideoCallView.startCall(
+                      if (isDm) {
+                        PriorityDmChatView.openChat(
+                          context,
+                          booking: booking,
+                          isMentor: false,
+                        );
+                      } else {
+                        AgoraVideoCallView.startCall(
+                          context,
+                          booking: booking,
+                          isMentor: false,
+                        );
+                      }
+                    },
+                    icon: Icon(
+                      isDm ? Icons.chat_bubble_rounded : Icons.videocam_rounded,
+                      size: 20,
+                    ),
+                    label: Text(
+                      isDm ? 'Open Priority DM Chat' : 'Join Agora 1:1 Video Call',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else if (isDm) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                    ),
+                    onPressed: () {
+                      PriorityDmChatView.openChat(
                         context,
                         booking: booking,
                         isMentor: false,
                       );
                     },
-                    icon: const Icon(Icons.videocam_rounded, size: 20),
+                    icon: const Icon(Icons.history_rounded, size: 18, color: AppColors.primary),
                     label: Text(
-                      'Join Agora 1:1 Video Call',
+                      'View Chat History (Cancelled Session)',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,

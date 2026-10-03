@@ -6,6 +6,7 @@ import '../../controllers/mentorship_controller.dart';
 import '../../services/database_service.dart';
 import '../../models/service_model.dart';
 import '../../core/utils/constants.dart';
+import '../chat/priority_dm_chat_view.dart';
 
 class MentorBookingsView extends GetView<MentorshipController> {
   const MentorBookingsView({super.key});
@@ -175,6 +176,8 @@ class MentorBookingsView extends GetView<MentorshipController> {
   Widget _buildBookingCard(BuildContext context, BookingModel booking, bool isDark) {
     final formattedDate =
         '${booking.scheduledAt.day} ${_monthName(booking.scheduledAt.month)} ${booking.scheduledAt.year} • ${_timeFormat(booking.scheduledAt)}';
+    final isDm = booking.serviceType.toLowerCase().contains('priority dm') ||
+        booking.serviceType.toLowerCase().contains('dm');
 
     return Container(
       decoration: BoxDecoration(
@@ -302,7 +305,7 @@ class MentorBookingsView extends GetView<MentorshipController> {
           if (booking.status != 'Cancelled') ...[
             Row(
               children: [
-                // Join / Restart Agora Video Call Button
+                // Join / Restart / Chat Action Button
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
@@ -314,25 +317,43 @@ class MentorBookingsView extends GetView<MentorshipController> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     ),
                     onPressed: () {
-                      if (booking.status == 'Completed') {
-                        controller.restartServiceCall(context, booking);
+                      if (isDm) {
+                        if (booking.status == 'Completed') {
+                          controller.restartPriorityDm(context, booking);
+                        } else if (booking.status == 'Started') {
+                          PriorityDmChatView.openChat(context, booking: booking, isMentor: true);
+                        } else {
+                          controller.startPriorityDm(context, booking);
+                        }
                       } else {
-                        controller.startBookingCallAsMentor(context, booking);
+                        if (booking.status == 'Completed') {
+                          controller.restartServiceCall(context, booking);
+                        } else {
+                          controller.startBookingCallAsMentor(context, booking);
+                        }
                       }
                     },
                     icon: Padding(
                       padding: const EdgeInsets.only(left: 4, right: 2),
                       child: Icon(
-                        booking.status == 'Completed'
-                            ? Icons.replay_rounded
-                            : Icons.videocam_rounded,
+                        isDm
+                            ? (booking.status == 'Completed'
+                                ? Icons.replay_rounded
+                                : Icons.chat_bubble_rounded)
+                            : (booking.status == 'Completed'
+                                ? Icons.replay_rounded
+                                : Icons.videocam_rounded),
                         size: 18,
                       ),
                     ),
                     label: Text(
-                      booking.status == 'Completed'
-                          ? 'Start Call Again'
-                          : (booking.status == 'Started' ? 'Enter Call' : 'Start Video Call'),
+                      isDm
+                          ? (booking.status == 'Completed'
+                              ? 'Start Chat Again'
+                              : (booking.status == 'Started' ? 'Enter Chat' : 'Start Priority DM'))
+                          : (booking.status == 'Completed'
+                              ? 'Start Call Again'
+                              : (booking.status == 'Started' ? 'Enter Call' : 'Start Video Call')),
                       style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -352,76 +373,187 @@ class MentorBookingsView extends GetView<MentorshipController> {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (val) {
-                    if (val == 'start') {
-                      controller.startBookingCallAsMentor(context, booking);
-                    } else if (val == 'complete') {
-                      controller.markBookingCompleted(booking.id);
-                    } else if (val == 'restart') {
-                      controller.restartServiceCall(context, booking);
-                    } else if (val == 'cancel') {
-                      controller.cancelBooking(booking.id);
-                    } else if (val == 'copy') {
-                      Clipboard.setData(ClipboardData(text: booking.meetingUrl));
-                      Get.snackbar('Link Copied', 'Meeting link copied to clipboard');
+                    if (isDm) {
+                      if (val == 'open_chat') {
+                        PriorityDmChatView.openChat(context, booking: booking, isMentor: true);
+                      } else if (val == 'start') {
+                        controller.startPriorityDm(context, booking);
+                      } else if (val == 'complete') {
+                        controller.endPriorityDm(booking.id);
+                      } else if (val == 'restart') {
+                        controller.restartPriorityDm(context, booking);
+                      } else if (val == 'cancel') {
+                        controller.cancelPriorityDm(booking.id);
+                      }
+                    } else {
+                      if (val == 'start') {
+                        controller.startBookingCallAsMentor(context, booking);
+                      } else if (val == 'complete') {
+                        controller.markBookingCompleted(booking.id);
+                      } else if (val == 'restart') {
+                        controller.restartServiceCall(context, booking);
+                      } else if (val == 'cancel') {
+                        controller.cancelBooking(booking.id);
+                      } else if (val == 'copy') {
+                        _openMeetingUrl(context, booking.meetingUrl);
+                      }
                     }
                   },
                   itemBuilder: (context) => [
-                    if (booking.status != 'Completed')
+                    if (isDm) ...[
                       const PopupMenuItem(
-                        value: 'start',
+                        value: 'open_chat',
                         child: Row(
                           children: [
-                            Icon(Icons.videocam_rounded, color: Color(0xFF059669), size: 18),
+                            Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary, size: 18),
                             SizedBox(width: 8),
-                            Text('Start Video Call'),
+                            Text('View Chat History'),
                           ],
                         ),
                       ),
-                    if (booking.status != 'Completed')
+                      if (booking.status != 'Started' && booking.status != 'Completed')
+                        const PopupMenuItem(
+                          value: 'start',
+                          child: Row(
+                            children: [
+                              Icon(Icons.play_arrow_rounded, color: Color(0xFF059669), size: 18),
+                              SizedBox(width: 8),
+                              Text('Start Chat'),
+                            ],
+                          ),
+                        ),
+                      if (booking.status == 'Started')
+                        const PopupMenuItem(
+                          value: 'complete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle_outline, color: Color(0xFF2563EB), size: 18),
+                              SizedBox(width: 8),
+                              Text('End Chat (Preserve History)'),
+                            ],
+                          ),
+                        ),
+                      if (booking.status == 'Completed')
+                        const PopupMenuItem(
+                          value: 'restart',
+                          child: Row(
+                            children: [
+                              Icon(Icons.replay_rounded, color: Color(0xFF059669), size: 18),
+                              SizedBox(width: 8),
+                              Text('Start Chat Again'),
+                            ],
+                          ),
+                        ),
+                      if (booking.status != 'Completed')
+                        const PopupMenuItem(
+                          value: 'cancel',
+                          child: Row(
+                            children: [
+                              Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
+                              SizedBox(width: 8),
+                              Text('Cancel Chat (Preserve History)'),
+                            ],
+                          ),
+                        ),
+                    ] else ...[
+                      if (booking.status != 'Completed')
+                        const PopupMenuItem(
+                          value: 'start',
+                          child: Row(
+                            children: [
+                              Icon(Icons.videocam_rounded, color: Color(0xFF059669), size: 18),
+                              SizedBox(width: 8),
+                              Text('Start Video Call'),
+                            ],
+                          ),
+                        ),
+                      if (booking.status != 'Completed')
+                        const PopupMenuItem(
+                          value: 'complete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
+                              SizedBox(width: 8),
+                              Text('Mark Completed'),
+                            ],
+                          ),
+                        ),
+                      if (booking.status == 'Completed')
+                        const PopupMenuItem(
+                          value: 'restart',
+                          child: Row(
+                            children: [
+                              Icon(Icons.replay_rounded, color: Colors.blueAccent, size: 18),
+                              SizedBox(width: 8),
+                              Text('Start Call Again'),
+                            ],
+                          ),
+                        ),
                       const PopupMenuItem(
-                        value: 'complete',
+                        value: 'copy',
                         child: Row(
                           children: [
-                            Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
+                            Icon(Icons.copy_rounded, size: 18),
                             SizedBox(width: 8),
-                            Text('Mark Completed'),
+                            Text('Copy Meet Link'),
                           ],
                         ),
                       ),
-                    if (booking.status == 'Completed')
-                      const PopupMenuItem(
-                        value: 'restart',
-                        child: Row(
-                          children: [
-                            Icon(Icons.replay_rounded, color: Colors.blueAccent, size: 18),
-                            SizedBox(width: 8),
-                            Text('Start Call Again'),
-                          ],
+                      if (booking.status != 'Completed')
+                        const PopupMenuItem(
+                          value: 'cancel',
+                          child: Row(
+                            children: [
+                              Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
+                              SizedBox(width: 8),
+                              Text('Cancel Session'),
+                            ],
+                          ),
                         ),
-                      ),
-                    const PopupMenuItem(
-                      value: 'copy',
-                      child: Row(
-                        children: [
-                          Icon(Icons.copy_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text('Copy Meet Link'),
-                        ],
-                      ),
-                    ),
-                    if (booking.status != 'Completed')
-                      const PopupMenuItem(
-                        value: 'cancel',
-                        child: Row(
-                          children: [
-                            Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
-                            SizedBox(width: 8),
-                            Text('Cancel Session'),
-                          ],
-                        ),
-                      ),
+                    ],
                   ],
                 ),
+              ],
+            ),
+          ] else ...[
+            // Cancelled session actions - Chat history preserved
+            Row(
+              children: [
+                if (isDm) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      ),
+                      onPressed: () => PriorityDmChatView.openChat(context, booking: booking, isMentor: true),
+                      icon: const Icon(Icons.history_rounded, size: 18, color: AppColors.primary),
+                      label: Text(
+                        'View Chat History',
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    ),
+                    onPressed: () => controller.restartPriorityDm(context, booking),
+                    icon: const Icon(Icons.replay_rounded, size: 16),
+                    label: const Text('Re-open Chat'),
+                  ),
+                ] else ...[
+                  Expanded(
+                    child: Text(
+                      'Session Cancelled',
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.redAccent, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
