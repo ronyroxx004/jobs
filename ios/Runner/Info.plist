@@ -62,9 +62,11 @@
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is needed for 1:1 video mentorship calls.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is needed for 1:1 audio and video mentorship calls.</string>
 </dict>
 </plist>

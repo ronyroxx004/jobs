@@ -14,11 +14,14 @@ import '../admin/admin_candidates_view.dart';
 import '../admin/admin_recruiters_view.dart';
 import '../admin/admin_mentors_view.dart';
 import '../recruiter/recruiter_jobs_view.dart';
-import '../../controllers/mentorship_controller.dart';
+import '../../services/database_service.dart';
+import '../../services/auth_service.dart';
+import '../../models/service_model.dart';
 import '../mentorship/mentor_storefront_view.dart';
 import '../mentorship/mentor_services_view.dart';
 import '../mentorship/mentor_bookings_view.dart';
 import '../mentorship/mentor_earnings_view.dart';
+import '../call/agora_video_call_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -63,7 +66,6 @@ class _HomeViewState extends State<HomeView> {
         actions: [
           Obx(() {
             final isLoggedIn = controller.isLoggedIn;
-            final role = controller.currentRole;
 
             if (!isLoggedIn) {
               return Row(
@@ -133,7 +135,15 @@ class _HomeViewState extends State<HomeView> {
         final tabs = _tabsFor(isLoggedIn, role);
         final selectedIndex =
             controller.currentIndex.value.clamp(0, tabs.length - 1);
-        return tabs[selectedIndex].page;
+        final activeBooking = _findActiveBooking(isLoggedIn, role);
+
+        return Column(
+          children: [
+            if (activeBooking != null)
+              _buildLiveCallBanner(context, activeBooking, role == UserRole.mentor),
+            Expanded(child: tabs[selectedIndex].page),
+          ],
+        );
       }),
       bottomNavigationBar: Obx(() {
         final isLoggedIn = controller.isLoggedIn;
@@ -256,6 +266,142 @@ class _HomeViewState extends State<HomeView> {
               Icons.person_rounded, CandidateProfileView()),
         ];
     }
+  }
+
+  BookingModel? _findActiveBooking(bool isLoggedIn, UserRole role) {
+    if (!isLoggedIn) return null;
+    if (!Get.isRegistered<DatabaseService>()) return null;
+    final db = Get.find<DatabaseService>();
+    final authService = Get.isRegistered<AuthService>() ? Get.find<AuthService>() : null;
+    final myUid = authService?.currentUser.value?.id ?? '';
+    final myFirebaseUid = authService?.firebaseUser.value?.uid ?? '';
+    final myEmail = (authService?.currentUser.value?.email ?? '').trim().toLowerCase();
+
+    final now = DateTime.now();
+
+    for (final b in db.bookingsList) {
+      if (b.status == 'Cancelled' || b.status == 'Completed') continue;
+
+      bool isMyCall = false;
+      if (role == UserRole.mentor) {
+        if (b.mentorId == myUid || b.mentorId == myFirebaseUid) isMyCall = true;
+        if (myEmail.isNotEmpty && b.mentorName.toLowerCase().contains(myEmail)) isMyCall = true;
+        // If logged in as mentor and there's a confirmed booking
+        if (b.mentorId.isNotEmpty) isMyCall = true;
+      } else if (role == UserRole.candidate) {
+        if (b.candidateId == myUid || b.candidateId == myFirebaseUid) isMyCall = true;
+        if (myEmail.isNotEmpty && b.candidateEmail.toLowerCase() == myEmail) isMyCall = true;
+      }
+
+      if (isMyCall) {
+        // Active if scheduled within today or past 2 hours to next 24 hours
+        final diff = b.scheduledAt.difference(now);
+        if (diff.inHours >= -2 && diff.inHours <= 48) {
+          return b;
+        }
+      }
+    }
+    return null;
+  }
+
+  Widget _buildLiveCallBanner(BuildContext context, BookingModel booking, bool isMentor) {
+    final otherName = isMentor ? booking.candidateName : booking.mentorName;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF065F46), Color(0xFF047857)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF059669).withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.videocam_rounded, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.greenAccent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '1:1 Call with $otherName',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  booking.serviceTitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF065F46),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              AgoraVideoCallView.startCall(
+                context,
+                booking: booking,
+                isMentor: isMentor,
+              );
+            },
+            child: Text(
+              'Join Call',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

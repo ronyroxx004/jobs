@@ -5,6 +5,7 @@ import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../models/service_model.dart';
 import '../core/utils/constants.dart';
+import '../views/call/agora_video_call_view.dart';
 
 class MentorshipController extends GetxController {
   final DatabaseService _dbService = Get.find<DatabaseService>();
@@ -327,11 +328,44 @@ class MentorshipController extends GetxController {
 
     Get.snackbar(
       'Session Confirmed! 📅',
-      'Booked "${service.title}" with ${service.mentorName} for ₹${finalPrice.toStringAsFixed(service.price % 1 == 0 ? 0 : 2)}',
+      'Booked "${service.title}" with ${service.mentorName}. Agora 1:1 Video Call is ready.',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.secondary,
       colorText: Colors.white,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(seconds: 5),
+      mainButton: TextButton(
+        onPressed: () {
+          if (Get.context != null) {
+            AgoraVideoCallView.startCall(
+              Get.context!,
+              booking: booking,
+              isMentor: false,
+            );
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.videocam_rounded, color: AppColors.secondary, size: 16),
+              SizedBox(width: 4),
+              Text(
+                'Join Call',
+                style: TextStyle(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -508,14 +542,24 @@ class MentorshipController extends GetxController {
   // --- ACTIONS: BOOKING LIFECYCLE ---
   Future<void> markBookingCompleted(String bookingId) async {
     await _dbService.updateBookingStatus(bookingId, 'Completed');
-    Get.snackbar('Session Completed! 👏', 'Marked as completed and earnings added to balance',
-        backgroundColor: AppColors.secondary, colorText: Colors.white);
+    Get.snackbar(
+      'Session Completed! 🎉',
+      'This 1:1 call has been marked as completed and active call session ended.',
+      backgroundColor: const Color(0xFF059669),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   Future<void> cancelBooking(String bookingId) async {
     await _dbService.updateBookingStatus(bookingId, 'Cancelled');
-    Get.snackbar('Booking Cancelled', 'The booking has been marked cancelled',
-        backgroundColor: Colors.redAccent, colorText: Colors.white);
+    Get.snackbar(
+      'Session Cancelled',
+      'This 1:1 session booking has been cancelled.',
+      backgroundColor: Colors.redAccent,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   Future<void> rescheduleBooking(String bookingId, DateTime newDate, String newSlot) async {

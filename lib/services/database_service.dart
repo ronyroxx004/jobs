@@ -1218,6 +1218,19 @@ class DatabaseService extends GetxService {
     }
   }
 
+  Future<void> updateBooking(BookingModel booking) async {
+    try {
+      await _db
+          ?.ref(DatabaseKeys.bookings)
+          .child(booking.id)
+          .update(booking.toMap());
+    } catch (_) {}
+    final idx = bookingsList.indexWhere((b) => b.id == booking.id);
+    if (idx != -1) {
+      bookingsList[idx] = booking;
+    }
+  }
+
   // --- COURSES ---
   Future<void> createCourse(CourseModel course) async {
     try {

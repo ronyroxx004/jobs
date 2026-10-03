@@ -616,6 +616,12 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                 ? profileController.favoriteCompanies
                 : (user?.favoriteCompanies ?? <CompanyProfile>[]);
             final savedCount = savedCompaniesList.length;
+            final sessionsCount = db.bookingsList.where((b) {
+              if (candidateId.isNotEmpty && b.candidateId.trim() == candidateId) return true;
+              if (myFirebaseUid.isNotEmpty && b.candidateId.trim() == myFirebaseUid) return true;
+              if (candidateEmail.isNotEmpty && b.candidateEmail.trim().toLowerCase() == candidateEmail) return true;
+              return false;
+            }).length;
 
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
@@ -645,6 +651,19 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                             value: 'applications',
                             onTap: () {
                               Get.to(() => CandidateApplicationsView(candidateUser: user));
+                            },
+                            isSelected: false,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildOverviewNavButton(
+                            label: '1:1 Calls',
+                            count: sessionsCount,
+                            icon: Icons.videocam_rounded,
+                            value: 'sessions',
+                            onTap: () {
+                              Get.to(() => CandidateSessionsView(candidateUser: user));
                             },
                             isSelected: false,
                           ),

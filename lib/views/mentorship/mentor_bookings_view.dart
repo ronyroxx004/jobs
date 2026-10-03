@@ -6,6 +6,7 @@ import '../../controllers/mentorship_controller.dart';
 import '../../services/database_service.dart';
 import '../../models/service_model.dart';
 import '../../core/utils/constants.dart';
+import '../call/agora_video_call_view.dart';
 
 class MentorBookingsView extends GetView<MentorshipController> {
   const MentorBookingsView({super.key});
@@ -302,7 +303,7 @@ class MentorBookingsView extends GetView<MentorshipController> {
           if (booking.status != 'Cancelled') ...[
             Row(
               children: [
-                // Join Call Button
+                // Join Agora Video Call Button
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
@@ -311,13 +312,17 @@ class MentorBookingsView extends GetView<MentorshipController> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
-                    onPressed: () => _openMeetingUrl(context, booking.meetingUrl),
+                    onPressed: () => AgoraVideoCallView.startCall(
+                      context,
+                      booking: booking,
+                      isMentor: true,
+                    ),
                     icon: const Padding(
                       padding: EdgeInsets.only(left: 6, right: 2),
                       child: Icon(Icons.videocam_rounded, size: 18),
                     ),
                     label: Text(
-                      'Video Call',
+                      'Agora Video Call',
                       style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),

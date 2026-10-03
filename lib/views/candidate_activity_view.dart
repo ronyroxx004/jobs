@@ -11,6 +11,7 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import 'jobs/job_detail_view.dart';
+import 'call/agora_video_call_view.dart';
 
 class CandidateApplicationsView extends StatelessWidget {
   final UserModel? candidateUser;
@@ -20,6 +21,19 @@ class CandidateApplicationsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return CandidateActivityView(
       initialTab: 'applications',
+      candidateUser: candidateUser,
+    );
+  }
+}
+
+class CandidateSessionsView extends StatelessWidget {
+  final UserModel? candidateUser;
+  const CandidateSessionsView({super.key, this.candidateUser});
+
+  @override
+  Widget build(BuildContext context) {
+    return CandidateActivityView(
+      initialTab: 'sessions',
       candidateUser: candidateUser,
     );
   }
@@ -89,7 +103,9 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
         title: Text(
           _selectedSection == 'applications'
               ? 'Job Applications'
-              : 'Saved Companies',
+              : _selectedSection == 'sessions'
+                  ? '1:1 Mentorship Calls'
+                  : 'Saved Companies',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -133,6 +149,21 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
               }).length ??
               0;
 
+          final sessionsCount = db?.bookingsList.where((b) {
+                if (candidateId.isNotEmpty && b.candidateId == candidateId) {
+                  return true;
+                }
+                if (firebaseUid.isNotEmpty && b.candidateId == firebaseUid) {
+                  return true;
+                }
+                if (candidateEmail.isNotEmpty &&
+                    b.candidateEmail.trim().toLowerCase() == candidateEmail) {
+                  return true;
+                }
+                return false;
+              }).length ??
+              0;
+
           final savedCompaniesList = profileController != null &&
                   profileController.favoriteCompanies.isNotEmpty
               ? profileController.favoriteCompanies
@@ -148,7 +179,7 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(8),
                   child: Row(
                     children: [
                       Expanded(
@@ -160,7 +191,17 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                           isDark: isDark,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildSectionButton(
+                          label: '1:1 Calls ($sessionsCount)',
+                          icon: Icons.videocam_rounded,
+                          value: 'sessions',
+                          isSelected: _selectedSection == 'sessions',
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: _buildSectionButton(
                           label: 'Saved ($savedCount)',
@@ -176,6 +217,8 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
               ),
               if (_selectedSection == 'applications')
                 _buildJobApplicationsPanel(user, isDark)
+              else if (_selectedSection == 'sessions')
+                _buildMentorshipSessionsPanel(user, isDark)
               else
                 _buildSavedCompaniesPanel(user, isDark),
             ],
@@ -806,5 +849,267 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
       case ApplicationStatus.rejected:
         return isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C);
     }
+  }
+
+  Widget _buildMentorshipSessionsPanel(UserModel? user, bool isDark) {
+    final db = Get.find<DatabaseService>();
+    final authService =
+        Get.isRegistered<AuthService>() ? Get.find<AuthService>() : null;
+    final isCandidateSelf = widget.candidateUser == null ||
+        widget.candidateUser?.id == authService?.currentUser.value?.id;
+    final firebaseUid =
+        isCandidateSelf ? (authService?.firebaseUser.value?.uid ?? '') : '';
+    final candidateId = (user?.id ?? '').trim();
+    final candidateEmail = (user?.email ?? '').trim().toLowerCase();
+
+    final sessions = db.bookingsList.where((b) {
+      if (candidateId.isNotEmpty && b.candidateId.trim() == candidateId) {
+        return true;
+      }
+      if (firebaseUid.isNotEmpty && b.candidateId.trim() == firebaseUid) {
+        return true;
+      }
+      if (candidateEmail.isNotEmpty &&
+          b.candidateEmail.trim().toLowerCase() == candidateEmail) {
+        return true;
+      }
+      return false;
+    }).toList();
+
+    if (sessions.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : AppColors.cardLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.videocam_outlined,
+                size: 48,
+                color: Colors.grey.withOpacity(0.6),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'No 1:1 video calls booked yet',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Explore the Mentors tab to book 1:1 sessions, mock interviews, and career guidance.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: sessions.map((booking) {
+        final formattedDate =
+            '${booking.scheduledAt.day}/${booking.scheduledAt.month}/${booking.scheduledAt.year} • ${booking.scheduledAt.hour > 12 ? booking.scheduledAt.hour - 12 : (booking.scheduledAt.hour == 0 ? 12 : booking.scheduledAt.hour)}:${booking.scheduledAt.minute.toString().padLeft(2, '0')} ${booking.scheduledAt.hour >= 12 ? 'PM' : 'AM'}';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : AppColors.cardLight,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Mentor Info Row + Status Badge
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppColors.primary.withOpacity(0.15),
+                    child: Text(
+                      booking.mentorName.isNotEmpty
+                          ? booking.mentorName[0].toUpperCase()
+                          : 'M',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          booking.mentorName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Expert Mentor',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: booking.status == 'Completed'
+                          ? const Color(0xFFD1FAE5)
+                          : (booking.status == 'Cancelled'
+                              ? const Color(0xFFFEE2E2)
+                              : AppColors.primary.withOpacity(0.12)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      booking.status,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: booking.status == 'Completed'
+                            ? const Color(0xFF065F46)
+                            : (booking.status == 'Cancelled'
+                                ? Colors.red
+                                : AppColors.primary),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+
+              // Service Title & Time
+              Text(
+                booking.serviceTitle,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.event_outlined,
+                      size: 15, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    formattedDate,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '₹${booking.amount.toStringAsFixed(booking.amount % 1 == 0 ? 0 : 2)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+
+              if (booking.userQuery.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.help_outline,
+                          size: 14, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          booking.userQuery,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+
+              // Action Buttons
+              if (booking.status != 'Cancelled') ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                    ),
+                    onPressed: () {
+                      AgoraVideoCallView.startCall(
+                        context,
+                        booking: booking,
+                        isMentor: false,
+                      );
+                    },
+                    icon: const Icon(Icons.videocam_rounded, size: 20),
+                    label: Text(
+                      'Join Agora 1:1 Video Call',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
   }
 }
