@@ -236,7 +236,7 @@ style: ElevatedButton.styleFrom(
               ),
               const Spacer(),
               Text(
-                '\$${booking.amount.toStringAsFixed(2)}',
+                '₹${booking.amount.toStringAsFixed(booking.amount % 1 == 0 ? 0 : 2)}',
                 style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.green),
               ),
             ],

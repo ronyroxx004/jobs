@@ -248,28 +248,45 @@ class AuthService extends GetxService {
             profile ??= await dbService.getUserProfileByEmail(email);
 
             if (profile != null) {
-              if (requestedRole != null && profile.role != requestedRole) {
-                profile = profile.copyWith(role: requestedRole);
-                try {
-                  await dbService.saveUserProfile(profile);
-                } catch (_) {}
-              } else if (expectedRole == UserRole.admin && profile.role != UserRole.admin) {
-                profile = profile.copyWith(role: UserRole.admin);
-                try {
-                  await dbService.saveUserProfile(profile);
-                } catch (_) {}
-              } else if (expectedRole == UserRole.mentor && profile.role != UserRole.mentor) {
-                profile = profile.copyWith(role: UserRole.mentor);
+              UserRole identifiedRole = profile.role;
+              if (requestedRole != null) {
+                identifiedRole = requestedRole;
+              } else if (expectedRole == UserRole.admin) {
+                identifiedRole = UserRole.admin;
+              } else if (expectedRole == UserRole.mentor ||
+                  dbService.servicesList.any((s) =>
+                      s.mentorId == credential.user!.uid ||
+                      (s.mentorEmail.isNotEmpty &&
+                          s.mentorEmail.toLowerCase() == email.toLowerCase()))) {
+                identifiedRole = UserRole.mentor;
+              } else if (expectedRole == UserRole.recruiter) {
+                identifiedRole = UserRole.recruiter;
+              } else if (expectedRole == UserRole.instructor) {
+                identifiedRole = UserRole.instructor;
+              }
+
+              if (profile.role != identifiedRole) {
+                profile = profile.copyWith(role: identifiedRole);
                 try {
                   await dbService.saveUserProfile(profile);
                 } catch (_) {}
               }
             } else {
+              UserRole identifiedRole = requestedRole ?? expectedRole;
+              if (identifiedRole == UserRole.candidate) {
+                if (dbService.servicesList.any((s) =>
+                    s.mentorId == credential.user!.uid ||
+                    (s.mentorEmail.isNotEmpty &&
+                        s.mentorEmail.toLowerCase() == email.toLowerCase()))) {
+                  identifiedRole = UserRole.mentor;
+                }
+              }
+
               profile = UserModel(
                 id: credential.user!.uid,
                 name: credential.user!.displayName ?? email.split('@')[0],
                 email: email,
-                role: effectiveRole,
+                role: identifiedRole,
               );
               try {
                 await dbService.saveUserProfile(profile);

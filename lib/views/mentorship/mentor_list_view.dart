@@ -40,30 +40,21 @@ class MentorListView extends GetView<MentorshipController> {
         children: [
           const SizedBox(height: 12),
           // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Expert Career Guidance',
-                    style: GoogleFonts.inter(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Book 1:1 sessions, mock interviews & guidance',
-                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
+              Text(
+                'Expert Career Guidance',
+                style: GoogleFonts.inter(
+                    fontSize: 20, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
               ),
-              if (!authService.isLoggedIn)
-                TextButton.icon(
-                  icon: const Icon(Icons.login_rounded, size: 16),
-                  label: const Text('Sign in'),
-                  onPressed: () => Get.toNamed(AppRoutes.login),
-                ),
+              const SizedBox(height: 2),
+              Text(
+                'Book 1:1 sessions, mock interviews & guidance',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -146,11 +137,17 @@ class MentorListView extends GetView<MentorshipController> {
                                 ),
                                 const SizedBox(height: 16),
                                 if (!authService.isLoggedIn)
-                                  ElevatedButton.icon(
-                                    icon: const Icon(Icons.login),
-                                    label: const Text('Log in to Book'),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
                                     onPressed: () =>
                                         Get.toNamed(AppRoutes.login),
+                                    child: const Text('Sign in'),
                                   ),
                               ],
                             ),
@@ -406,7 +403,7 @@ class MentorListView extends GetView<MentorshipController> {
                                       ],
                                       Text(
                                         service.price > 0
-                                            ? '\$${service.price.toStringAsFixed(service.price % 1 == 0 ? 0 : 2)}'
+                                            ? '₹${service.price.toStringAsFixed(service.price % 1 == 0 ? 0 : 2)}'
                                             : 'Free',
                                         style: GoogleFonts.inter(
                                           fontSize: 16,
@@ -416,35 +413,29 @@ class MentorListView extends GetView<MentorshipController> {
                                       ),
                                     ],
                                   ),
-                                  ElevatedButton.icon(
+                                  ElevatedButton(
                                     style: ElevatedButton.styleFrom(
                                       visualDensity: VisualDensity.compact,
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 6),
+                                          horizontal: 18, vertical: 7),
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
+                                      elevation: 0,
                                       minimumSize: Size.zero,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    icon: Icon(
-                                      authService.isLoggedIn
-                                          ? Icons.calendar_month_rounded
-                                          : Icons.login_rounded,
-                                      size: 14,
-                                    ),
-                                    label: Text(
-                                      authService.isLoggedIn
-                                          ? 'Book Slot'
-                                          : 'Log in to Book',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                     ),
                                     onPressed: () => _handlePostTap(
                                         context, service, authService),
+                                    child: Text(
+                                      'Book',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),

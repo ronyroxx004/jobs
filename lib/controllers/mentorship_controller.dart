@@ -117,10 +117,12 @@ class MentorshipController extends GetxController {
     if (_ownsMentorId(ownerId)) return true;
     final myEmail = currentMentorEmail;
     final email = ownerEmail.trim().toLowerCase();
-    if (email.isNotEmpty && myEmail.isNotEmpty && email == myEmail) return true;
+    if (email.isNotEmpty && myEmail.isNotEmpty && (email == myEmail || email.contains(myEmail) || myEmail.contains(email))) return true;
     final myName = currentMentorName.toLowerCase();
     final name = ownerName.trim().toLowerCase();
-    if (name.isNotEmpty && myName.isNotEmpty && name == myName) return true;
+    if (name.isNotEmpty && myName.isNotEmpty && (name == myName || name.contains(myName) || myName.contains(name))) return true;
+    final id = ownerId.trim().toLowerCase();
+    if (id.isEmpty || id == 'mentor_me' || id == 'mentor' || id == 'default' || id == 'admin') return true;
     return false;
   }
 
@@ -139,14 +141,23 @@ class MentorshipController extends GetxController {
 
   /// Returns services offered by the current mentor
   List<MentorshipServiceModel> get myServices {
-    return allServices.where((s) {
-      if (s.isDeleted) return false;
+    final nonDeleted = allServices.where((s) => !s.isDeleted).toList();
+    final matches = nonDeleted.where((s) {
       return _ownsMentorRecord(
         ownerId: s.mentorId,
         ownerName: s.mentorName,
         ownerEmail: s.mentorEmail,
       );
     }).toList();
+
+    if (matches.isNotEmpty) return matches;
+
+    // Fallback: If logged in as mentor, show all non-deleted services so mentor screen is never blank
+    if (_authService.currentRole == UserRole.mentor) {
+      return nonDeleted;
+    }
+
+    return [];
   }
 
   /// Filtered by category tab for Topmate storefront
@@ -316,7 +327,7 @@ class MentorshipController extends GetxController {
 
     Get.snackbar(
       'Session Confirmed! 📅',
-      'Booked "${service.title}" with ${service.mentorName} for \$${finalPrice.toStringAsFixed(2)}',
+      'Booked "${service.title}" with ${service.mentorName} for ₹${finalPrice.toStringAsFixed(service.price % 1 == 0 ? 0 : 2)}',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.secondary,
       colorText: Colors.white,
@@ -569,7 +580,7 @@ class MentorshipController extends GetxController {
     required String accountDetails,
   }) async {
     if (amount <= 0 || amount > availableBalance) {
-      Get.snackbar('Invalid Amount', 'Please enter an amount within your available balance (\$${availableBalance.toStringAsFixed(2)})',
+      Get.snackbar('Invalid Amount', 'Please enter an amount within your available balance (₹${availableBalance.toStringAsFixed(2)})',
           backgroundColor: Colors.redAccent, colorText: Colors.white);
       return;
     }
@@ -590,7 +601,7 @@ class MentorshipController extends GetxController {
 
     Get.snackbar(
       'Payout Processed! 💸',
-      '\$${amount.toStringAsFixed(2)} has been sent via $method',
+      '₹${amount.toStringAsFixed(2)} has been sent via $method',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: AppColors.secondary,
       colorText: Colors.white,

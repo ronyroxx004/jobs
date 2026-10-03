@@ -238,7 +238,7 @@ ElevatedButton.icon(
                 ),
               ),
               Text(
-                service.price > 0 ? '\$${service.price.toStringAsFixed(2)}' : 'FREE',
+                service.price > 0 ? '₹${service.price.toStringAsFixed(service.price % 1 == 0 ? 0 : 2)}' : 'FREE',
                 style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primary),
               ),
             ],
@@ -306,7 +306,7 @@ ElevatedButton.icon(
   void _showEditServiceDialog(BuildContext context, MentorshipServiceModel service) {
     final titleCtrl = TextEditingController(text: service.title);
     final descCtrl = TextEditingController(text: service.description);
-    final priceCtrl = TextEditingController(text: service.price.toStringAsFixed(2));
+    final priceCtrl = TextEditingController(text: service.price % 1 == 0 ? service.price.toInt().toString() : service.price.toStringAsFixed(2));
     final deliverableCtrl = TextEditingController(text: service.deliverable);
 
     showModalBottomSheet(
@@ -369,13 +369,13 @@ ElevatedButton.icon(
                         ),
                       ),
                       const SizedBox(height: 14),
-                      Text('Price (USD)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text('Price (₹ / INR)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 6),
                       TextField(
                         controller: priceCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
-                          prefixText: '\$ ',
+                          prefixText: '₹ ',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),

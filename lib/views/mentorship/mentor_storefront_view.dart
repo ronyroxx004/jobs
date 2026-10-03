@@ -654,7 +654,7 @@ class MentorStorefrontView extends GetView<MentorshipController> {
                   ),
                 const Spacer(),
                 Text(
-                  service.price > 0 ? '\$${service.price.toStringAsFixed(2)}' : 'FREE',
+                  service.price > 0 ? '₹${service.price.toStringAsFixed(service.price % 1 == 0 ? 0 : 2)}' : 'FREE',
                   style: GoogleFonts.inter(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -1120,19 +1120,19 @@ class MentorStorefrontView extends GetView<MentorshipController> {
                               controller: controller.servicePriceController,
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               decoration: InputDecoration(
-                                prefixText: '\$ ',
-                                hintText: '49.00',
+                                prefixText: '₹ ',
+                                hintText: '499',
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          ...['19', '49', '99', '0'].map((preset) {
+                          ...['199', '499', '999', '0'].map((preset) {
                             return Padding(
                               padding: const EdgeInsets.only(left: 4),
                               child: ActionChip(
-                                label: Text(preset == '0' ? 'Free' : '\$$preset'),
+                                label: Text(preset == '0' ? 'Free' : '₹$preset'),
                                 labelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold),
                                 onPressed: () {
                                   controller.servicePriceController.text = preset;

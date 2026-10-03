@@ -17,16 +17,18 @@ class MentorBookingDialog {
     controller.menteeNotesController.clear();
 
     Get.bottomSheet(
-      Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
+      SafeArea(
+        top: false,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
             // Drag Handle
             const SizedBox(height: 12),
             Container(
@@ -81,7 +83,7 @@ class MentorBookingDialog {
                             const Spacer(),
                             Text(
                               service.price > 0
-                                  ? '\$${service.price.toStringAsFixed(2)}'
+                                  ? '₹${service.price.toStringAsFixed(service.price % 1 == 0 ? 0 : 2)}'
                                   : 'FREE',
                               style: GoogleFonts.inter(
                                 fontSize: 18,
@@ -447,7 +449,7 @@ style: ElevatedButton.styleFrom(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('Service Price', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
-                                Text('\$${basePrice.toStringAsFixed(2)}', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                                Text('₹${basePrice.toStringAsFixed(basePrice % 1 == 0 ? 0 : 2)}', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
                               ],
                             ),
                             if (discountRatio > 0) ...[
@@ -460,7 +462,7 @@ style: ElevatedButton.styleFrom(
                                     style: GoogleFonts.inter(fontSize: 13, color: AppColors.secondary),
                                   ),
                                   Text(
-                                    '-\$${discountAmount.toStringAsFixed(2)}',
+                                    '-₹${discountAmount.toStringAsFixed(discountAmount % 1 == 0 ? 0 : 2)}',
                                     style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.secondary),
                                   ),
                                 ],
@@ -470,8 +472,17 @@ style: ElevatedButton.styleFrom(
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Platform Convenience Fee', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
-                                Text('FREE (\$0.00)', style: GoogleFonts.inter(fontSize: 13, color: Colors.green, fontWeight: FontWeight.w600)),
+                                Flexible(
+                                  child: Text('Platform Convenience Fee',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 13, color: Colors.grey)),
+                                ),
+                                const SizedBox(width: 8),
+                                Text('FREE (₹0)',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.w600)),
                               ],
                             ),
                             const Divider(height: 18),
@@ -480,7 +491,7 @@ style: ElevatedButton.styleFrom(
                               children: [
                                 Text('Total to Pay', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
                                 Text(
-                                  '\$${finalPrice.toStringAsFixed(2)}',
+                                  '₹${finalPrice.toStringAsFixed(finalPrice % 1 == 0 ? 0 : 2)}',
                                   style: GoogleFonts.inter(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w900,
@@ -499,45 +510,51 @@ style: ElevatedButton.styleFrom(
               ),
             ),
 
-            // Confirm Button
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: Obx(() {
-                  final discountRatio = controller.appliedDiscount.value;
-                  final finalPrice = (service.price * (1.0 - discountRatio)).clamp(0.0, double.infinity);
+            // Confirm Button with SafeArea
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: Obx(() {
+                    final discountRatio = controller.appliedDiscount.value;
+                    final finalPrice = (service.price * (1.0 - discountRatio)).clamp(0.0, double.infinity);
 
-                  return ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    onPressed: () => controller.bookMentorshipSession(service),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.lock_outline, size: 18, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Confirm & Book (\$${finalPrice.toStringAsFixed(2)})',
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                    return ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () => controller.bookMentorshipSession(service),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.lock_outline, size: 18, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Confirm & Book (₹${finalPrice.toStringAsFixed(finalPrice % 1 == 0 ? 0 : 2)})',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
               ),
             ),
           ],
         ),
       ),
+      ),
       isScrollControlled: true,
+      ignoreSafeArea: false,
+      useRootNavigator: true,
     );
   }
 

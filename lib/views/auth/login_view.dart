@@ -20,30 +20,65 @@ class LoginView extends GetView<AuthController> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
+              // Top Navigation & Branding
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(16),
+                  IconButton(
+                    onPressed: () {
+                      if (Navigator.canPop(context)) {
+                        Get.back();
+                      } else {
+                        Get.offAllNamed(AppRoutes.home);
+                      }
+                    },
+                    style: IconButton.styleFrom(
+                      backgroundColor:
+                          isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: isDark
+                              ? Colors.white10
+                              : Colors.black.withValues(alpha: 0.06),
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(10),
                     ),
-                    child: const Icon(Icons.work_rounded, color: Colors.white, size: 28),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'JOBS',
-                    style: GoogleFonts.inter(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 18,
                       color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                      letterSpacing: 1.5,
                     ),
+                    tooltip: 'Back to App',
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.work_rounded,
+                            color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'JOBS',
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color:
+                              isDark ? Colors.white : AppColors.textPrimaryLight,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 28),
               Text(
                 'Welcome Back',
                 style: GoogleFonts.inter(
@@ -52,89 +87,7 @@ class LoginView extends GetView<AuthController> {
                   color: isDark ? Colors.white : AppColors.textPrimaryLight,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Sign in to access your Candidate, Recruiter, Mentor, or Admin profile',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Role Selector
-              Text('Sign in as:', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 76,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Obx(() => Row(
-                        children: [
-                          UserRole.candidate,
-                          UserRole.mentor,
-                          UserRole.recruiter,
-                          UserRole.admin,
-                        ].map((role) {
-                          final isSelected = controller.selectedRole.value == role;
-                          return Container(
-                            width: 120,
-                            margin: const EdgeInsets.only(right: 10),
-                            child: InkWell(
-                              onTap: () => controller.selectRole(role),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppColors.primary.withValues(alpha: 0.12)
-                                      : (isDark ? AppColors.cardDark : Colors.white),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                    width: isSelected ? 2 : 1,
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      role == UserRole.candidate
-                                          ? Icons.person_search_rounded
-                                          : role == UserRole.mentor
-                                              ? Icons.school_rounded
-                                              : role == UserRole.recruiter
-                                                  ? Icons.business_center_rounded
-                                                  : Icons.admin_panel_settings_rounded,
-                                      color: isSelected ? AppColors.primary : AppColors.textSecondaryLight,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      role.displayName,
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 11,
-                                        color: isSelected
-                                            ? AppColors.primary
-                                            : (isDark ? Colors.white : AppColors.textPrimaryLight),
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      )),
-                ),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Email Field
               Text('Email Address', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),

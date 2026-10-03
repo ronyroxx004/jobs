@@ -171,7 +171,7 @@ class MentorEarningsView extends GetView<MentorshipController> {
             ),
             const SizedBox(height: 16),
             Text(
-              '\$${available.toStringAsFixed(2)}',
+              '₹${available.toStringAsFixed(2)}',
               style: GoogleFonts.inter(
                 fontSize: 34,
                 fontWeight: FontWeight.w900,
@@ -188,7 +188,7 @@ class MentorEarningsView extends GetView<MentorshipController> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Total Lifetime Earnings', style: GoogleFonts.inter(fontSize: 11, color: Colors.white60)),
-                    Text('\$${lifetime.toStringAsFixed(2)}',
+                    Text('₹${lifetime.toStringAsFixed(2)}',
                         style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                   ],
                 ),
@@ -300,10 +300,10 @@ style: ElevatedButton.styleFrom(
       String pct(double amt) => total > 0 ? '${((amt / total) * 100).toStringAsFixed(0)}%' : '0%';
 
       final breakdown = [
-        {'format': '1:1 Video Calls', 'amount': '\$${callRevenue.toStringAsFixed(2)}', 'percent': pct(callRevenue), 'color': const Color(0xFF6366F1)},
-        {'format': 'Digital Guides & Playbooks', 'amount': '\$${productRevenue.toStringAsFixed(2)}', 'percent': pct(productRevenue), 'color': const Color(0xFF10B981)},
-        {'format': 'Live Webinars & Cohorts', 'amount': '\$${webinarRevenue.toStringAsFixed(2)}', 'percent': pct(webinarRevenue), 'color': const Color(0xFFEC4899)},
-        {'format': 'Priority DMs', 'amount': '\$${dmRevenue.toStringAsFixed(2)}', 'percent': pct(dmRevenue), 'color': const Color(0xFFF59E0B)},
+        {'format': '1:1 Video Calls', 'amount': '₹${callRevenue.toStringAsFixed(2)}', 'percent': pct(callRevenue), 'color': const Color(0xFF6366F1)},
+        {'format': 'Digital Guides & Playbooks', 'amount': '₹${productRevenue.toStringAsFixed(2)}', 'percent': pct(productRevenue), 'color': const Color(0xFF10B981)},
+        {'format': 'Live Webinars & Cohorts', 'amount': '₹${webinarRevenue.toStringAsFixed(2)}', 'percent': pct(webinarRevenue), 'color': const Color(0xFFEC4899)},
+        {'format': 'Priority DMs', 'amount': '₹${dmRevenue.toStringAsFixed(2)}', 'percent': pct(dmRevenue), 'color': const Color(0xFFF59E0B)},
       ];
 
       return Container(
@@ -402,7 +402,7 @@ style: ElevatedButton.styleFrom(
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('\$${payout.amount.toStringAsFixed(2)}',
+                        Text('₹${payout.amount.toStringAsFixed(2)}',
                             style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w900)),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -541,7 +541,7 @@ style: ElevatedButton.styleFrom(
               controller: amountCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                prefixText: '\$ ',
+                prefixText: '₹ ',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),

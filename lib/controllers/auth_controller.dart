@@ -61,7 +61,6 @@ class AuthController extends GetxController {
     final success = await _authService.login(
       email: email,
       password: password,
-      requestedRole: selectedRole.value,
     );
     if (success) {
       Get.closeAllSnackbars();

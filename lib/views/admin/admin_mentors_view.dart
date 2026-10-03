@@ -182,7 +182,7 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
                   child: AdminStatTile(
                     label: 'Revenue',
                     value:
-                        '\$${controller.totalMentorshipRevenue.toStringAsFixed(0)}',
+                        '₹${controller.totalMentorshipRevenue.toStringAsFixed(0)}',
                     icon: Icons.payments_rounded,
                     color: AppColors.warning,
                   ),
@@ -692,7 +692,7 @@ class _MentorCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${earnings.toStringAsFixed(0)}',
+                      '₹${earnings.toStringAsFixed(0)}',
                       style: GoogleFonts.inter(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -898,7 +898,7 @@ class _ServiceRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${service.category} • ${service.durationMinutes} min • \$${service.price.toStringAsFixed(0)}',
+                  '${service.category} • ${service.durationMinutes} min • ₹${service.price.toStringAsFixed(0)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
@@ -1035,7 +1035,7 @@ class _AdminPostCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  service.price == 0 ? 'FREE' : '\$${service.price.toStringAsFixed(0)}',
+                  service.price == 0 ? 'FREE' : '₹${service.price.toStringAsFixed(0)}',
                   style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
@@ -1407,7 +1407,7 @@ class _AllThingsOfMentorSheet extends StatelessWidget {
                       Expanded(
                         child: _MetricBox(
                           label: 'Earnings',
-                          value: '\$${earnings.toStringAsFixed(0)}',
+                          value: '₹${earnings.toStringAsFixed(0)}',
                           color: AppColors.secondary,
                           icon: Icons.payments_outlined,
                         ),
@@ -1626,7 +1626,7 @@ class _AllThingsOfMentorSheet extends StatelessWidget {
                               ],
                             ),
                             Text(
-                              '\$${b.amount.toStringAsFixed(0)}',
+                              '₹${b.amount.toStringAsFixed(0)}',
                               style: GoogleFonts.inter(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -1720,7 +1720,7 @@ class _ServiceDetailCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                service.price == 0 ? 'FREE' : '\$${service.price.toStringAsFixed(0)}',
+                service.price == 0 ? 'FREE' : '₹${service.price.toStringAsFixed(0)}',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
