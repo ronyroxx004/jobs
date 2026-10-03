@@ -27,27 +27,33 @@ class MentorEarningsView extends GetView<MentorshipController> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
+            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Earnings & Growth',
-                      style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900),
-                    ),
-                    Text(
-                      'Monetization, analytics & payout history',
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Earnings & Growth',
+                        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Monetization, analytics & payout history',
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF059669),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     minimumSize: Size.zero,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -55,7 +61,7 @@ class MentorEarningsView extends GetView<MentorshipController> {
                   icon: const Icon(Icons.account_balance_wallet, size: 16),
                   label: Text(
                     'Withdraw',
-                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -133,35 +139,44 @@ class MentorEarningsView extends GetView<MentorshipController> {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.payments_outlined, color: Colors.white, size: 18),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Available for Payout',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white70,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.payments_outlined, color: Colors.white, size: 20),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  'Available for Payout',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white70,
-                  ),
-                ),
-                const Spacer(),
+                const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: const Color(0xFF10B981).withOpacity(0.25),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: const Color(0xFF34D399).withOpacity(0.4)),
                   ),
                   child: Text(
-                    'Instant Payout Enabled',
+                    'Instant Payout',
                     style: GoogleFonts.inter(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF6EE7B7),
                     ),
@@ -184,24 +199,30 @@ class MentorEarningsView extends GetView<MentorshipController> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Total Lifetime Earnings', style: GoogleFonts.inter(fontSize: 11, color: Colors.white60)),
-                    Text('₹${lifetime.toStringAsFixed(2)}',
-                        style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Total Lifetime Earnings',
+                          style: GoogleFonts.inter(fontSize: 11, color: Colors.white60),
+                          overflow: TextOverflow.ellipsis),
+                      Text('₹${lifetime.toStringAsFixed(2)}',
+                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 ElevatedButton(
-style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF312E81),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            minimumSize: Size.zero,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF312E81),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                   onPressed: () => _showPayoutRequestModal(context),
-                  child: Text('Withdraw Funds', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text('Withdraw', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
@@ -438,13 +459,21 @@ style: ElevatedButton.styleFrom(
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Testimonial Management', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text('Control social proof displayed on your storefront', style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Testimonial Management', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Control social proof displayed on your storefront',
+                      style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.add_comment_outlined, color: AppColors.primary),
                 tooltip: 'Add Client Review',
@@ -512,91 +541,151 @@ style: ElevatedButton.styleFrom(
   }
 
   void _showPayoutRequestModal(BuildContext context) {
-    final amountCtrl = TextEditingController(text: controller.availableBalance > 0 ? controller.availableBalance.toStringAsFixed(2) : '');
+    final amountCtrl = TextEditingController(
+        text: controller.availableBalance > 0
+            ? controller.availableBalance.toStringAsFixed(2)
+            : '');
     final accountCtrl = TextEditingController();
     final method = 'Bank Transfer'.obs;
 
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final isDark = Theme.of(sheetContext).brightness == Brightness.dark;
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.88,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: bottomInset > 0 ? bottomInset + 16 : 20,
+          ),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.account_balance, color: AppColors.primary),
-                const SizedBox(width: 10),
-                Text('Withdraw Funds', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.account_balance, color: AppColors.primary),
+                        const SizedBox(width: 10),
+                        Text('Withdraw Funds',
+                            style: GoogleFonts.inter(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Withdrawal Amount',
+                            style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: amountCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: InputDecoration(
+                            prefixText: '₹ ',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text('Payout Method',
+                            style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        Obx(() {
+                          return Wrap(
+                            spacing: 8,
+                            children: ['Bank Transfer', 'UPI', 'Stripe', 'PayPal']
+                                .map((m) {
+                              final isSelected = method.value == m;
+                              return ChoiceChip(
+                                label: Text(m),
+                                selected: isSelected,
+                                selectedColor: AppColors.primary,
+                                labelStyle: GoogleFonts.inter(
+                                    color: isSelected ? Colors.white : null),
+                                onSelected: (_) => method.value = m,
+                              );
+                            }).toList(),
+                          );
+                        }),
+                        const SizedBox(height: 14),
+                        Text('Account / Destination Details',
+                            style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: accountCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'Account number, routing, or UPI ID',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      final val =
+                          double.tryParse(amountCtrl.text.trim()) ?? 0.0;
+                      Navigator.of(sheetContext).pop();
+                      controller.requestPayout(
+                        amount: val,
+                        method: method.value,
+                        accountDetails: accountCtrl.text.trim(),
+                      );
+                    },
+                    child: Text('Process Instant Payout',
+                        style: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ),
               ],
             ),
-            const Divider(height: 20),
-            Text('Withdrawal Amount', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                prefixText: '₹ ',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text('Payout Method', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(height: 6),
-            Obx(() {
-              return Wrap(
-                spacing: 8,
-                children: ['Bank Transfer', 'UPI', 'Stripe', 'PayPal'].map((m) {
-                  final isSelected = method.value == m;
-                  return ChoiceChip(
-                    label: Text(m),
-                    selected: isSelected,
-                    selectedColor: AppColors.primary,
-                    labelStyle: GoogleFonts.inter(color: isSelected ? Colors.white : null),
-                    onSelected: (_) => method.value = m,
-                  );
-                }).toList(),
-              );
-            }),
-            const SizedBox(height: 14),
-            Text('Account / Destination Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: accountCtrl,
-              decoration: InputDecoration(
-                hintText: 'Account number, routing, or UPI ID',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF059669),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () {
-                  final val = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
-                  controller.requestPayout(
-                    amount: val,
-                    method: method.value,
-                    accountDetails: accountCtrl.text.trim(),
-                  );
-                },
-                child: Text('Process Instant Payout', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-            ),
-          ],
-        ),
-      ),
-      isScrollControlled: true,
+          ),
+        );
+      },
     );
   }
 
@@ -605,72 +694,122 @@ style: ElevatedButton.styleFrom(
     final roleCtrl = TextEditingController();
     final contentCtrl = TextEditingController();
 
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Add Client Testimonial', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
-            const Divider(height: 20),
-            TextField(
-              controller: nameCtrl,
-              decoration: InputDecoration(
-                hintText: 'Mentee Name',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: roleCtrl,
-              decoration: InputDecoration(
-                hintText: 'Role / Target Company (e.g. SDE @ Meta)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: contentCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Mentee feedback quote...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () {
-                  if (nameCtrl.text.isNotEmpty && contentCtrl.text.isNotEmpty) {
-                    controller.addTestimonial(TestimonialModel(
-                      id: 'test_${DateTime.now().millisecondsSinceEpoch}',
-                      mentorId: controller.currentMentorId,
-                      candidateName: nameCtrl.text.trim(),
-                      candidateRole: roleCtrl.text.trim().isNotEmpty ? roleCtrl.text.trim() : 'Software Engineer',
-                      content: contentCtrl.text.trim(),
-                      date: 'Just now',
-                    ));
-                    Get.back();
-                  }
-                },
-                child: const Text('Add to Storefront', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
-        ),
-      ),
+    showModalBottomSheet(
+      context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final isDark = Theme.of(sheetContext).brightness == Brightness.dark;
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.88,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: bottomInset > 0 ? bottomInset + 16 : 20,
+          ),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Add Client Testimonial',
+                        style: GoogleFonts.inter(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: nameCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'Mentee Name',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: roleCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'Role / Target Company (e.g. SDE @ Meta)',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: contentCtrl,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: 'Mentee feedback quote...',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      if (nameCtrl.text.isNotEmpty &&
+                          contentCtrl.text.isNotEmpty) {
+                        controller.addTestimonial(TestimonialModel(
+                          id: 'test_${DateTime.now().millisecondsSinceEpoch}',
+                          mentorId: controller.currentMentorId,
+                          candidateName: nameCtrl.text.trim(),
+                          candidateRole: roleCtrl.text.trim().isNotEmpty
+                              ? roleCtrl.text.trim()
+                              : 'Software Engineer',
+                          content: contentCtrl.text.trim(),
+                          date: 'Just now',
+                        ));
+                        Navigator.of(sheetContext).pop();
+                      }
+                    },
+                    child: const Text('Add to Storefront',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

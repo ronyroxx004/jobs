@@ -31,27 +31,32 @@ class MentorBookingsView extends GetView<MentorshipController> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bookings & Calendar',
-                      style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900),
-                    ),
-                    Text(
-                      'Scheduled sessions, video meetings & clients',
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bookings & Calendar',
+                        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Scheduled sessions, video meetings & clients',
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
-style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                  foregroundColor: isDark ? Colors.white : AppColors.primary,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
-                  shape: RoundedRectangleBorder(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    foregroundColor: isDark ? Colors.white : AppColors.primary,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                       side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
                     ),
@@ -304,12 +309,15 @@ style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF059669),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                     onPressed: () => _openMeetingUrl(context, booking.meetingUrl),
-                    icon: const Icon(Icons.videocam_rounded, size: 18),
+                    icon: const Padding(
+                      padding: EdgeInsets.only(left: 6, right: 2),
+                      child: Icon(Icons.videocam_rounded, size: 18),
+                    ),
                     label: Text(
-                      'Join Video Call',
+                      'Video Call',
                       style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -431,45 +439,59 @@ style: ElevatedButton.styleFrom(
 
     Get.bottomSheet(
       Container(
-        padding: const EdgeInsets.all(22),
+        padding: EdgeInsets.only(
+          left: 22,
+          right: 22,
+          top: 22,
+          bottom: MediaQuery.of(context).viewInsets.bottom > 0
+              ? MediaQuery.of(context).viewInsets.bottom + 16
+              : 22,
+        ),
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Private Session Notes', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text('Only visible to you as mentor', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: notesCtrl,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Record key takeaways, candidate feedback, weaknesses identified, follow-up links...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: SafeArea(
+          top: false,
+          bottom: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Private Session Notes', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('Only visible to you as mentor', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: notesCtrl,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Record key takeaways, candidate feedback, weaknesses identified, follow-up links...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: () {
-                  controller.saveMentorNotes(booking.id, notesCtrl.text.trim());
-                  Get.back();
-                },
-                child: Text('Save Notes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
               ),
-            ),
-          ],
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    controller.saveMentorNotes(booking.id, notesCtrl.text.trim());
+                    Get.back();
+                  },
+                  child: Text('Save Notes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+      isScrollControlled: true,
+      ignoreSafeArea: false,
+      useRootNavigator: true,
     );
   }
 
@@ -484,136 +506,142 @@ style: ElevatedButton.styleFrom(
           color: Theme.of(context).scaffoldBackgroundColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.schedule, color: AppColors.primary),
-                const SizedBox(width: 10),
-                Text('Availability & Operating Hours', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const Divider(height: 20),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Available Days of Week', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: days.map((day) {
-                        return Obx(() {
-                          final isAvailable = controller.availability.value.availableDays.contains(day);
-                          return FilterChip(
-                            label: Text(day),
-                            selected: isAvailable,
-                            selectedColor: AppColors.primary.withOpacity(0.18),
-                            checkmarkColor: AppColors.primary,
-                            onSelected: (_) => controller.toggleAvailableDay(day),
-                          );
-                        });
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-
-                    Text('Daily Operating Hours', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Start Time', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                                ),
-                                child: Text('09:00 AM EST', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('End Time', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                                ),
-                                child: Text('07:00 PM EST', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    Text('Session Buffer Time', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    Text('Break time added automatically between consecutive sessions',
-                        style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(height: 8),
-                    Obx(() {
-                      final currentBuffer = controller.availability.value.bufferMinutes;
-                      return Row(
-                        children: [5, 10, 15, 30].map((mins) {
-                          final isSelected = currentBuffer == mins;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text('$mins mins'),
-                              selected: isSelected,
-                              selectedColor: AppColors.primary,
-                              labelStyle: GoogleFonts.inter(
-                                color: isSelected ? Colors.white : null,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              ),
-                              onSelected: (_) => controller.updateAvailabilityTimes(buffer: mins),
-                            ),
-                          );
+        child: SafeArea(
+          top: false,
+          bottom: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.schedule, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Text('Availability & Operating Hours', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const Divider(height: 20),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Available Days of Week', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: days.map((day) {
+                          return Obx(() {
+                            final isAvailable = controller.availability.value.availableDays.contains(day);
+                            return FilterChip(
+                              label: Text(day),
+                              selected: isAvailable,
+                              selectedColor: AppColors.primary.withOpacity(0.18),
+                              checkmarkColor: AppColors.primary,
+                              onSelected: (_) => controller.toggleAvailableDay(day),
+                            );
+                          });
                         }).toList(),
-                      );
-                    }),
-                    const SizedBox(height: 24),
-                  ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      Text('Daily Operating Hours', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Start Time', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                                  ),
+                                  child: Text('09:00 AM EST', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('End Time', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                                  ),
+                                  child: Text('07:00 PM EST', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      Text('Session Buffer Time', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      Text('Break time added automatically between consecutive sessions',
+                          style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
+                      const SizedBox(height: 8),
+                      Obx(() {
+                        final currentBuffer = controller.availability.value.bufferMinutes;
+                        return Row(
+                          children: [5, 10, 15, 30].map((mins) {
+                            final isSelected = currentBuffer == mins;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text('$mins mins'),
+                                selected: isSelected,
+                                selectedColor: AppColors.primary,
+                                labelStyle: GoogleFonts.inter(
+                                  color: isSelected ? Colors.white : null,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                                onSelected: (_) => controller.updateAvailabilityTimes(buffer: mins),
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      }),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    controller.updateAvailabilityTimes();
+                    Get.back();
+                  },
+                  child: Text('Save Availability Settings',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
-                onPressed: () {
-                  controller.updateAvailabilityTimes();
-                  Get.back();
-                },
-                child: Text('Save Availability Settings',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       isScrollControlled: true,
+      ignoreSafeArea: false,
+      useRootNavigator: true,
     );
   }
 

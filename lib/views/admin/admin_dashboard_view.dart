@@ -44,7 +44,7 @@ class AdminDashboardView extends GetView<AdminController> {
                     Expanded(
                       child: _buildMetricCard(
                         'Platform Revenue',
-                        '\₹0.00',
+                        '₹${controller.totalMentorshipRevenue.toStringAsFixed(0)}',
                         Icons.account_balance_wallet_rounded,
                         AppColors.secondary,
                       ),
@@ -82,9 +82,15 @@ class AdminDashboardView extends GetView<AdminController> {
                     Expanded(
                       child: _buildMetricCard(
                         'Mentors',
-                        '${controller.totalMentors}',
+                        '${controller.mentors.length}',
                         Icons.psychology_rounded,
                         AppColors.warning,
+                        onTap: () => Get.toNamed(
+                          AppRoutes.adminMentors,
+                          arguments: {'tab': 'All Posts'},
+                        ),
+                        subtitle:
+                            '${Get.find<DatabaseService>().servicesList.length} services • View all →',
                       ),
                     ),
                   ],

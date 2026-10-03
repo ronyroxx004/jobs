@@ -103,18 +103,6 @@ class _HomeViewState extends State<HomeView> {
 
             return Row(
               children: [
-                if (role == UserRole.mentor) ...[
-                  IconButton(
-                    icon: const Icon(Icons.share_outlined,
-                        color: AppColors.primary, size: 22),
-                    tooltip: 'Share Topmate Storefront',
-                    onPressed: () {
-                      if (Get.isRegistered<MentorshipController>()) {
-                        Get.find<MentorshipController>().copyStorefrontLink();
-                      }
-                    },
-                  ),
-                ],
                 IconButton(
                   icon: Obx(() => Icon(
                         themeController.isDarkMode.value
@@ -154,18 +142,25 @@ class _HomeViewState extends State<HomeView> {
         final selectedIndex =
             controller.currentIndex.value.clamp(0, tabs.length - 1);
 
+        final hideLabels =
+            isLoggedIn && (role == UserRole.mentor || role == UserRole.admin);
+
         return NavigationBar(
           selectedIndex: selectedIndex,
           onDestinationSelected: (index) {
             controller.changeTab(index);
           },
           indicatorColor: AppColors.primary.withValues(alpha: 0.15),
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          labelBehavior: hideLabels
+              ? NavigationDestinationLabelBehavior.alwaysHide
+              : NavigationDestinationLabelBehavior.alwaysShow,
           destinations: tabs.map((tab) {
+            final title = tab.title == _profileTitle ? 'Profile' : tab.title;
             return NavigationDestination(
               icon: Icon(tab.icon),
               selectedIcon: Icon(tab.selectedIcon, color: AppColors.primary),
-              label: tab.title == _profileTitle ? 'Profile' : tab.title,
+              label: title,
+              tooltip: title,
             );
           }).toList(),
         );

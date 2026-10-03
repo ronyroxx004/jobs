@@ -19,4 +19,5 @@ abstract class AppRoutes {
   static const adminDeletedUsers = '/admin-deleted-users';
   static const adminJobs = '/admin-jobs';
   static const adminApplications = '/admin-applications';
+  static const adminMentors = '/admin-mentors';
 }

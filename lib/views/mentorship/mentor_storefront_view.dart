@@ -28,14 +28,6 @@ class MentorStorefrontView extends GetView<MentorshipController> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Mode Switcher Banner (Live Preview vs Creator Mode)
-              _buildModeSwitcher(context, isDark),
-              const SizedBox(height: 16),
-
-              // Storefront Hero Card (Topmate Profile Header)
-              _buildStorefrontHero(context, isDark),
-              const SizedBox(height: 16),
-
               // Shareable Storefront Link Bar
               _buildStorefrontShareBar(context, isDark),
               const SizedBox(height: 16),
@@ -85,278 +77,6 @@ class MentorStorefrontView extends GetView<MentorshipController> {
       );
   }
 
-  // --- MODE SWITCHER (Live Preview vs Creator Mode) ---
-  Widget _buildModeSwitcher(BuildContext context, bool isDark) {
-    return Obx(() {
-      final isPreview = controller.isLivePreviewMode.value;
-
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isPreview
-              ? AppColors.secondary.withOpacity(0.12)
-              : AppColors.primary.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isPreview
-                ? AppColors.secondary.withOpacity(0.4)
-                : AppColors.primary.withOpacity(0.2),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isPreview ? Icons.visibility_rounded : Icons.edit_note_rounded,
-              size: 20,
-              color: isPreview ? AppColors.secondary : AppColors.primary,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isPreview ? 'Client Storefront View' : 'Creator Edit Mode',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: isPreview ? AppColors.secondary : AppColors.primary,
-                    ),
-                  ),
-                  Text(
-                    isPreview
-                        ? 'Viewing as a mentee/client would see your storefront.'
-                        : 'Edit, toggle, or add new Topmate offerings.',
-                    style: GoogleFonts.inter(fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            Switch(
-              value: isPreview,
-              activeColor: AppColors.secondary,
-              onChanged: (val) => controller.isLivePreviewMode.value = val,
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  // --- STOREFRONT HERO (Creator Profile & Badges) ---
-  Widget _buildStorefrontHero(BuildContext context, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Banner with avatar overlap via bounded Stack
-          SizedBox(
-            height: 120,
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 85,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFEC4899)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                    ),
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: Container(
-                        margin: const EdgeInsets.only(top: 12, right: 16),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.verified, size: 14, color: Color(0xFF38BDF8)),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Topmate Verified',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  left: 18,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: Builder(builder: (context) {
-                      final avatar = controller.currentMentorAvatar;
-                      final hasUrl = avatar.startsWith('http://') || avatar.startsWith('https://');
-                      return CircleAvatar(
-                        radius: 32,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                        backgroundImage: hasUrl ? NetworkImage(avatar) : null,
-                        child: !hasUrl
-                            ? Text(
-                                controller.currentMentorName.isNotEmpty
-                                    ? controller.currentMentorName[0].toUpperCase()
-                                    : 'M',
-                                style: GoogleFonts.inter(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.primary,
-                                ),
-                              )
-                            : null,
-                      );
-                    }),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Profile Content Under Avatar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Rating Badge Pill (Only if has real reviews)
-                Obx(() {
-                  final reviews = controller.totalReviewsCount;
-                  if (reviews == 0) return const SizedBox.shrink();
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFCD34D)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star_rounded, size: 16, color: Color(0xFFD97706)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${controller.mentorRating}',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF92400E),
-                          ),
-                        ),
-                        Text(
-                          ' ($reviews)',
-                          style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFFB45309)),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-
-                // Mentor Name
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        controller.currentMentorName,
-                        style: GoogleFonts.inter(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.verified, size: 18, color: Color(0xFF0284C7)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-
-                // Headline
-                Text(
-                  controller.currentMentorHeadline,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.primary,
-                  ),
-                ),
-                if (controller.currentMentorBio.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    controller.currentMentorBio,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      height: 1.45,
-                      color: isDark ? Colors.white70 : const Color(0xFF475569),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-
-                // Real Dynamic Trust Badges Pill Row
-                Obx(() {
-                  final offeringsCount = controller.myServices.length;
-                  final sessionsCount = controller.totalCompletedSessionsCount;
-                  if (offeringsCount == 0 && sessionsCount == 0) {
-                    return const SizedBox.shrink();
-                  }
-                  return Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      if (sessionsCount > 0)
-                        _buildBadgePill(Icons.verified_rounded, '$sessionsCount Completed Sessions', const Color(0xFF059669), const Color(0xFFD1FAE5)),
-                      if (offeringsCount > 0)
-                        _buildBadgePill(Icons.layers_rounded, '$offeringsCount Offerings Active', const Color(0xFF2563EB), const Color(0xFFDBEAFE)),
-                    ],
-                  );
-                }),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // --- SHAREABLE STOREFRONT BAR ---
   Widget _buildStorefrontShareBar(BuildContext context, bool isDark) {
@@ -918,6 +638,8 @@ class MentorStorefrontView extends GetView<MentorshipController> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         final isDark = Theme.of(sheetContext).brightness == Brightness.dark;
@@ -940,9 +662,12 @@ class MentorStorefrontView extends GetView<MentorshipController> {
               BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -4)),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Top Drag Handle
               Center(
                 child: Container(
@@ -1251,10 +976,11 @@ class MentorStorefrontView extends GetView<MentorshipController> {
               ),
             ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   void _confirmDeleteService(BuildContext context, MentorshipServiceModel service) {
     Get.defaultDialog(
@@ -1271,31 +997,7 @@ class MentorStorefrontView extends GetView<MentorshipController> {
     );
   }
 
-  // --- HELPERS ---
-  Widget _buildBadgePill(IconData icon, String text, Color textColor, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: textColor),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   static IconData _iconForCategory(String category) {
     switch (category) {

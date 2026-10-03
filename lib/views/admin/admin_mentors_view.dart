@@ -14,7 +14,14 @@ import 'admin_shared.dart';
 /// Supports viewing all mentor details ("View All Things of Mentor"),
 /// browsing all published mentorship posts/offerings, and soft delete/restore.
 class AdminMentorsView extends StatefulWidget {
-  const AdminMentorsView({super.key});
+  final String? initialTab;
+  final bool showAppBar;
+
+  const AdminMentorsView({
+    super.key,
+    this.initialTab,
+    this.showAppBar = false,
+  });
 
   @override
   State<AdminMentorsView> createState() => _AdminMentorsViewState();
@@ -36,6 +43,12 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    final args = Get.arguments;
+    if (args is Map && args['tab'] != null) {
+      _activeTab.value = args['tab'] as String;
+    } else if (widget.initialTab != null) {
+      _activeTab.value = widget.initialTab!;
+    }
     if (Get.isRegistered<DatabaseService>()) {
       final db = Get.find<DatabaseService>();
       if (db.usersList.isEmpty) {
@@ -56,9 +69,11 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<AdminController>();
+    final controller = Get.isRegistered<AdminController>()
+        ? Get.find<AdminController>()
+        : Get.put(AdminController());
 
-    return RefreshIndicator(
+    final content = RefreshIndicator(
       onRefresh: () => Get.find<DatabaseService>().fetchAllData(),
       child: SafeArea(
         child: CustomScrollView(
@@ -93,6 +108,27 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
         ),
       ),
     );
+
+    if (widget.showAppBar) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Mentorship',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Refresh',
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: () => Get.find<DatabaseService>().fetchAllData(),
+            ),
+          ],
+        ),
+        body: content,
+      );
+    }
+
+    return content;
   }
 
   Widget _buildCollapsibleHeader(AdminController controller) {
@@ -209,79 +245,74 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
             final postsCount = db.servicesList.length;
 
             return Container(
-              height: 40,
-              padding: const EdgeInsets.all(4),
+              height: 42,
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                border: Border(
+                  bottom: BorderSide(
+                    color: AppColors.borderLight.withValues(alpha: 0.6),
+                    width: 1,
+                  ),
+                ),
               ),
               child: Row(
                 children: [
                   Expanded(
-                    child: GestureDetector(
+                    child: InkWell(
                       onTap: () => _activeTab.value = 'Mentors',
+                      borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        decoration: BoxDecoration(
-                          color: activeTab == 'Mentors'
-                              ? Colors.white
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(9),
-                          boxShadow: activeTab == 'Mentors'
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  )
-                                ]
-                              : null,
-                        ),
                         alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: activeTab == 'Mentors'
+                                  ? AppColors.secondary
+                                  : Colors.transparent,
+                              width: 2.5,
+                            ),
+                          ),
+                        ),
                         child: Text(
                           'Mentors ($mentorCount)',
                           style: GoogleFonts.inter(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: activeTab == 'Mentors'
                                 ? FontWeight.w800
                                 : FontWeight.w600,
                             color: activeTab == 'Mentors'
                                 ? AppColors.secondary
-                                : Colors.grey[700],
+                                : Colors.grey[600],
                           ),
                         ),
                       ),
                     ),
                   ),
                   Expanded(
-                    child: GestureDetector(
+                    child: InkWell(
                       onTap: () => _activeTab.value = 'All Posts',
+                      borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        decoration: BoxDecoration(
-                          color: activeTab == 'All Posts'
-                              ? Colors.white
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(9),
-                          boxShadow: activeTab == 'All Posts'
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  )
-                                ]
-                              : null,
-                        ),
                         alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: activeTab == 'All Posts'
+                                  ? AppColors.secondary
+                                  : Colors.transparent,
+                              width: 2.5,
+                            ),
+                          ),
+                        ),
                         child: Text(
                           'All Posts / Offerings ($postsCount)',
                           style: GoogleFonts.inter(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: activeTab == 'All Posts'
                                 ? FontWeight.w800
                                 : FontWeight.w600,
                             color: activeTab == 'All Posts'
                                 ? AppColors.secondary
-                                : Colors.grey[700],
+                                : Colors.grey[600],
                           ),
                         ),
                       ),
@@ -643,29 +674,36 @@ class _MentorCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 2,
                         children: [
-                          Icon(
-                            Icons.star_rounded,
-                            size: 15,
-                            color: AppColors.warning,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.star_rounded,
+                                size: 15,
+                                color: AppColors.warning,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                mentor.rating.toStringAsFixed(1),
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                ' (${mentor.totalReviews})',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 3),
-                          Text(
-                            mentor.rating.toStringAsFixed(1),
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            ' (${mentor.totalReviews})',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
                           if (softDeletedCount > 0)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -913,9 +951,12 @@ class _ServiceRow extends StatelessWidget {
           // EDIT BUTTON
           IconButton(
             tooltip: 'Edit post',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+            padding: const EdgeInsets.all(4),
             icon: const Icon(
               Icons.edit_rounded,
-              size: 18,
+              size: 17,
               color: AppColors.primary,
             ),
             onPressed: () => _showEditServiceDialog(context, service, controller),
@@ -925,9 +966,12 @@ class _ServiceRow extends StatelessWidget {
           if (!isSoftDeleted)
             IconButton(
               tooltip: 'Soft delete (hide from candidates)',
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+              padding: const EdgeInsets.all(4),
               icon: Icon(
                 Icons.archive_outlined,
-                size: 18,
+                size: 17,
                 color: Colors.orange[800],
               ),
               onPressed: () => _confirmSoftDelete(context, service, controller),
@@ -935,9 +979,12 @@ class _ServiceRow extends StatelessWidget {
           else
             IconButton(
               tooltip: 'Restore post (make live)',
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+              padding: const EdgeInsets.all(4),
               icon: const Icon(
                 Icons.unarchive_outlined,
-                size: 18,
+                size: 17,
                 color: Color(0xFF059669),
               ),
               onPressed: () => _confirmRestore(context, service, controller),
@@ -946,9 +993,12 @@ class _ServiceRow extends StatelessWidget {
           // HARD REMOVE BUTTON
           IconButton(
             tooltip: 'Permanently remove',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+            padding: const EdgeInsets.all(4),
             icon: const Icon(
               Icons.delete_outline_rounded,
-              size: 18,
+              size: 17,
               color: Colors.redAccent,
             ),
             onPressed: () => _confirmPermanentDelete(context, service, controller),
@@ -1100,7 +1150,11 @@ class _AdminPostCard extends StatelessWidget {
             const SizedBox(height: 10),
 
             // Bottom Actions Row: View Mentor Details + Soft Delete / Restore + Delete
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 OutlinedButton.icon(
                   onPressed: onViewMentorDetails,
@@ -1113,78 +1167,94 @@ class _AdminPostCard extends StatelessWidget {
                     foregroundColor: AppColors.secondary,
                     side: const BorderSide(color: AppColors.secondary),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
-                const Spacer(),
-
-                // Soft Delete or Restore Button
-                if (!isSoftDeleted)
-                  ElevatedButton.icon(
-                    onPressed: () =>
-                        _confirmSoftDelete(context, service, controller),
-                    icon: const Icon(Icons.archive_outlined, size: 14),
-                    label: Text(
-                      'Soft Delete',
-                      style: GoogleFonts.inter(
-                          fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange[800] ?? Colors.orange,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      minimumSize: Size.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Soft Delete or Restore Button
+                    if (!isSoftDeleted)
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            _confirmSoftDelete(context, service, controller),
+                        icon: const Icon(Icons.archive_outlined, size: 14),
+                        label: Text(
+                          'Soft Delete',
+                          style: GoogleFonts.inter(
+                              fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange[800] ?? Colors.orange,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      )
+                    else
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            _confirmRestore(context, service, controller),
+                        icon: const Icon(Icons.unarchive_outlined, size: 14),
+                        label: Text(
+                          'Restore',
+                          style: GoogleFonts.inter(
+                              fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF059669),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
                       ),
-                    ),
-                  )
-                else
-                  ElevatedButton.icon(
-                    onPressed: () =>
-                        _confirmRestore(context, service, controller),
-                    icon: const Icon(Icons.unarchive_outlined, size: 14),
-                    label: Text(
-                      'Restore',
-                      style: GoogleFonts.inter(
-                          fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF059669),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      minimumSize: Size.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip: 'Edit post',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                          minWidth: 32, minHeight: 32),
+                      padding: const EdgeInsets.all(4),
+                      icon: const Icon(
+                        Icons.edit_rounded,
+                        size: 18,
+                        color: AppColors.primary,
                       ),
+                      onPressed: () =>
+                          _showEditServiceDialog(context, service, controller),
                     ),
-                  ),
-
-                const SizedBox(width: 6),
-                IconButton(
-                  tooltip: 'Edit post',
-                  icon: const Icon(
-                    Icons.edit_rounded,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
-                  onPressed: () =>
-                      _showEditServiceDialog(context, service, controller),
-                ),
-                const SizedBox(width: 6),
-                IconButton(
-                  tooltip: 'Delete permanently',
-                  icon: const Icon(
-                    Icons.delete_forever_rounded,
-                    size: 20,
-                    color: Colors.redAccent,
-                  ),
-                  onPressed: () =>
-                      _confirmPermanentDelete(context, service, controller),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      tooltip: 'Delete permanently',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                          minWidth: 32, minHeight: 32),
+                      padding: const EdgeInsets.all(4),
+                      icon: const Icon(
+                        Icons.delete_forever_rounded,
+                        size: 18,
+                        color: Colors.redAccent,
+                      ),
+                      onPressed: () =>
+                          _confirmPermanentDelete(context, service, controller),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1256,26 +1326,29 @@ class _AllThingsOfMentorSheet extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'All Things of Mentor',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'All Things of Mentor',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Complete 360° overview and admin controls',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.grey,
+                      Text(
+                        'Complete 360° overview and admin controls',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded),

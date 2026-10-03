@@ -31,26 +31,31 @@ class MentorServicesView extends GetView<MentorshipController> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Manage Offerings',
-                      style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900),
-                    ),
-                    Text(
-                      'Your services, digital products & webinars',
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Manage Offerings',
+                        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Your services, digital products & webinars',
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                minimumSize: Size.zero,
-              ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    minimumSize: Size.zero,
+                  ),
                   onPressed: () => MentorStorefrontView.showAddOfferingSelector(context),
                   icon: const Icon(Icons.add, size: 16, color: Colors.white),
                   label: Text('Add Offering', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -312,9 +317,12 @@ ElevatedButton.icon(
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         final isDark = Theme.of(sheetContext).brightness == Brightness.dark;
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
 
         return Container(
           constraints: BoxConstraints(
@@ -328,96 +336,101 @@ ElevatedButton.icon(
             left: 20,
             right: 20,
             top: 20,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+            bottom: bottomInset > 0 ? bottomInset + 16 : 20,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Edit Offering', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    onPressed: () => Navigator.of(sheetContext).pop(),
-                  ),
-                ],
-              ),
-              const Divider(height: 16),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Title', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: titleCtrl,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Edit Offering', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Title', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: titleCtrl,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text('Description', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: descCtrl,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        const SizedBox(height: 14),
+                        Text('Description', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: descCtrl,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text('Price (₹ / INR)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: priceCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          prefixText: '₹ ',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        const SizedBox(height: 14),
+                        Text('Price (₹ / INR)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: priceCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            prefixText: '₹ ',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text('Deliverable / Format Badge', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: deliverableCtrl,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        const SizedBox(height: 14),
+                        Text('Deliverable / Format Badge', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: deliverableCtrl,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () {
+                      final cleanPrice = priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '');
+                      final updated = service.copyWith(
+                        title: titleCtrl.text.trim(),
+                        description: descCtrl.text.trim(),
+                        price: double.tryParse(cleanPrice) ?? service.price,
+                        deliverable: deliverableCtrl.text.trim(),
+                      );
+                      Navigator.of(sheetContext).pop();
+                      controller.updateService(updated);
+                    },
+                    child: Text('Save Changes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
-                  onPressed: () {
-                    final cleanPrice = priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '');
-                    final updated = service.copyWith(
-                      title: titleCtrl.text.trim(),
-                      description: descCtrl.text.trim(),
-                      price: double.tryParse(cleanPrice) ?? service.price,
-                      deliverable: deliverableCtrl.text.trim(),
-                    );
-                    Navigator.of(sheetContext).pop();
-                    controller.updateService(updated);
-                  },
-                  child: Text('Save Changes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
