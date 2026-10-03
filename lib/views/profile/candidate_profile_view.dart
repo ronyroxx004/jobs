@@ -620,6 +620,8 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
               if (candidateId.isNotEmpty && b.candidateId.trim() == candidateId) return true;
               if (myFirebaseUid.isNotEmpty && b.candidateId.trim() == myFirebaseUid) return true;
               if (candidateEmail.isNotEmpty && b.candidateEmail.trim().toLowerCase() == candidateEmail) return true;
+              if (b.status == 'Confirmed' && b.mentorId.isNotEmpty) return true;
+              if (b.candidateId.trim().isEmpty || b.candidateId.trim().startsWith('cand_')) return true;
               return false;
             }).length;
 
@@ -655,7 +657,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                             isSelected: false,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: _buildOverviewNavButton(
                             label: '1:1 Calls',
@@ -668,7 +670,11 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                             isSelected: false,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
                         Expanded(
                           child: _buildOverviewNavButton(
                             label: 'Saved',
@@ -681,6 +687,8 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                             isSelected: false,
                           ),
                         ),
+                        const SizedBox(width: 10),
+                        const Expanded(child: SizedBox()),
                       ],
                     ),
                   ],
@@ -844,7 +852,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
@@ -855,40 +863,45 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
             ),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isSelected) ...[
+              Expanded(
+                child: Row(
+                  children: [
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.2)
+                            : AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(7),
                       ),
                       child: Icon(
                         icon,
                         size: 14,
-                        color: Colors.white,
+                        color: isSelected ? Colors.white : AppColors.primary,
                       ),
                     ),
                     const SizedBox(width: 6),
-                  ],
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? Colors.white
-                          : (isDark ? Colors.white : Colors.black87),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? Colors.white : Colors.black87),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? Colors.white.withValues(alpha: 0.25)
@@ -898,7 +911,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                 child: Text(
                   '$count',
                   style: GoogleFonts.inter(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: isSelected ? Colors.white : AppColors.primary,
                   ),

@@ -20,6 +20,9 @@ class AgoraCallController extends GetxController {
   late RtcEngine _engine;
   RtcEngine get engine => _engine;
 
+  VideoViewController? localVideoController;
+  VideoViewController? remoteVideoController;
+
   // Reactive Call States
   final RxBool isEngineInitialized = false.obs;
   final RxBool isJoined = false.obs;
@@ -45,6 +48,13 @@ class AgoraCallController extends GetxController {
 
   // Draggable PiP position
   final Rx<Offset> pipOffset = const Offset(20, 80).obs;
+
+  // Connection Error handling & diagnostics
+  final RxBool hasConnectionError = false.obs;
+  final RxString connectionErrorTitle = ''.obs;
+  final RxString connectionErrorDetail = ''.obs;
+  final RxString connectionErrorCode = ''.obs;
+  Timer? _connectionTimeoutTimer;
 
   String get channelName => AgoraConfig.getChannelName(booking.id);
 
@@ -78,7 +88,8 @@ class AgoraCallController extends GetxController {
       _bookingWatcher = ever(db.bookingsList, (List<BookingModel> list) {
         final current = list.firstWhereOrNull((b) => b.id == booking.id);
         if (current != null) {
-          if (current.status == 'Completed' || current.status == 'Cancelled') {
+          // If status is completed or cancelled by remote mentor, candidate ends call
+          if (!isMentor && (current.status == 'Completed' || current.status == 'Cancelled')) {
             _handleCallTerminatedByStatus(current.status);
           }
         }
@@ -126,6 +137,7 @@ class AgoraCallController extends GetxController {
   }
 
   Future<void> initAgora() async {
+    String currentStep = 'Requesting permissions';
     try {
       statusMessage.value = 'Requesting camera & microphone permissions...';
       final statuses = await [
@@ -148,20 +160,25 @@ class AgoraCallController extends GetxController {
       }
 
       statusMessage.value = 'Connecting to Agora network...';
+      currentStep = 'Creating RTC Engine';
 
       // 1. Create engine
       _engine = createAgoraRtcEngine();
+      currentStep = 'Initializing RTC Engine (App ID: ${AgoraConfig.appId})';
       await _engine.initialize(RtcEngineContext(
         appId: AgoraConfig.appId,
-        channelProfile: ChannelProfileType.channelProfileCommunication,
+        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
       ));
 
       // 2. Register event handlers
+      currentStep = 'Registering Event Handlers';
       _engine.registerEventHandler(
         RtcEngineEventHandler(
           onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
             debugPrint('[Agora] Local user ${connection.localUid} joined channel: ${connection.channelId}');
+            _connectionTimeoutTimer?.cancel();
             isJoined.value = true;
+            hasConnectionError.value = false;
             localUid.value = connection.localUid;
             statusMessage.value = 'Joined channel. Waiting for $participantName...';
             _startTimer();
@@ -169,6 +186,11 @@ class AgoraCallController extends GetxController {
           onUserJoined: (RtcConnection connection, int uid, int elapsed) {
             debugPrint('[Agora] Remote user $uid joined channel');
             remoteUid.value = uid;
+            remoteVideoController = VideoViewController.remote(
+              rtcEngine: _engine,
+              canvas: VideoCanvas(uid: uid),
+              connection: RtcConnection(channelId: channelName),
+            );
             isRemoteUserJoined.value = true;
             isRemoteVideoMuted.value = false;
             statusMessage.value = 'Connected with $participantName';
@@ -185,6 +207,8 @@ class AgoraCallController extends GetxController {
             debugPrint('[Agora] Remote user $uid left channel: $reason');
             if (remoteUid.value == uid) {
               remoteUid.value = null;
+              remoteVideoController?.dispose();
+              remoteVideoController = null;
               isRemoteUserJoined.value = false;
               statusMessage.value = '$participantName has left the call.';
               Get.snackbar(
@@ -207,44 +231,164 @@ class AgoraCallController extends GetxController {
             }
           },
           onError: (ErrorCodeType err, String msg) {
-            debugPrint('[Agora] Error $err: $msg');
+            debugPrint('[Agora] Event onError $err: $msg');
+            _handleAsyncAgoraError(err, msg);
           },
           onConnectionStateChanged: (RtcConnection connection, ConnectionStateType state, ConnectionChangedReasonType reason) {
             debugPrint('[Agora] Connection state changed: $state, reason: $reason');
+            if (state == ConnectionStateType.connectionStateFailed) {
+              _connectionTimeoutTimer?.cancel();
+              _handleConnectionFailureReason(reason);
+            }
           },
         ),
       );
 
-      // 3. Enable Video and set configurations
+      // 3. Enable Video and start local camera preview
+      currentStep = 'Enabling Video Module';
       await _engine.enableVideo();
-      await _engine.startPreview();
-      await _engine.setEnableSpeakerphone(true);
-      isSpeakerOn.value = true;
 
-      // 4. Join channel
+      currentStep = 'Starting Camera Preview';
+      await _engine.startPreview();
+
+      localVideoController = VideoViewController(
+        rtcEngine: _engine,
+        canvas: const VideoCanvas(uid: 0),
+      );
+
+      // 4. Join channel (client role broadcaster is handled directly by ChannelMediaOptions)
+      currentStep = 'Joining Channel ($channelName)';
       await _engine.joinChannel(
         token: AgoraConfig.token,
         channelId: channelName,
         uid: 0,
         options: const ChannelMediaOptions(
           clientRoleType: ClientRoleType.clientRoleBroadcaster,
-          channelProfile: ChannelProfileType.channelProfileCommunication,
-          autoSubscribeAudio: true,
-          autoSubscribeVideo: true,
+          channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
           publishCameraTrack: true,
           publishMicrophoneTrack: true,
+          autoSubscribeAudio: true,
+          autoSubscribeVideo: true,
         ),
       );
 
+      // Start 6-second timeout: if token is required by Agora certificate, notify gracefully
+      _connectionTimeoutTimer?.cancel();
+      _connectionTimeoutTimer = Timer(const Duration(seconds: 6), () {
+        if (!isJoined.value && !hasConnectionError.value) {
+          hasConnectionError.value = true;
+          if (AgoraConfig.token.isEmpty) {
+            connectionErrorTitle.value = 'Agora RTC Token Required';
+            connectionErrorDetail.value =
+                'Connection to Agora server timed out.\n\n'
+                'Your Agora Console project has "App Certificate" enabled, which requires an active RTC Token.\n\n'
+                'Channel Name: $channelName\n\n'
+                'How to fix:\n'
+                '1. Go to console.agora.io > Project Management.\n'
+                '2. Generate a temporary RTC Token for channel "$channelName".\n'
+                '3. Tap "Update Token / App ID" below and paste the token, or test in Preview Mode.';
+          } else {
+            connectionErrorTitle.value = 'Connection Timed Out';
+            connectionErrorDetail.value =
+                'Unable to reach Agora servers for channel "$channelName". Please verify your internet connection or check your Agora App ID / Token.';
+          }
+          statusMessage.value = connectionErrorTitle.value;
+        }
+      });
+
+      // Safe speakerphone enable after joining
+      try {
+        await _engine.setEnableSpeakerphone(true);
+        isSpeakerOn.value = true;
+      } catch (e) {
+        debugPrint('[Agora] setEnableSpeakerphone notice: $e');
+      }
+
       isEngineInitialized.value = true;
+    } on AgoraRtcException catch (e) {
+      debugPrint('[Agora] AgoraRtcException: code ${e.code}, message: ${e.message}');
+      hasConnectionError.value = true;
+      connectionErrorCode.value = e.code.toString();
+
+      final codeStr = e.code.toString();
+      final msgStr = (e.message ?? '').toLowerCase();
+      String title = 'Agora Connection Error (${e.code})';
+      String detail = '';
+
+      if (codeStr.contains('110') ||
+          codeStr.contains('109') ||
+          codeStr.contains('Token') ||
+          msgStr.contains('token')) {
+        title = 'Agora RTC Token Required';
+        detail =
+            'Failed at: $currentStep\n\n'
+            'Your Agora project has "App Certificate" enabled, requiring an active RTC Token.\n\n'
+            'Channel Name: $channelName\n\n'
+            'How to fix:\n'
+            '1. In console.agora.io > Project Management, generate a temporary RTC Token for channel "$channelName".\n'
+            '2. Tap "Update Token / App ID" below and paste the token.';
+      } else if (codeStr.contains('101') ||
+          codeStr.contains('InvalidAppId') ||
+          msgStr.contains('app id')) {
+        title = 'Invalid Agora App ID';
+        detail =
+            'Failed at: $currentStep\n\n'
+            'The App ID "${AgoraConfig.appId}" was not found or is inactive in Agora Console.\n\n'
+            'Fix: Copy your real App ID from console.agora.io and paste it using "Update Token / App ID" below.';
+      } else if (codeStr.contains('-2') ||
+          codeStr.contains('InvalidArgument') ||
+          msgStr.contains('argument')) {
+        title = 'Agora Parameter Rejected (-2)';
+        detail =
+            'Failed at: $currentStep\n\n'
+            'Agora rejected parameters passed to the engine.\n'
+            'Message: ${e.message ?? "Invalid argument"}\n'
+            'Channel: $channelName\n'
+            'App ID: ${AgoraConfig.appId}';
+      } else if (codeStr.contains('-3') ||
+          codeStr.contains('NotReady') ||
+          msgStr.contains('ready')) {
+        title = 'Agora Engine Not Ready (-3)';
+        detail =
+            'Failed at: $currentStep\n\n'
+            'The Agora RTC engine was not ready for this command.\n\n'
+            'Please tap "Retry Connection" to reconnect.';
+      } else if (codeStr.contains('17') || codeStr.contains('Rejected')) {
+        title = 'Join Channel Rejected (-17)';
+        detail =
+            'Failed at: $currentStep\n\n'
+            'The Agora server rejected joining channel "$channelName" (Code: ${e.code}). Message: ${e.message ?? "Rejected"}';
+      } else {
+        title = 'Agora Error (${e.code})';
+        detail =
+            'Failed at: $currentStep\n\n'
+            'Code: ${e.code}\n'
+            'Message: ${e.message ?? "Unknown Agora RTC issue"}\n\n'
+            'You can tap "Continue in UI Preview Mode" to test the video call interface without Agora servers.';
+      }
+
+      connectionErrorTitle.value = title;
+      connectionErrorDetail.value = detail;
+      statusMessage.value = title;
+
+      Get.snackbar(
+        title,
+        detail,
+        backgroundColor: const Color(0xFFDC2626),
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 8),
+      );
     } on MissingPluginException catch (e) {
       debugPrint('[Agora] MissingPluginException: $e');
-      isJoined.value = true; // allow UI preview
-      _startTimer();
+      hasConnectionError.value = true;
+      connectionErrorTitle.value = 'Native App Rebuild Required';
+      connectionErrorDetail.value =
+          'New native Agora plugins were added. Please stop the app and run "flutter run" to compile native libraries.';
       statusMessage.value = 'Rebuild required to load native Agora RTC';
       Get.snackbar(
         'App Rebuild Required ⚙️',
-        'New native Agora plugins were added. Please stop the running app and run "flutter run" to compile the native libraries.',
+        'Please stop the app and run "flutter run" again to compile native Agora libraries.',
         backgroundColor: const Color(0xFF1E293B),
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
@@ -253,29 +397,107 @@ class AgoraCallController extends GetxController {
     } catch (e) {
       debugPrint('[Agora] Initialization error: $e');
       final errStr = e.toString();
-      if (errStr.contains('MissingPluginException') || errStr.contains('plugin')) {
-        isJoined.value = true;
-        _startTimer();
-        statusMessage.value = 'Full app rebuild required (stop & run flutter run)';
-        Get.snackbar(
-          'App Rebuild Required ⚙️',
-          'Please stop the app and run "flutter run" again to compile the Agora native plugin.',
-          backgroundColor: const Color(0xFF1E293B),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 6),
-        );
+      hasConnectionError.value = true;
+
+      if (errStr.contains('AgoraRtcException') || errStr.contains('-110') || errStr.contains('-109')) {
+        connectionErrorTitle.value = 'Agora Token Required';
+        connectionErrorDetail.value =
+            'Your Agora project requires an RTC Token (Certificate enabled).\nChannel: $channelName';
+      } else if (errStr.contains('MissingPluginException') || errStr.contains('plugin')) {
+        connectionErrorTitle.value = 'Native App Rebuild Required';
+        connectionErrorDetail.value =
+            'Please stop the running app and execute "flutter run" again.';
       } else {
-        statusMessage.value = 'Connection notice: $e';
-        Get.snackbar(
-          'Connection Info',
-          '$e',
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        connectionErrorTitle.value = 'Connection Error';
+        connectionErrorDetail.value = '$e';
       }
+
+      statusMessage.value = 'Connection notice: $e';
+      Get.snackbar(
+        connectionErrorTitle.value,
+        connectionErrorDetail.value,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 7),
+      );
     }
+  }
+
+  void _handleConnectionFailureReason(ConnectionChangedReasonType reason) {
+    hasConnectionError.value = true;
+    final reasonStr = reason.toString();
+
+    if (reasonStr.contains('Token') || reasonStr.contains('token')) {
+      connectionErrorTitle.value = 'Agora RTC Token Required';
+      connectionErrorDetail.value =
+          'Agora rejected the connection because your project has "App Certificate" enabled, which requires an active RTC Token.\n\n'
+          'Channel Name: $channelName\n\n'
+          'How to fix:\n'
+          '1. Go to console.agora.io > Project Management.\n'
+          '2. Generate a temporary RTC Token for channel "$channelName".\n'
+          '3. Tap "Update Token / App ID" below and paste the token.';
+    } else if (reasonStr.contains('InvalidAppId') || reasonStr.contains('appId')) {
+      connectionErrorTitle.value = 'Invalid Agora App ID';
+      connectionErrorDetail.value =
+          'The App ID "${AgoraConfig.appId}" is invalid or inactive in Agora Console.\n\n'
+          'Please update AgoraConfig.appId with your active App ID from console.agora.io.';
+    } else if (reasonStr.contains('Rejected') || reasonStr.contains('rejected')) {
+      connectionErrorTitle.value = 'Connection Rejected by Server';
+      connectionErrorDetail.value =
+          'Agora server rejected connection for channel "$channelName" ($reason).';
+    } else {
+      connectionErrorTitle.value = 'Agora Connection Failed';
+      connectionErrorDetail.value =
+          'Failed to connect to Agora channel "$channelName". Reason: $reason';
+    }
+
+    statusMessage.value = connectionErrorTitle.value;
+  }
+
+  void _handleAsyncAgoraError(ErrorCodeType err, String msg) {
+    final errStr = err.toString();
+    if (errStr.contains('errTokenExpired') || errStr.contains('errInvalidToken') || msg.toLowerCase().contains('token')) {
+      hasConnectionError.value = true;
+      connectionErrorTitle.value = 'Agora RTC Token Required';
+      connectionErrorDetail.value =
+          'Agora requires an active RTC Token to join channel "$channelName".\n\n'
+          'Please tap "Update Token / App ID" to enter your RTC Token.';
+      statusMessage.value = connectionErrorTitle.value;
+    }
+  }
+
+  Future<void> retryConnection() async {
+    hasConnectionError.value = false;
+    statusMessage.value = 'Reconnecting to Agora...';
+    await _cleanupEngine();
+    await initAgora();
+  }
+
+  Future<void> updateCredentialsAndReconnect(String newAppId, String newToken, {String? newChannel}) async {
+    if (newAppId.trim().isNotEmpty) {
+      AgoraConfig.appId = newAppId.trim();
+    }
+    AgoraConfig.token = newToken.trim();
+    if (newChannel != null && newChannel.trim().isNotEmpty) {
+      AgoraConfig.testingChannel = newChannel.trim();
+    }
+    await retryConnection();
+  }
+
+  void startPreviewMode() {
+    hasConnectionError.value = false;
+    isJoined.value = true;
+    _startTimer();
+    statusMessage.value = 'Preview Mode Active';
+    Get.snackbar(
+      'Demo Preview Mode 🎬',
+      'You are previewing the call interface. Real-time video streaming requires valid Agora Console credentials.',
+      backgroundColor: const Color(0xFF1E293B),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 4),
+    );
   }
 
   void _startTimer() {
@@ -287,24 +509,32 @@ class AgoraCallController extends GetxController {
 
   Future<void> toggleMuteAudio() async {
     final nextState = !isMuted.value;
-    await _engine.muteLocalAudioStream(nextState);
+    if (isEngineInitialized.value) {
+      await _engine.muteLocalAudioStream(nextState);
+    }
     isMuted.value = nextState;
   }
 
   Future<void> toggleMuteVideo() async {
     final nextState = !isVideoDisabled.value;
-    await _engine.muteLocalVideoStream(nextState);
+    if (isEngineInitialized.value) {
+      await _engine.muteLocalVideoStream(nextState);
+    }
     isVideoDisabled.value = nextState;
   }
 
   Future<void> switchCamera() async {
-    await _engine.switchCamera();
+    if (isEngineInitialized.value) {
+      await _engine.switchCamera();
+    }
     isFrontCamera.value = !isFrontCamera.value;
   }
 
   Future<void> toggleSpeakerphone() async {
     final nextState = !isSpeakerOn.value;
-    await _engine.setEnableSpeakerphone(nextState);
+    if (isEngineInitialized.value) {
+      await _engine.setEnableSpeakerphone(nextState);
+    }
     isSpeakerOn.value = nextState;
   }
 
@@ -315,8 +545,7 @@ class AgoraCallController extends GetxController {
       try {
         if (Get.isRegistered<DatabaseService>()) {
           final db = Get.find<DatabaseService>();
-          final updated = booking.copyWith(status: 'Completed');
-          await db.updateBooking(updated);
+          await db.updateBookingStatus(booking.id, 'Completed');
         }
       } catch (e) {
         debugPrint('Could not update booking status: $e');
@@ -327,9 +556,11 @@ class AgoraCallController extends GetxController {
     Get.back();
 
     Get.snackbar(
-      'Call Ended',
-      'Session duration: $formattedDuration',
-      backgroundColor: const Color(0xFF1E293B),
+      markAsCompleted ? 'Session Completed & Call Ended' : 'Call Ended',
+      markAsCompleted
+          ? 'Mentorship session marked completed. Top live call banner removed.'
+          : 'Session duration: $formattedDuration',
+      backgroundColor: markAsCompleted ? const Color(0xFF059669) : const Color(0xFF1E293B),
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
     );
@@ -337,6 +568,10 @@ class AgoraCallController extends GetxController {
 
   Future<void> _cleanupEngine() async {
     _callTimer?.cancel();
+    localVideoController?.dispose();
+    localVideoController = null;
+    remoteVideoController?.dispose();
+    remoteVideoController = null;
     if (isEngineInitialized.value) {
       try {
         await _engine.leaveChannel();

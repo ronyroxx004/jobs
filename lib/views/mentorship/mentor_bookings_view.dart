@@ -6,7 +6,6 @@ import '../../controllers/mentorship_controller.dart';
 import '../../services/database_service.dart';
 import '../../models/service_model.dart';
 import '../../core/utils/constants.dart';
-import '../call/agora_video_call_view.dart';
 
 class MentorBookingsView extends GetView<MentorshipController> {
   const MentorBookingsView({super.key});
@@ -303,26 +302,37 @@ class MentorBookingsView extends GetView<MentorshipController> {
           if (booking.status != 'Cancelled') ...[
             Row(
               children: [
-                // Join Agora Video Call Button
+                // Join / Restart Agora Video Call Button
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF059669),
+                      backgroundColor: booking.status == 'Completed'
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF059669),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     ),
-                    onPressed: () => AgoraVideoCallView.startCall(
-                      context,
-                      booking: booking,
-                      isMentor: true,
-                    ),
-                    icon: const Padding(
-                      padding: EdgeInsets.only(left: 6, right: 2),
-                      child: Icon(Icons.videocam_rounded, size: 18),
+                    onPressed: () {
+                      if (booking.status == 'Completed') {
+                        controller.restartServiceCall(context, booking);
+                      } else {
+                        controller.startBookingCallAsMentor(context, booking);
+                      }
+                    },
+                    icon: Padding(
+                      padding: const EdgeInsets.only(left: 4, right: 2),
+                      child: Icon(
+                        booking.status == 'Completed'
+                            ? Icons.replay_rounded
+                            : Icons.videocam_rounded,
+                        size: 18,
+                      ),
                     ),
                     label: Text(
-                      'Agora Video Call',
+                      booking.status == 'Completed'
+                          ? 'Start Call Again'
+                          : (booking.status == 'Started' ? 'Enter Call' : 'Start Video Call'),
                       style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -342,8 +352,12 @@ class MentorBookingsView extends GetView<MentorshipController> {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (val) {
-                    if (val == 'complete') {
+                    if (val == 'start') {
+                      controller.startBookingCallAsMentor(context, booking);
+                    } else if (val == 'complete') {
                       controller.markBookingCompleted(booking.id);
+                    } else if (val == 'restart') {
+                      controller.restartServiceCall(context, booking);
                     } else if (val == 'cancel') {
                       controller.cancelBooking(booking.id);
                     } else if (val == 'copy') {
@@ -354,12 +368,34 @@ class MentorBookingsView extends GetView<MentorshipController> {
                   itemBuilder: (context) => [
                     if (booking.status != 'Completed')
                       const PopupMenuItem(
+                        value: 'start',
+                        child: Row(
+                          children: [
+                            Icon(Icons.videocam_rounded, color: Color(0xFF059669), size: 18),
+                            SizedBox(width: 8),
+                            Text('Start Video Call'),
+                          ],
+                        ),
+                      ),
+                    if (booking.status != 'Completed')
+                      const PopupMenuItem(
                         value: 'complete',
                         child: Row(
                           children: [
                             Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
                             SizedBox(width: 8),
                             Text('Mark Completed'),
+                          ],
+                        ),
+                      ),
+                    if (booking.status == 'Completed')
+                      const PopupMenuItem(
+                        value: 'restart',
+                        child: Row(
+                          children: [
+                            Icon(Icons.replay_rounded, color: Colors.blueAccent, size: 18),
+                            SizedBox(width: 8),
+                            Text('Start Call Again'),
                           ],
                         ),
                       ),
@@ -373,16 +409,17 @@ class MentorBookingsView extends GetView<MentorshipController> {
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
-                      value: 'cancel',
-                      child: Row(
-                        children: [
-                          Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
-                          SizedBox(width: 8),
-                          Text('Cancel Session'),
-                        ],
+                    if (booking.status != 'Completed')
+                      const PopupMenuItem(
+                        value: 'cancel',
+                        child: Row(
+                          children: [
+                            Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
+                            SizedBox(width: 8),
+                            Text('Cancel Session'),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ],
@@ -398,6 +435,11 @@ class MentorBookingsView extends GetView<MentorshipController> {
     Color fg;
 
     switch (status) {
+      case 'Started':
+      case 'In Progress':
+        bg = const Color(0xFFDCFCE7);
+        fg = const Color(0xFF15803D);
+        break;
       case 'Completed':
         bg = const Color(0xFFD1FAE5);
         fg = const Color(0xFF065F46);

@@ -191,7 +191,13 @@ class MentorshipController extends GetxController {
   }
 
   List<BookingModel> get upcomingBookings {
-    return mentorBookings.where((b) => b.status == 'Confirmed' || b.status == 'Rescheduled').toList();
+    return mentorBookings
+        .where((b) =>
+            b.status == 'Confirmed' ||
+            b.status == 'Rescheduled' ||
+            b.status == 'Started' ||
+            b.status == 'In Progress')
+        .toList();
   }
 
   List<BookingModel> get completedBookings {
@@ -544,10 +550,120 @@ class MentorshipController extends GetxController {
     await _dbService.updateBookingStatus(bookingId, 'Completed');
     Get.snackbar(
       'Session Completed! 🎉',
-      'This 1:1 call has been marked as completed and active call session ended.',
+      'This 1:1 call has been marked as completed and removed from top banner.',
       backgroundColor: const Color(0xFF059669),
       colorText: Colors.white,
       snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  Future<void> restartServiceCall(BuildContext context, BookingModel booking) async {
+    final now = DateTime.now();
+    // 1. Set status to 'Started' in database with now timestamp so candidate login sees it live
+    await _dbService.updateBookingStatus(
+      booking.id,
+      'Started',
+      rescheduledAt: now,
+    );
+
+    // 2. Launch Agora Video Call as mentor
+    final targetContext = Get.context ?? context;
+    AgoraVideoCallView.startCall(
+      targetContext,
+      booking: booking.copyWith(status: 'Started', scheduledAt: now),
+      isMentor: true,
+    );
+
+    Get.snackbar(
+      '1:1 Call Restarted 🎥',
+      'The video session is live. Candidate can now join.',
+      backgroundColor: const Color(0xFF059669),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 4),
+    );
+  }
+
+  Future<void> startBookingCallAsMentor(BuildContext context, BookingModel booking) async {
+    final now = DateTime.now();
+    // Set status to 'Started' and scheduled for now so candidate sees it immediately
+    await _dbService.updateBookingStatus(
+      booking.id,
+      'Started',
+      rescheduledAt: now,
+    );
+
+    final targetContext = Get.context ?? context;
+    AgoraVideoCallView.startCall(
+      targetContext,
+      booking: booking.copyWith(status: 'Started', scheduledAt: now),
+      isMentor: true,
+    );
+
+    Get.snackbar(
+      '1:1 Video Call Live 🎥',
+      'Session with ${booking.candidateName.isNotEmpty ? booking.candidateName : "Candidate"} is live. Candidate can now join.',
+      backgroundColor: const Color(0xFF059669),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 4),
+    );
+  }
+
+  Future<void> startServiceCallFromOffering(
+    BuildContext context,
+    MentorshipServiceModel service,
+  ) async {
+    // Check if there are existing bookings for this 1:1 service
+    final bookingsForService = allBookings
+        .where((b) => b.serviceId == service.id)
+        .toList();
+
+    if (bookingsForService.isNotEmpty) {
+      // Sort to pick the latest booking
+      bookingsForService.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      final latest = bookingsForService.first;
+      await startBookingCallAsMentor(context, latest);
+      return;
+    }
+
+    // If no prior booking exists, create an on-demand active session for this 1:1 service
+    final mentorId = _authService.currentUser.value?.id ?? service.mentorId;
+    final mentorName = _authService.currentUser.value?.name ?? service.mentorName;
+
+    final onDemandBooking = BookingModel(
+      id: 'session_${DateTime.now().millisecondsSinceEpoch}',
+      serviceId: service.id,
+      serviceTitle: service.title,
+      mentorId: mentorId,
+      mentorName: mentorName,
+      candidateId: '',
+      candidateName: 'Candidate / Mentee',
+      candidateEmail: '',
+      amount: service.price,
+      scheduledAt: DateTime.now(),
+      meetingUrl:
+          'https://meet.google.com/topmate-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      status: 'Started',
+      serviceType: service.serviceType,
+      userQuery: '1:1 Video Call Session',
+    );
+
+    await _dbService.createBooking(onDemandBooking);
+
+    final targetContext = Get.context ?? context;
+    AgoraVideoCallView.startCall(
+      targetContext,
+      booking: onDemandBooking,
+      isMentor: true,
+    );
+
+    Get.snackbar(
+      '1:1 Video Call Started 🎥',
+      'Session "${service.title}" is now live.',
+      backgroundColor: const Color(0xFF059669),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
     );
   }
 
@@ -576,7 +692,9 @@ class MentorshipController extends GetxController {
   }
 
   Future<void> saveMentorNotes(String bookingId, String notes) async {
-    await _dbService.updateBookingStatus(bookingId, 'Confirmed', mentorNotes: notes);
+    final existing = allBookings.firstWhereOrNull((b) => b.id == bookingId);
+    final status = existing?.status ?? 'Confirmed';
+    await _dbService.updateBookingStatus(bookingId, status, mentorNotes: notes);
     Get.snackbar('Notes Saved', 'Private session notes updated successfully',
         backgroundColor: AppColors.primary, colorText: Colors.white);
   }

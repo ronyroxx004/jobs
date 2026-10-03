@@ -6,6 +6,7 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import '../../controllers/agora_call_controller.dart';
 import '../../models/service_model.dart';
 import '../../core/utils/constants.dart';
+import '../../core/utils/agora_config.dart';
 
 class AgoraVideoCallView extends StatelessWidget {
   final BookingModel booking;
@@ -45,24 +46,25 @@ class AgoraVideoCallView extends StatelessWidget {
           body: SafeArea(
             child: Stack(
               children: [
-                // 1. Fullscreen Remote Video or Waiting View
+                // 1. Fullscreen Remote Video, Error State, or Waiting View
                 Positioned.fill(
                   child: Obx(() {
+                    if (controller.hasConnectionError.value) {
+                      return _buildErrorState(context, controller);
+                    }
+
                     if (!controller.isJoined.value) {
-                      return _buildLoadingState(controller);
+                      return _buildLoadingState(context, controller);
                     }
 
                     if (controller.isRemoteUserJoined.value &&
-                        controller.remoteUid.value != null) {
+                        controller.remoteUid.value != null &&
+                        controller.remoteVideoController != null) {
                       if (controller.isRemoteVideoMuted.value) {
                         return _buildRemoteVideoOff(controller);
                       }
                       return AgoraVideoView(
-                        controller: VideoViewController.remote(
-                          rtcEngine: controller.engine,
-                          canvas: VideoCanvas(uid: controller.remoteUid.value),
-                          connection: RtcConnection(channelId: controller.channelName),
-                        ),
+                        controller: controller.remoteVideoController!,
                       );
                     }
 
@@ -71,103 +73,105 @@ class AgoraVideoCallView extends StatelessWidget {
                 ),
 
                 // 2. Draggable Floating Local Camera Preview (PiP)
-                Obx(() {
-                  if (!controller.isJoined.value || controller.isVideoDisabled.value) {
-                    return const SizedBox.shrink();
-                  }
+                Positioned.fill(
+                  child: Obx(() {
+                    if (!controller.isJoined.value || controller.isVideoDisabled.value) {
+                      return const SizedBox.shrink();
+                    }
 
-                  return Positioned(
-                    top: controller.pipOffset.value.dy,
-                    left: controller.pipOffset.value.dx,
-                    child: GestureDetector(
-                      onPanUpdate: (details) {
-                        final size = MediaQuery.of(context).size;
-                        final newX = (controller.pipOffset.value.dx + details.delta.dx)
-                            .clamp(12.0, size.width - 132.0);
-                        final newY = (controller.pipOffset.value.dy + details.delta.dy)
-                            .clamp(80.0, size.height - 230.0);
-                        controller.pipOffset.value = Offset(newX, newY);
-                      },
-                      child: Container(
-                        width: 120,
-                        height: 165,
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 2,
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Transform.translate(
+                        offset: controller.pipOffset.value,
+                        child: GestureDetector(
+                          onPanUpdate: (details) {
+                            final size = MediaQuery.of(context).size;
+                            final newX = (controller.pipOffset.value.dx + details.delta.dx)
+                                .clamp(12.0, size.width - 132.0);
+                            final newY = (controller.pipOffset.value.dy + details.delta.dy)
+                                .clamp(80.0, size.height - 230.0);
+                            controller.pipOffset.value = Offset(newX, newY);
+                          },
+                          child: Container(
+                            width: 120,
+                            height: 165,
+                            decoration: BoxDecoration(
+                              color: Colors.black87,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.4),
+                                  blurRadius: 16,
+                                  spreadRadius: 2,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              children: [
+                                if (controller.isEngineInitialized.value &&
+                                    controller.localVideoController != null)
+                                  AgoraVideoView(
+                                    controller: controller.localVideoController!,
+                                  )
+                                else
+                                  Container(
+                                    color: const Color(0xFF1E293B),
+                                    child: const Center(
+                                      child: Icon(Icons.person, color: Colors.white70, size: 40),
+                                    ),
+                                  ),
+                                Positioned(
+                                  top: 6,
+                                  left: 6,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'You',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 4,
+                                  right: 4,
+                                  child: InkWell(
+                                    onTap: controller.switchCamera,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.6),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.flip_camera_ios_rounded,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.4),
-                              blurRadius: 16,
-                              spreadRadius: 2,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Stack(
-                          children: [
-                            if (controller.isEngineInitialized.value)
-                              AgoraVideoView(
-                                controller: VideoViewController(
-                                  rtcEngine: controller.engine,
-                                  canvas: const VideoCanvas(uid: 0),
-                                ),
-                              )
-                            else
-                              Container(
-                                color: const Color(0xFF1E293B),
-                                child: const Center(
-                                  child: Icon(Icons.person, color: Colors.white70, size: 40),
-                                ),
-                              ),
-                            Positioned(
-                              top: 6,
-                              left: 6,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'You',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 4,
-                              right: 4,
-                              child: InkWell(
-                                onTap: controller.switchCamera,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.flip_camera_ios_rounded,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
 
                 // 3. Top Floating Glass Header
                 Positioned(
@@ -192,7 +196,314 @@ class AgoraVideoCallView extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingState(AgoraCallController controller) {
+  Widget _buildErrorState(BuildContext context, AgoraCallController controller) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.12),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.redAccent.withOpacity(0.4), width: 2),
+              ),
+              child: const Icon(
+                Icons.videocam_off_rounded,
+                color: Colors.redAccent,
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Obx(
+              () => Text(
+                controller.connectionErrorTitle.value.isNotEmpty
+                    ? controller.connectionErrorTitle.value
+                    : 'Agora Connection Issue',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Obx(
+                    () => Text(
+                      controller.connectionErrorDetail.value.isNotEmpty
+                          ? controller.connectionErrorDetail.value
+                          : 'Failed to connect to Agora RTC channel.',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey[300],
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Divider(color: Colors.white12, height: 1),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.meeting_room_outlined, size: 16, color: Colors.blueAccent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Channel: ${controller.channelName}',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 12,
+                            color: Colors.grey[300],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 16, color: Colors.grey),
+                        tooltip: 'Copy Channel Name',
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: controller.channelName));
+                          Get.snackbar(
+                            'Copied',
+                            'Channel name copied to clipboard',
+                            duration: const Duration(seconds: 2),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.key_outlined, size: 16, color: Colors.amberAccent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'App ID: ${AgoraConfig.appId}',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            color: Colors.grey[400],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Primary: Update Credentials
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () => _showCredentialsDialog(context, controller),
+                icon: const Icon(Icons.vpn_key_rounded, size: 18),
+                label: Text(
+                  'Update Token / App ID',
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Secondary: Retry
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: controller.retryConnection,
+                icon: const Icon(Icons.refresh_rounded, size: 18, color: Colors.white70),
+                label: Text(
+                  'Retry Connection',
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white24),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Fallback: Preview / Demo Mode
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: TextButton.icon(
+                onPressed: controller.startPreviewMode,
+                icon: const Icon(Icons.play_circle_outline, size: 18, color: Color(0xFF10B981)),
+                label: Text(
+                  'Continue in UI Preview Mode (Demo)',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Exit
+            TextButton(
+              onPressed: () => Get.back(),
+              child: Text(
+                'Exit Call',
+                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[500]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCredentialsDialog(BuildContext context, AgoraCallController controller) {
+    final appIdCtrl = TextEditingController(text: AgoraConfig.appId);
+    final channelCtrl = TextEditingController(
+      text: AgoraConfig.testingChannel.isNotEmpty ? AgoraConfig.testingChannel : controller.channelName,
+    );
+    final tokenCtrl = TextEditingController(text: AgoraConfig.token);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Agora RTC Configuration',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Enter your active Agora App ID and RTC Token. Make sure the channel name matches the one used to generate the token.',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[400], height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: appIdCtrl,
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Agora App ID',
+                  labelStyle: GoogleFonts.inter(color: Colors.grey[400], fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF0F172A),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.white12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: channelCtrl,
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Channel Name (e.g. job)',
+                  labelStyle: GoogleFonts.inter(color: Colors.grey[400], fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF0F172A),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.white12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: tokenCtrl,
+                maxLines: 3,
+                style: GoogleFonts.inter(color: Colors.white, fontSize: 12),
+                decoration: InputDecoration(
+                  labelText: 'Agora RTC Token',
+                  labelStyle: GoogleFonts.inter(color: Colors.grey[400], fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFF0F172A),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.white12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    controller.updateCredentialsAndReconnect(
+                      appIdCtrl.text,
+                      tokenCtrl.text,
+                      newChannel: channelCtrl.text,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    'Save & Reconnect',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingState(BuildContext context, AgoraCallController controller) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -224,6 +535,37 @@ class AgoraVideoCallView extends StatelessWidget {
                 style: GoogleFonts.inter(fontSize: 13, color: Colors.grey[400]),
                 textAlign: TextAlign.center,
               )),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: () => _showCredentialsDialog(context, controller),
+                icon: const Icon(Icons.vpn_key_rounded, size: 16, color: Colors.blueAccent),
+                label: Text(
+                  'Enter Token',
+                  style: GoogleFonts.inter(fontSize: 12, color: Colors.blueAccent),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: controller.startPreviewMode,
+                icon: const Icon(Icons.play_circle_outline, size: 16, color: Color(0xFF10B981)),
+                label: Text(
+                  'Preview Mode',
+                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF10B981)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

@@ -277,6 +277,20 @@ class MentorServicesView extends GetView<MentorshipController> {
                 ],
               ),
               const Spacer(),
+              if (service.serviceType == '1:1 Call') ...[
+                TextButton.icon(
+                  onPressed: () => controller.startServiceCallFromOffering(context, service),
+                  icon: const Icon(Icons.videocam_rounded, size: 16, color: Color(0xFF059669)),
+                  label: Text(
+                    'Start Call',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF059669),
+                    ),
+                  ),
+                ),
+              ],
               // Edit button
               TextButton.icon(
                 onPressed: () => _showEditServiceDialog(context, service),

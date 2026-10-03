@@ -272,40 +272,86 @@ class _HomeViewState extends State<HomeView> {
     if (!isLoggedIn) return null;
     if (!Get.isRegistered<DatabaseService>()) return null;
     final db = Get.find<DatabaseService>();
+    final allBookings = db.bookingsList.toList();
+    if (allBookings.isEmpty) return null;
+
     final authService = Get.isRegistered<AuthService>() ? Get.find<AuthService>() : null;
-    final myUid = authService?.currentUser.value?.id ?? '';
-    final myFirebaseUid = authService?.firebaseUser.value?.uid ?? '';
+    final myUid = (authService?.currentUser.value?.id ?? '').trim();
+    final myFirebaseUid = (authService?.firebaseUser.value?.uid ?? '').trim();
     final myEmail = (authService?.currentUser.value?.email ?? '').trim().toLowerCase();
 
     final now = DateTime.now();
 
-    for (final b in db.bookingsList) {
-      if (b.status == 'Cancelled' || b.status == 'Completed') continue;
+    BookingModel? bestBooking;
+    int bestDiffSeconds = 999999999;
+
+    for (final b in allBookings) {
+      final status = b.status.trim().toLowerCase();
+      // If service 1:1 video call is marked or completed, remove it from top
+      if (status == 'cancelled' || status == 'completed' || status == 'complete') {
+        continue;
+      }
 
       bool isMyCall = false;
       if (role == UserRole.mentor) {
-        if (b.mentorId == myUid || b.mentorId == myFirebaseUid) isMyCall = true;
-        if (myEmail.isNotEmpty && b.mentorName.toLowerCase().contains(myEmail)) isMyCall = true;
-        // If logged in as mentor and there's a confirmed booking
-        if (b.mentorId.isNotEmpty) isMyCall = true;
+        // Only show live banner if mentor has started the call session
+        if (status != 'started' && status != 'in progress') {
+          continue;
+        }
+        if (myUid.isNotEmpty && b.mentorId.trim() == myUid) {
+          isMyCall = true;
+        } else if (myFirebaseUid.isNotEmpty && b.mentorId.trim() == myFirebaseUid) {
+          isMyCall = true;
+        } else if (myEmail.isNotEmpty &&
+            b.mentorName.trim().toLowerCase().contains(myEmail)) {
+          isMyCall = true;
+        } else if (myUid.isEmpty && myFirebaseUid.isEmpty && myEmail.isEmpty) {
+          isMyCall = true;
+        }
       } else if (role == UserRole.candidate) {
-        if (b.candidateId == myUid || b.candidateId == myFirebaseUid) isMyCall = true;
-        if (myEmail.isNotEmpty && b.candidateEmail.toLowerCase() == myEmail) isMyCall = true;
+        // Only show top live call banner for candidate when mentor has started the video call
+        if (status != 'started' && status != 'in progress') {
+          continue;
+        }
+
+        if (myUid.isNotEmpty && b.candidateId.trim() == myUid) {
+          isMyCall = true;
+        } else if (myFirebaseUid.isNotEmpty && b.candidateId.trim() == myFirebaseUid) {
+          isMyCall = true;
+        } else if (myEmail.isNotEmpty &&
+            b.candidateEmail.trim().toLowerCase() == myEmail) {
+          isMyCall = true;
+        } else if (b.candidateId.trim().isEmpty ||
+            b.candidateEmail.trim().isEmpty ||
+            b.candidateId.trim().startsWith('cand_') ||
+            b.candidateName.trim().toLowerCase().contains('candidate') ||
+            b.candidateName.trim().toLowerCase().contains('mentee')) {
+          // Open / on-demand 1:1 call started by mentor for candidate
+          isMyCall = true;
+        } else if (myUid.isEmpty && myFirebaseUid.isEmpty && myEmail.isEmpty) {
+          isMyCall = true;
+        }
       }
 
       if (isMyCall) {
-        // Active if scheduled within today or past 2 hours to next 24 hours
+        // Active if scheduled within today or past 24 hours to next 48 hours
         final diff = b.scheduledAt.difference(now);
-        if (diff.inHours >= -2 && diff.inHours <= 48) {
-          return b;
+        if (diff.inHours >= -24 && diff.inHours <= 48) {
+          final diffSec = diff.inSeconds.abs();
+          if (diffSec < bestDiffSeconds) {
+            bestDiffSeconds = diffSec;
+            bestBooking = b;
+          }
         }
       }
     }
-    return null;
+    return bestBooking;
   }
 
   Widget _buildLiveCallBanner(BuildContext context, BookingModel booking, bool isMentor) {
-    final otherName = isMentor ? booking.candidateName : booking.mentorName;
+    final otherName = isMentor
+        ? (booking.candidateName.trim().isNotEmpty ? booking.candidateName : 'Candidate')
+        : (booking.mentorName.trim().isNotEmpty ? booking.mentorName : 'Mentor');
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -375,6 +421,24 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           const SizedBox(width: 8),
+          if (isMentor) ...[
+            IconButton(
+              icon: const Icon(Icons.check_circle_outline, color: Colors.white70, size: 22),
+              tooltip: 'Mark Complete & Dismiss',
+              onPressed: () async {
+                final db = Get.find<DatabaseService>();
+                await db.updateBookingStatus(booking.id, 'Completed');
+                Get.snackbar(
+                  '1:1 Call Completed',
+                  'Live session marked complete and banner removed from top.',
+                  backgroundColor: const Color(0xFF065F46),
+                  colorText: Colors.white,
+                  snackPosition: SnackPosition.TOP,
+                );
+              },
+            ),
+            const SizedBox(width: 4),
+          ],
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,

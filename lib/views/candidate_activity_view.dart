@@ -873,6 +873,15 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
           b.candidateEmail.trim().toLowerCase() == candidateEmail) {
         return true;
       }
+      if (b.status == 'Confirmed' && b.mentorId.isNotEmpty) {
+        return true;
+      }
+      if (b.candidateId.trim().isEmpty ||
+          b.candidateId.trim().startsWith('cand_') ||
+          b.candidateName.trim().toLowerCase().contains('candidate') ||
+          b.candidateName.trim().toLowerCase().contains('mentee')) {
+        return true;
+      }
       return false;
     }).toList();
 
@@ -1075,7 +1084,32 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
               const SizedBox(height: 14),
 
               // Action Buttons
-              if (booking.status != 'Cancelled') ...[
+              if (booking.status == 'Completed') ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        '1:1 Session Completed',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF059669),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (booking.status != 'Cancelled') ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
