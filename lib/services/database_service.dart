@@ -1030,6 +1030,7 @@ class DatabaseService extends GetxService {
         }
       }
     }
+    list.sort((a, b) => b.effectiveCreatedAt.compareTo(a.effectiveCreatedAt));
     return list;
   }
 
@@ -1038,6 +1039,7 @@ class DatabaseService extends GetxService {
     // 1. Instantly mirror to local reactive state so UI reflects post with 0ms latency
     servicesList.removeWhere((s) => s.id == service.id);
     servicesList.insert(0, service);
+    servicesList.sort((a, b) => b.effectiveCreatedAt.compareTo(a.effectiveCreatedAt));
 
     // 2. Persist directly to Firebase Realtime Database with timeout protection
     final db = _db;
@@ -1099,6 +1101,7 @@ class DatabaseService extends GetxService {
     } else {
       servicesList.insert(0, service);
     }
+    servicesList.sort((a, b) => b.effectiveCreatedAt.compareTo(a.effectiveCreatedAt));
     final db = _db;
     if (db != null) {
       try {

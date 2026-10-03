@@ -388,7 +388,7 @@ class MentorBookingDialog {
                       controller: controller.menteeEmailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        hintText: 'e.g. alex@example.com',
+                        hintText: 'e.g. rohit@example.com',
                         prefixIcon: const Icon(Icons.email_outlined, size: 20),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

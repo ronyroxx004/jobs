@@ -66,24 +66,34 @@ class MentorListView extends GetView<MentorshipController> {
               children: [
                 'All',
                 '1:1 Call',
+                'Priority DM',
                 'Mock Interview',
                 'Resume Review',
-                'Priority DM',
                 'Webinar',
                 'Package',
               ].map((cat) {
                 return Obx(() {
-                  final isSelected = controller.selectedCategory.value == cat;
+                  final isSelected = controller.selectedCategory.value.trim().toLowerCase() ==
+                      cat.trim().toLowerCase();
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
+                    child: ChoiceChip(
+                      avatar: Icon(
+                        _iconForCategory(cat),
+                        size: 14,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : AppColors.primary),
+                      ),
                       label: Text(cat),
                       selected: isSelected,
-                      selectedColor: AppColors.primary.withValues(alpha: 0.15),
-                      checkmarkColor: AppColors.primary,
+                      selectedColor: AppColors.primary,
+                      backgroundColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : Colors.grey.withValues(alpha: 0.08),
                       labelStyle: GoogleFonts.inter(
                         color: isSelected
-                            ? AppColors.primary
+                            ? Colors.white
                             : (isDark ? Colors.white70 : Colors.black87),
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.w500,
@@ -387,6 +397,7 @@ class MentorListView extends GetView<MentorshipController> {
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Row(
                                     children: [
@@ -415,15 +426,16 @@ class MentorListView extends GetView<MentorshipController> {
                                   ),
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 18, vertical: 7),
+                                          horizontal: 24, vertical: 12),
+                                      minimumSize: const Size(96, 44),
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      minimumSize: Size.zero,
+                                      elevation: 2,
+                                      shadowColor: AppColors.primary
+                                          .withValues(alpha: 0.35),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                     onPressed: () => _handlePostTap(
@@ -431,9 +443,9 @@ class MentorListView extends GetView<MentorshipController> {
                                     child: Text(
                                       'Book',
                                       style: GoogleFonts.inter(
-                                        fontSize: 13,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.2,
+                                        letterSpacing: 0.3,
                                       ),
                                     ),
                                   ),
@@ -454,20 +466,43 @@ class MentorListView extends GetView<MentorshipController> {
     );
   }
 
+  static IconData _iconForCategory(String category) {
+    switch (category) {
+      case 'All':
+        return Icons.grid_view_rounded;
+      case '1:1 Call':
+        return Icons.video_call_rounded;
+      case 'Priority DM':
+        return Icons.bolt;
+      case 'Mock Interview':
+        return Icons.record_voice_over_rounded;
+      case 'Resume Review':
+        return Icons.description_outlined;
+      case 'Webinar':
+        return Icons.live_tv_rounded;
+      case 'Package':
+        return Icons.auto_awesome;
+      default:
+        return Icons.category_outlined;
+    }
+  }
+
   Color _badgeColor(String type) {
     switch (type) {
       case '1:1 Call':
         return AppColors.primary;
-      case 'Mock Interview':
-        return const Color(0xFFEA580C);
-      case 'Webinar':
-        return const Color(0xFF7C3AED);
       case 'Priority DM':
-        return const Color(0xFF0284C7);
-      case 'Digital Product':
-        return const Color(0xFF16A34A);
+        return const Color(0xFFF59E0B);
+      case 'Mock Interview':
+        return const Color(0xFF0EA5E9);
+      case 'Resume Review':
+        return const Color(0xFF14B8A6);
+      case 'Webinar':
+        return const Color(0xFFEC4899);
       case 'Package':
-        return const Color(0xFFDB2777);
+        return const Color(0xFF8B5CF6);
+      case 'Digital Product':
+        return const Color(0xFF10B981);
       default:
         return AppColors.secondary;
     }
@@ -476,17 +511,19 @@ class MentorListView extends GetView<MentorshipController> {
   IconData _serviceIcon(String type) {
     switch (type) {
       case '1:1 Call':
-        return Icons.videocam_rounded;
-      case 'Mock Interview':
-        return Icons.code_rounded;
-      case 'Webinar':
-        return Icons.groups_rounded;
+        return Icons.video_call_rounded;
       case 'Priority DM':
-        return Icons.chat_rounded;
+        return Icons.bolt;
+      case 'Mock Interview':
+        return Icons.record_voice_over_rounded;
+      case 'Resume Review':
+        return Icons.description_outlined;
+      case 'Webinar':
+        return Icons.live_tv_rounded;
+      case 'Package':
+        return Icons.auto_awesome;
       case 'Digital Product':
         return Icons.download_rounded;
-      case 'Package':
-        return Icons.all_inclusive_rounded;
       default:
         return Icons.star_rounded;
     }

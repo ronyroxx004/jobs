@@ -181,7 +181,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               const SizedBox(height: 6),
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(hintText: 'e.g. Alex Rivera'),
+                decoration: const InputDecoration(hintText: 'e.g. Rohit Shrivastava'),
               ),
               const SizedBox(height: 16),
 

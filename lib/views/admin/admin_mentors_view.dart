@@ -600,7 +600,7 @@ class _AdminMentorsViewState extends State<AdminMentorsView> {
 // ============================================================================
 // MENTOR CARD IN ADMIN LIST
 // ============================================================================
-class _MentorCard extends StatelessWidget {
+class _MentorCard extends StatefulWidget {
   final UserModel mentor;
   final AdminController controller;
   final VoidCallback onViewAllThings;
@@ -612,11 +612,23 @@ class _MentorCard extends StatelessWidget {
   });
 
   @override
+  State<_MentorCard> createState() => _MentorCardState();
+}
+
+class _MentorCardState extends State<_MentorCard> {
+  bool _showPosts = false;
+  bool _showBookings = false;
+
+  @override
   Widget build(BuildContext context) {
+    final mentor = widget.mentor;
+    final controller = widget.controller;
     final services = controller.servicesByMentor(mentor.id);
-    final bookings = controller.bookingsByMentor(mentor.id).length;
+    final mentorBookings = controller.bookingsByMentor(mentor.id);
+    final bookings = mentorBookings.length;
     final earnings = controller.mentorEarnings(mentor.id);
     final softDeletedCount = services.where((s) => s.isDeleted).length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -748,63 +760,76 @@ class _MentorCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
-            // Services preview rows
-            if (services.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'No mentorship sessions published yet.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              )
-            else
-              for (final service in services.take(3))
-                _ServiceRow(service: service, controller: controller),
-
-            if (services.length > 3)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Center(
-                  child: Text(
-                    '+ ${services.length - 3} more offerings',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 8),
-
-            // Action Buttons: "View All Things of Mentor" & Quick User Actions
+            // ONLY TWO BUTTONS: Posts and Bookings (and quick actions)
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: onViewAllThings,
-                    icon: const Icon(Icons.remove_red_eye_rounded, size: 16),
+                    onPressed: () {
+                      setState(() {
+                        _showPosts = !_showPosts;
+                        if (_showPosts) _showBookings = false;
+                      });
+                    },
+                    icon: Icon(
+                      _showPosts
+                          ? Icons.inventory_2_rounded
+                          : Icons.inventory_2_outlined,
+                      size: 16,
+                    ),
                     label: Text(
-                      'View All Things of Mentor',
+                      'Posts (${services.length})',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      foregroundColor: Colors.white,
+                      backgroundColor: _showPosts
+                          ? AppColors.secondary
+                          : AppColors.secondary.withValues(alpha: 0.12),
+                      foregroundColor: _showPosts
+                          ? Colors.white
+                          : AppColors.secondary,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _showBookings = !_showBookings;
+                        if (_showBookings) _showPosts = false;
+                      });
+                    },
+                    icon: Icon(
+                      _showBookings
+                          ? Icons.calendar_month_rounded
+                          : Icons.calendar_month_outlined,
+                      size: 16,
+                    ),
+                    label: Text(
+                      'Bookings ($bookings)',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _showBookings
+                          ? AppColors.primary
+                          : AppColors.primary.withValues(alpha: 0.12),
+                      foregroundColor: _showBookings
+                          ? Colors.white
+                          : AppColors.primary,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(
@@ -825,7 +850,8 @@ class _MentorCard extends StatelessWidget {
                   ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                        horizontal: 10, vertical: 10),
+                    minimumSize: Size.zero,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -839,6 +865,132 @@ class _MentorCard extends StatelessWidget {
                 ),
               ],
             ),
+
+            // If Posts clicked -> Show published posts details
+            if (_showPosts) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              if (services.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'No mentorship sessions published yet.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    for (final s in services)
+                      _ServiceDetailCard(
+                        service: s,
+                        controller: controller,
+                      ),
+                  ],
+                ),
+            ],
+
+            // If Bookings clicked -> Show bookings details
+            if (_showBookings) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              if (mentorBookings.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'No bookings received yet.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    for (final b in mentorBookings)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF1E1E2E)
+                              : Colors.grey.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : AppColors.borderLight,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    b.serviceTitle,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Candidate: ${b.candidateName.isNotEmpty ? b.candidateName : b.candidateEmail} • ${b.scheduledAt.day}/${b.scheduledAt.month}/${b.scheduledAt.year}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Status: ${b.status}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: b.status == 'Confirmed'
+                                          ? AppColors.secondary
+                                          : (b.status == 'Pending' ? AppColors.warning : Colors.grey),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '₹${b.amount.toStringAsFixed(0)}',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.secondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+            ],
           ],
         ),
       ),
@@ -846,168 +998,6 @@ class _MentorCard extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// SERVICE ROW INSIDE MENTOR CARD
-// ============================================================================
-class _ServiceRow extends StatelessWidget {
-  final MentorshipServiceModel service;
-  final AdminController controller;
-
-  const _ServiceRow({required this.service, required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    final isSoftDeleted = service.isDeleted;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: isSoftDeleted
-            ? Colors.orange.withValues(alpha: 0.08)
-            : Colors.grey.withValues(alpha: 0.06),
-        border: isSoftDeleted
-            ? Border.all(color: Colors.orange.withValues(alpha: 0.3))
-            : null,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isSoftDeleted
-                  ? Colors.orange.withValues(alpha: 0.15)
-                  : AppColors.secondary.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              isSoftDeleted
-                  ? Icons.archive_outlined
-                  : Icons.video_call_rounded,
-              size: 16,
-              color: isSoftDeleted ? Colors.orange[800] : AppColors.secondary,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        service.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          decoration: isSoftDeleted
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: isSoftDeleted
-                            ? Colors.orange.withValues(alpha: 0.2)
-                            : const Color(0xFF059669).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        isSoftDeleted ? 'Soft Deleted' : 'Live',
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: isSoftDeleted
-                              ? Colors.orange[800]
-                              : const Color(0xFF059669),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${service.category} • ${service.durationMinutes} min • ₹${service.price.toStringAsFixed(0)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // EDIT BUTTON
-          IconButton(
-            tooltip: 'Edit post',
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-            padding: const EdgeInsets.all(4),
-            icon: const Icon(
-              Icons.edit_rounded,
-              size: 17,
-              color: AppColors.primary,
-            ),
-            onPressed: () => _showEditServiceDialog(context, service, controller),
-          ),
-
-          // SOFT DELETE OR RESTORE BUTTON
-          if (!isSoftDeleted)
-            IconButton(
-              tooltip: 'Soft delete (hide from candidates)',
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-              padding: const EdgeInsets.all(4),
-              icon: Icon(
-                Icons.archive_outlined,
-                size: 17,
-                color: Colors.orange[800],
-              ),
-              onPressed: () => _confirmSoftDelete(context, service, controller),
-            )
-          else
-            IconButton(
-              tooltip: 'Restore post (make live)',
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-              padding: const EdgeInsets.all(4),
-              icon: const Icon(
-                Icons.unarchive_outlined,
-                size: 17,
-                color: Color(0xFF059669),
-              ),
-              onPressed: () => _confirmRestore(context, service, controller),
-            ),
-
-          // HARD REMOVE BUTTON
-          IconButton(
-            tooltip: 'Permanently remove',
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-            padding: const EdgeInsets.all(4),
-            icon: const Icon(
-              Icons.delete_outline_rounded,
-              size: 17,
-              color: Colors.redAccent,
-            ),
-            onPressed: () => _confirmPermanentDelete(context, service, controller),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ============================================================================
 // ADMIN POST CARD (IN ALL POSTS VIEW)
@@ -1177,53 +1167,28 @@ class _AdminPostCard extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Soft Delete or Restore Button
-                    if (!isSoftDeleted)
-                      ElevatedButton.icon(
-                        onPressed: () =>
-                            _confirmSoftDelete(context, service, controller),
-                        icon: const Icon(Icons.archive_outlined, size: 14),
-                        label: Text(
-                          'Soft Delete',
-                          style: GoogleFonts.inter(
-                              fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange[800] ?? Colors.orange,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 6),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      )
-                    else
-                      ElevatedButton.icon(
-                        onPressed: () =>
-                            _confirmRestore(context, service, controller),
-                        icon: const Icon(Icons.unarchive_outlined, size: 14),
-                        label: Text(
-                          'Restore',
-                          style: GoogleFonts.inter(
-                              fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF059669),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 6),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                    // Soft Delete or Restore Button (matching Delete permanently size)
+                    IconButton(
+                      tooltip: isSoftDeleted
+                          ? 'Restore post (make live)'
+                          : 'Soft delete (hide from candidates)',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                          minWidth: 32, minHeight: 32),
+                      padding: const EdgeInsets.all(4),
+                      icon: Icon(
+                        isSoftDeleted
+                            ? Icons.unarchive_outlined
+                            : Icons.archive_outlined,
+                        size: 18,
+                        color: isSoftDeleted
+                            ? const Color(0xFF059669)
+                            : Colors.orange[800],
                       ),
+                      onPressed: () => isSoftDeleted
+                          ? _confirmRestore(context, service, controller)
+                          : _confirmSoftDelete(context, service, controller),
+                    ),
                     const SizedBox(width: 4),
                     IconButton(
                       tooltip: 'Edit post',
@@ -1284,7 +1249,7 @@ void _showAllThingsOfMentorModal(
   );
 }
 
-class _AllThingsOfMentorSheet extends StatelessWidget {
+class _AllThingsOfMentorSheet extends StatefulWidget {
   final UserModel mentor;
   final AdminController controller;
 
@@ -1294,8 +1259,18 @@ class _AllThingsOfMentorSheet extends StatelessWidget {
   });
 
   @override
+  State<_AllThingsOfMentorSheet> createState() => _AllThingsOfMentorSheetState();
+}
+
+class _AllThingsOfMentorSheetState extends State<_AllThingsOfMentorSheet> {
+  bool _showPublishedPosts = false;
+  bool _showBookingsReceived = false;
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mentor = widget.mentor;
+    final controller = widget.controller;
     final services = controller.servicesByMentor(mentor.id);
     final bookings = controller.bookingsByMentor(mentor.id);
     final earnings = controller.mentorEarnings(mentor.id);
@@ -1456,6 +1431,11 @@ class _AllThingsOfMentorSheet extends StatelessWidget {
                           value: '$activePosts',
                           color: const Color(0xFF059669),
                           icon: Icons.check_circle_outline_rounded,
+                          onTap: () {
+                            setState(() {
+                              _showPublishedPosts = true;
+                            });
+                          },
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1465,6 +1445,11 @@ class _AllThingsOfMentorSheet extends StatelessWidget {
                           value: '$softDeletedPosts',
                           color: Colors.orange[800]!,
                           icon: Icons.archive_outlined,
+                          onTap: () {
+                            setState(() {
+                              _showPublishedPosts = true;
+                            });
+                          },
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1474,6 +1459,11 @@ class _AllThingsOfMentorSheet extends StatelessWidget {
                           value: '${bookings.length}',
                           color: AppColors.primary,
                           icon: Icons.calendar_today_rounded,
+                          onTap: () {
+                            setState(() {
+                              _showBookingsReceived = true;
+                            });
+                          },
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1599,116 +1589,370 @@ class _AllThingsOfMentorSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // --- ALL PUBLISHED POSTS & OFFERINGS ---
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Published Posts (${services.length})',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  // --- PUBLISHED POSTS & OFFERINGS TOGGLE BUTTON & LIST ---
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _showPublishedPosts
+                          ? AppColors.secondary.withValues(alpha: 0.06)
+                          : (isDark ? const Color(0xFF232338) : Colors.grey[100]),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _showPublishedPosts
+                            ? AppColors.secondary
+                            : (isDark ? Colors.white12 : Colors.grey[300]!),
+                        width: _showPublishedPosts ? 1.5 : 1,
                       ),
-                      Text(
-                        '$activePosts Live • $softDeletedPosts Soft Deleted',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (services.isEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'No mentorship posts created yet by this mentor.',
-                        style: GoogleFonts.inter(
-                            fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    )
-                  else
-                    for (final s in services)
-                      _ServiceDetailCard(
-                        service: s,
-                        controller: controller,
-                      ),
-                  const SizedBox(height: 24),
-
-                  // --- BOOKINGS LIST ---
-                  Text(
-                    'Bookings Received (${bookings.length})',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (bookings.isEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'No bookings received yet.',
-                        style: GoogleFonts.inter(
-                            fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    )
-                  else
-                    for (final b in bookings)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.borderLight),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            setState(() {
+                              _showPublishedPosts = !_showPublishedPosts;
+                            });
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                            child: Row(
                               children: [
-                                Text(
-                                  b.serviceTitle,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.inventory_2_outlined,
+                                    color: AppColors.secondary,
+                                    size: 20,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Candidate: ${b.candidateName.isNotEmpty ? b.candidateName : b.candidateEmail} • ${b.scheduledAt.day}/${b.scheduledAt.month}/${b.scheduledAt.year}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    color: Colors.grey[600],
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Published Posts (${services.length})',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _showPublishedPosts
+                                            ? '$activePosts Live • $softDeletedPosts Soft Deleted (Tap to hide)'
+                                            : '$activePosts Live • $softDeletedPosts Soft Deleted (Tap button to view)',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: _showPublishedPosts
+                                        ? AppColors.secondary
+                                        : AppColors.secondary
+                                            .withValues(alpha: 0.15),
+                                    foregroundColor: _showPublishedPosts
+                                        ? Colors.white
+                                        : AppColors.secondary,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _showPublishedPosts = !_showPublishedPosts;
+                                    });
+                                  },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _showPublishedPosts
+                                            ? 'Hide Posts'
+                                            : 'Show Posts',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        _showPublishedPosts
+                                            ? Icons.keyboard_arrow_up_rounded
+                                            : Icons.keyboard_arrow_down_rounded,
+                                        size: 18,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                            Text(
-                              '₹${b.amount.toStringAsFixed(0)}',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.secondary,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
+                        if (_showPublishedPosts) ...[
+                          const Divider(height: 1),
+                          Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: services.isEmpty
+                                ? Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.06),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'No mentorship posts created yet by this mentor.',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          color: Colors.grey[600]),
+                                    ),
+                                  )
+                                : Column(
+                                    children: [
+                                      for (final s in services)
+                                        _ServiceDetailCard(
+                                          service: s,
+                                          controller: controller,
+                                        ),
+                                    ],
+                                  ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // --- BOOKINGS RECEIVED TOGGLE BUTTON & LIST ---
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _showBookingsReceived
+                          ? AppColors.primary.withValues(alpha: 0.06)
+                          : (isDark ? const Color(0xFF232338) : Colors.grey[100]),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _showBookingsReceived
+                            ? AppColors.primary
+                            : (isDark ? Colors.white12 : Colors.grey[300]!),
+                        width: _showBookingsReceived ? 1.5 : 1,
                       ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            setState(() {
+                              _showBookingsReceived = !_showBookingsReceived;
+                            });
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.calendar_today_rounded,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Bookings Received (${bookings.length})',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _showBookingsReceived
+                                            ? 'Total Revenue: ₹${earnings.toStringAsFixed(0)} (Tap to hide)'
+                                            : 'Total Revenue: ₹${earnings.toStringAsFixed(0)} (Tap button to view)',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: _showBookingsReceived
+                                        ? AppColors.primary
+                                        : AppColors.primary
+                                            .withValues(alpha: 0.15),
+                                    foregroundColor: _showBookingsReceived
+                                        ? Colors.white
+                                        : AppColors.primary,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _showBookingsReceived =
+                                          !_showBookingsReceived;
+                                    });
+                                  },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _showBookingsReceived
+                                            ? 'Hide Bookings'
+                                            : 'Show Bookings',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        _showBookingsReceived
+                                            ? Icons.keyboard_arrow_up_rounded
+                                            : Icons.keyboard_arrow_down_rounded,
+                                        size: 18,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_showBookingsReceived) ...[
+                          const Divider(height: 1),
+                          Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: bookings.isEmpty
+                                ? Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.06),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'No bookings received yet.',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          color: Colors.grey[600]),
+                                    ),
+                                  )
+                                : Column(
+                                    children: [
+                                      for (final b in bookings)
+                                        Container(
+                                          margin:
+                                              const EdgeInsets.only(bottom: 8),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? const Color(0xFF1E1E2E)
+                                                : Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: AppColors.borderLight),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      b.serviceTitle,
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      'Candidate: ${b.candidateName.isNotEmpty ? b.candidateName : b.candidateEmail} • ${b.scheduledAt.day}/${b.scheduledAt.month}/${b.scheduledAt.year}',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 11,
+                                                        color: Colors.grey[600],
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                '₹${b.amount.toStringAsFixed(0)}',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.secondary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -1854,72 +2098,90 @@ class _ServiceDetailCard extends StatelessWidget {
           const SizedBox(height: 8),
 
           // Inline Actions: Soft Delete, Restore, Remove
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               if (!isSoftDeleted)
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      _confirmSoftDelete(context, service, controller),
-                  icon: const Icon(Icons.archive_outlined, size: 13),
-                  label: Text(
-                    'Soft Delete',
-                    style: GoogleFonts.inter(
-                        fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange[800] ?? Colors.orange,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    minimumSize: Size.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                SizedBox(
+                  width: 140,
+                  height: 32,
+                  child: ElevatedButton.icon(
+                    onPressed: () =>
+                        _confirmSoftDelete(context, service, controller),
+                    icon: const Icon(Icons.archive_outlined, size: 13),
+                    label: Text(
+                      'Soft Delete',
+                      style: GoogleFonts.inter(
+                          fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange[800] ?? Colors.orange,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 0),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 )
               else
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      _confirmRestore(context, service, controller),
-                  icon: const Icon(Icons.unarchive_outlined, size: 13),
-                  label: Text(
-                    'Restore Post',
-                    style: GoogleFonts.inter(
-                        fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF059669),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    minimumSize: Size.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                SizedBox(
+                  width: 140,
+                  height: 32,
+                  child: ElevatedButton.icon(
+                    onPressed: () =>
+                        _confirmRestore(context, service, controller),
+                    icon: const Icon(Icons.unarchive_outlined, size: 13),
+                    label: Text(
+                      'Restore Post',
+                      style: GoogleFonts.inter(
+                          fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 0),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    _confirmPermanentDelete(context, service, controller),
-                icon: const Icon(Icons.delete_forever_rounded,
-                    size: 13, color: Colors.redAccent),
-                label: Text(
-                  'Permanent Delete',
-                  style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.redAccent),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.redAccent),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              SizedBox(
+                width: 140,
+                height: 32,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      _confirmPermanentDelete(context, service, controller),
+                  icon: const Icon(Icons.delete_forever_rounded,
+                      size: 13, color: Colors.redAccent),
+                  label: Text(
+                    'Permanent Delete',
+                    style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.redAccent),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.redAccent),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 0),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ),
@@ -1939,21 +2201,26 @@ class _MetricBox extends StatelessWidget {
   final String value;
   final Color color;
   final IconData icon;
+  final VoidCallback? onTap;
 
   const _MetricBox({
     required this.label,
     required this.value,
     required this.color,
     required this.icon,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final body = Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
+        border: onTap != null
+            ? Border.all(color: color.withValues(alpha: 0.35), width: 1)
+            : null,
       ),
       child: Column(
         children: [
@@ -1978,6 +2245,15 @@ class _MetricBox extends StatelessWidget {
         ],
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: body,
+      );
+    }
+    return body;
   }
 }
 
@@ -2219,11 +2495,20 @@ void _confirmSoftDelete(
     context: context,
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      actionsOverflowButtonSpacing: 8,
       title: Row(
         children: [
           const Icon(Icons.archive_outlined, color: Colors.orange, size: 24),
           const SizedBox(width: 8),
-          const Text('Soft Delete Post'),
+          Expanded(
+            child: Text(
+              'Soft Delete Post',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
       content: Text(
@@ -2262,12 +2547,21 @@ void _confirmRestore(
     context: context,
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      actionsOverflowButtonSpacing: 8,
       title: Row(
         children: [
           const Icon(Icons.unarchive_outlined,
               color: Color(0xFF059669), size: 24),
           const SizedBox(width: 8),
-          const Text('Restore Post'),
+          Expanded(
+            child: Text(
+              'Restore Post',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
       content: Text(
@@ -2305,11 +2599,20 @@ void _confirmPermanentDelete(
     context: context,
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Row(
+      actionsOverflowButtonSpacing: 8,
+      title: Row(
         children: [
-          Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 24),
-          SizedBox(width: 8),
-          Text('Permanently Delete'),
+          const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 24),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Permanently Delete',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
       content: Text(

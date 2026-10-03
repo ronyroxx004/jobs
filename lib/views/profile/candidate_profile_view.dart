@@ -15,6 +15,8 @@ import '../../controllers/job_controller.dart';
 import '../../core/routes/app_routes.dart';
 import '../admin/admin_shared.dart';
 import '../candidate_activity_view.dart';
+import '../mentorship/mentor_services_view.dart';
+import '../mentorship/mentor_bookings_view.dart';
 import 'edit_profile_view.dart';
 
 class CandidateProfileView extends StatefulWidget {
@@ -608,6 +610,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
               if (candidateId.isNotEmpty && a.candidateId.trim() == candidateId) return true;
               if (myFirebaseUid.isNotEmpty && a.candidateId.trim() == myFirebaseUid) return true;
               if (candidateEmail.isNotEmpty && a.candidateEmail.trim().toLowerCase() == candidateEmail) return true;
+              if (a.candidateId.trim().isEmpty || a.candidateId.trim().startsWith('cand_')) return true;
               return false;
             }).length;
 
@@ -616,7 +619,26 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                 ? profileController.favoriteCompanies
                 : (user?.favoriteCompanies ?? <CompanyProfile>[]);
             final savedCount = savedCompaniesList.length;
-            final sessionsCount = db.bookingsList.where((b) {
+            // Exclude DM from 1:1 Calls
+            final callsCount = db.bookingsList.where((b) {
+              final isDm = b.serviceType.toLowerCase().contains('priority dm') ||
+                  b.serviceType.toLowerCase().contains('dm');
+              if (isDm) return false;
+
+              if (candidateId.isNotEmpty && b.candidateId.trim() == candidateId) return true;
+              if (myFirebaseUid.isNotEmpty && b.candidateId.trim() == myFirebaseUid) return true;
+              if (candidateEmail.isNotEmpty && b.candidateEmail.trim().toLowerCase() == candidateEmail) return true;
+              if (b.status == 'Confirmed' && b.mentorId.isNotEmpty) return true;
+              if (b.candidateId.trim().isEmpty || b.candidateId.trim().startsWith('cand_')) return true;
+              return false;
+            }).length;
+
+            // Separate count for Priority DM services
+            final dmCount = db.bookingsList.where((b) {
+              final isDm = b.serviceType.toLowerCase().contains('priority dm') ||
+                  b.serviceType.toLowerCase().contains('dm');
+              if (!isDm) return false;
+
               if (candidateId.isNotEmpty && b.candidateId.trim() == candidateId) return true;
               if (myFirebaseUid.isNotEmpty && b.candidateId.trim() == myFirebaseUid) return true;
               if (candidateEmail.isNotEmpty && b.candidateEmail.trim().toLowerCase() == candidateEmail) return true;
@@ -661,7 +683,7 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                         Expanded(
                           child: _buildOverviewNavButton(
                             label: '1:1 Calls',
-                            count: sessionsCount,
+                            count: callsCount,
                             icon: Icons.videocam_rounded,
                             value: 'sessions',
                             onTap: () {
@@ -677,6 +699,19 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                       children: [
                         Expanded(
                           child: _buildOverviewNavButton(
+                            label: 'DM',
+                            count: dmCount,
+                            icon: Icons.chat_bubble_rounded,
+                            value: 'dm',
+                            onTap: () {
+                              Get.to(() => CandidateDmView(candidateUser: user));
+                            },
+                            isSelected: false,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildOverviewNavButton(
                             label: 'Saved',
                             count: savedCount,
                             icon: Icons.bookmark_rounded,
@@ -687,8 +722,82 @@ class _CandidateProfileViewState extends State<CandidateProfileView> {
                             isSelected: false,
                           ),
                         ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+
+          // Mentor Overview: only two buttons Posts and Bookings and their number
+          Obx(() {
+            final user = _effectiveUser;
+            if ((user?.role ?? UserRole.candidate) != UserRole.mentor) {
+              return const SizedBox.shrink();
+            }
+
+            final db = Get.find<DatabaseService>();
+            final mentorId = (user?.id ?? '').trim();
+
+            final mentorServices = db.servicesList.where((s) {
+              if (s.isDeleted) return false;
+              if (mentorId.isNotEmpty && s.mentorId.trim() == mentorId) return true;
+              return false;
+            }).toList();
+            final postsCount = mentorServices.length;
+
+            final mentorBookings = db.bookingsList.where((b) {
+              if (mentorId.isNotEmpty && b.mentorId.trim() == mentorId) return true;
+              return false;
+            }).toList();
+            final bookingsCount = mentorBookings.length;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Overview',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildOverviewNavButton(
+                            label: 'Posts',
+                            count: postsCount,
+                            icon: Icons.inventory_2_rounded,
+                            value: 'posts',
+                            onTap: () {
+                              Get.to(() => const MentorServicesView());
+                            },
+                            isSelected: false,
+                          ),
+                        ),
                         const SizedBox(width: 10),
-                        const Expanded(child: SizedBox()),
+                        Expanded(
+                          child: _buildOverviewNavButton(
+                            label: 'Bookings',
+                            count: bookingsCount,
+                            icon: Icons.calendar_month_rounded,
+                            value: 'bookings',
+                            onTap: () {
+                              Get.to(() => const MentorBookingsView());
+                            },
+                            isSelected: false,
+                          ),
+                        ),
                       ],
                     ),
                   ],

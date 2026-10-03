@@ -141,7 +141,7 @@ class MentorshipController extends GetxController {
       '@${currentMentorName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}';
   String get storefrontUrl => 'topmate.io/$topmateHandle';
 
-  /// Returns services offered by the current mentor
+  /// Returns services offered by the current mentor (recent post first)
   List<MentorshipServiceModel> get myServices {
     final nonDeleted = allServices.where((s) => !s.isDeleted).toList();
     final matches = nonDeleted.where((s) {
@@ -152,33 +152,45 @@ class MentorshipController extends GetxController {
       );
     }).toList();
 
-    if (matches.isNotEmpty) return matches;
+    final result = matches.isNotEmpty
+        ? matches
+        : (_authService.currentRole == UserRole.mentor ? nonDeleted : <MentorshipServiceModel>[]);
 
-    // Fallback: If logged in as mentor, show all non-deleted services so mentor screen is never blank
-    if (_authService.currentRole == UserRole.mentor) {
-      return nonDeleted;
-    }
-
-    return [];
+    result.sort((a, b) => b.effectiveCreatedAt.compareTo(a.effectiveCreatedAt));
+    return result;
   }
 
-  /// Filtered by category tab for Topmate storefront
+  /// Filtered by category tab for Topmate storefront (recent post first)
   List<MentorshipServiceModel> get filteredStorefrontServices {
     final base = myServices;
     final tab = activeStorefrontTab.value;
     if (tab == 'All') return base;
-    return base.where((s) => s.serviceType == tab || s.category == tab).toList();
+    final tabLower = tab.trim().toLowerCase();
+    final list = base.where((s) {
+      return s.serviceType.trim().toLowerCase() == tabLower ||
+          s.category.trim().toLowerCase() == tabLower ||
+          s.title.toLowerCase().contains(tabLower);
+    }).toList();
+    list.sort((a, b) => b.effectiveCreatedAt.compareTo(a.effectiveCreatedAt));
+    return list;
   }
 
-  /// Filtered by category for candidate mentor catalog and visitors
+  /// Filtered by category for candidate mentor catalog and visitors (recent post first)
   List<MentorshipServiceModel> get filteredServices {
     final active = allServices.where((s) => s.isActive && !s.isDeleted).toList();
-    if (selectedCategory.value == 'All') return active;
-    return active
+    if (selectedCategory.value == 'All') {
+      active.sort((a, b) => b.effectiveCreatedAt.compareTo(a.effectiveCreatedAt));
+      return active;
+    }
+    final catLower = selectedCategory.value.trim().toLowerCase();
+    final list = active
         .where((s) =>
-            s.category == selectedCategory.value ||
-            s.serviceType == selectedCategory.value)
+            s.category.trim().toLowerCase() == catLower ||
+            s.serviceType.trim().toLowerCase() == catLower ||
+            s.title.toLowerCase().contains(catLower))
         .toList();
+    list.sort((a, b) => b.effectiveCreatedAt.compareTo(a.effectiveCreatedAt));
+    return list;
   }
 
   /// Mentor Bookings
@@ -487,6 +499,7 @@ class MentorshipController extends GetxController {
       maxSeats: serviceType.value == 'Webinar' ? serviceMaxSeats.value : null,
       includedSessions: serviceType.value == 'Package' ? serviceIncludedSessions.value : 1,
       topics: topics.isNotEmpty ? topics : [serviceCategory.value],
+      createdAt: DateTime.now(),
     );
 
     // Clear input controllers

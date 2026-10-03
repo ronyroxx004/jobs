@@ -22,6 +22,7 @@ class MentorshipServiceModel {
   final int bookedSeats; // for webinars
   final int includedSessions; // for packages
   final List<String> topics; // tags or key takeaways
+  final DateTime? createdAt;
 
   MentorshipServiceModel({
     required this.id,
@@ -45,7 +46,19 @@ class MentorshipServiceModel {
     this.bookedSeats = 0,
     this.includedSessions = 1,
     this.topics = const [],
+    this.createdAt,
   });
+
+  /// Guaranteed creation timestamp for ordering recent posts first
+  DateTime get effectiveCreatedAt {
+    if (createdAt != null) return createdAt!;
+    final match = RegExp(r'\d{10,}').firstMatch(id);
+    if (match != null) {
+      final ms = int.tryParse(match.group(0)!);
+      if (ms != null) return DateTime.fromMillisecondsSinceEpoch(ms);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
 
   MentorshipServiceModel copyWith({
     String? id,
@@ -69,6 +82,7 @@ class MentorshipServiceModel {
     int? bookedSeats,
     int? includedSessions,
     List<String>? topics,
+    DateTime? createdAt,
   }) {
     return MentorshipServiceModel(
       id: id ?? this.id,
@@ -92,6 +106,7 @@ class MentorshipServiceModel {
       bookedSeats: bookedSeats ?? this.bookedSeats,
       includedSessions: includedSessions ?? this.includedSessions,
       topics: topics ?? this.topics,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
@@ -116,6 +131,7 @@ class MentorshipServiceModel {
       'bookedSeats': bookedSeats,
       'includedSessions': includedSessions,
       'topics': topics,
+      'createdAt': (createdAt ?? effectiveCreatedAt).toIso8601String(),
     };
     if (eventDate != null) map['eventDate'] = eventDate;
     if (maxSeats != null) map['maxSeats'] = maxSeats;
@@ -176,6 +192,28 @@ class MentorshipServiceModel {
     final mentorId = map['mentorId']?.toString() ?? map['mentor_id']?.toString() ?? '';
     final mentorEmail = map['mentorEmail']?.toString() ?? map['mentor_email']?.toString() ?? '';
 
+    DateTime? createdAt;
+    final rawCreated = map['createdAt'] ?? map['created_at'];
+    if (rawCreated != null) {
+      if (rawCreated is int) {
+        createdAt = DateTime.fromMillisecondsSinceEpoch(rawCreated);
+      } else if (rawCreated is String) {
+        createdAt = DateTime.tryParse(rawCreated);
+        if (createdAt == null) {
+          final ms = int.tryParse(rawCreated);
+          if (ms != null) createdAt = DateTime.fromMillisecondsSinceEpoch(ms);
+        }
+      }
+    }
+    if (createdAt == null) {
+      final docKey = docId.isNotEmpty ? docId : (map['id']?.toString() ?? '');
+      final match = RegExp(r'\d{10,}').firstMatch(docKey);
+      if (match != null) {
+        final ms = int.tryParse(match.group(0)!);
+        if (ms != null) createdAt = DateTime.fromMillisecondsSinceEpoch(ms);
+      }
+    }
+
     return MentorshipServiceModel(
       id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? 'serv_${DateTime.now().millisecondsSinceEpoch}'),
       mentorId: mentorId,
@@ -198,6 +236,7 @@ class MentorshipServiceModel {
       bookedSeats: _toInt(map['bookedSeats'], 0),
       includedSessions: _toInt(map['includedSessions'], 1),
       topics: _toTopics(map['topics'] ?? map['tags']),
+      createdAt: createdAt,
     );
   }
 }
@@ -315,7 +354,10 @@ class BookingModel {
       candidateEmail: map['candidateEmail'] ?? '',
       amount: (map['amount'] ?? 0.0).toDouble(),
       scheduledAt: map['scheduledAt'] != null
-          ? DateTime.tryParse(map['scheduledAt']) ?? DateTime.now()
+          ? (map['scheduledAt'] is int
+              ? DateTime.fromMillisecondsSinceEpoch(map['scheduledAt'] as int)
+              : (DateTime.tryParse(map['scheduledAt'].toString()) ??
+                  DateTime.now()))
           : DateTime.now(),
       meetingUrl: map['meetingUrl'] ?? 'https://meet.google.com/topmate-session',
       status: map['status'] ?? 'Confirmed',
@@ -324,7 +366,10 @@ class BookingModel {
       mentorNotes: map['mentorNotes'] ?? '',
       isPaid: map['isPaid'] ?? true,
       createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt']) ?? DateTime.now()
+          ? (map['createdAt'] is int
+              ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int)
+              : (DateTime.tryParse(map['createdAt'].toString()) ??
+                  DateTime.now()))
           : DateTime.now(),
     );
   }

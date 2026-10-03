@@ -46,7 +46,7 @@ class PostCourseView extends GetView<CourseController> {
               const SizedBox(height: 6),
               TextField(
                 controller: instructorController,
-                decoration: const InputDecoration(hintText: 'e.g. Alex Johnson'),
+                decoration: const InputDecoration(hintText: 'e.g. Rohit Shrivastava'),
               ),
               const SizedBox(height: 16),
 

@@ -212,8 +212,9 @@ class MentorStorefrontView extends GetView<MentorshipController> {
     final categories = [
       'All',
       '1:1 Call',
-      'Digital Product',
       'Priority DM',
+      'Mock Interview',
+      'Resume Review',
       'Webinar',
       'Package',
     ];
@@ -488,8 +489,10 @@ class MentorStorefrontView extends GetView<MentorshipController> {
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                      minimumSize: Size.zero,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                      minimumSize: const Size(100, 44),
+                      elevation: 2,
+                      shadowColor: AppColors.primary.withValues(alpha: 0.35),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => MentorBookingDialog.show(context, service),
@@ -645,10 +648,12 @@ class MentorStorefrontView extends GetView<MentorshipController> {
         final isDark = Theme.of(sheetContext).brightness == Brightness.dark;
         final types = [
           {'type': '1:1 Call', 'icon': Icons.video_camera_front_rounded, 'color': const Color(0xFF6366F1)},
-          {'type': 'Digital Product', 'icon': Icons.file_download_outlined, 'color': const Color(0xFF10B981)},
           {'type': 'Priority DM', 'icon': Icons.bolt_rounded, 'color': const Color(0xFFF59E0B)},
+          {'type': 'Mock Interview', 'icon': Icons.record_voice_over_rounded, 'color': const Color(0xFF0EA5E9)},
+          {'type': 'Resume Review', 'icon': Icons.description_outlined, 'color': const Color(0xFF14B8A6)},
           {'type': 'Webinar', 'icon': Icons.live_tv_rounded, 'color': const Color(0xFFEC4899)},
           {'type': 'Package', 'icon': Icons.auto_awesome_rounded, 'color': const Color(0xFF8B5CF6)},
+          {'type': 'Digital Product', 'icon': Icons.file_download_outlined, 'color': const Color(0xFF10B981)},
         ];
 
         return Container(
@@ -1001,31 +1006,43 @@ class MentorStorefrontView extends GetView<MentorshipController> {
 
   static IconData _iconForCategory(String category) {
     switch (category) {
-      case 'Digital Product':
-        return Icons.file_download_outlined;
+      case 'All':
+        return Icons.grid_view_rounded;
+      case '1:1 Call':
+        return Icons.video_call_rounded;
       case 'Priority DM':
         return Icons.bolt;
+      case 'Mock Interview':
+        return Icons.record_voice_over_rounded;
+      case 'Resume Review':
+        return Icons.description_outlined;
       case 'Webinar':
         return Icons.live_tv_rounded;
       case 'Package':
         return Icons.auto_awesome;
-      case '1:1 Call':
+      case 'Digital Product':
+        return Icons.file_download_outlined;
       default:
-        return Icons.video_call_rounded;
+        return Icons.category_outlined;
     }
   }
 
   static Color _colorForType(String type) {
     switch (type) {
-      case 'Digital Product':
-        return const Color(0xFF10B981);
+      case '1:1 Call':
+        return const Color(0xFF6366F1);
       case 'Priority DM':
         return const Color(0xFFF59E0B);
+      case 'Mock Interview':
+        return const Color(0xFF0EA5E9);
+      case 'Resume Review':
+        return const Color(0xFF14B8A6);
       case 'Webinar':
         return const Color(0xFFEC4899);
       case 'Package':
         return const Color(0xFF8B5CF6);
-      case '1:1 Call':
+      case 'Digital Product':
+        return const Color(0xFF10B981);
       default:
         return const Color(0xFF6366F1);
     }
@@ -1037,6 +1054,10 @@ class MentorStorefrontView extends GetView<MentorshipController> {
         return 'Get Product';
       case 'Priority DM':
         return 'Ask Query';
+      case 'Mock Interview':
+        return 'Book Mock';
+      case 'Resume Review':
+        return 'Book Review';
       case 'Webinar':
         return 'Register';
       case 'Package':
@@ -1053,6 +1074,10 @@ class MentorStorefrontView extends GetView<MentorshipController> {
         return Icons.download_rounded;
       case 'Priority DM':
         return Icons.send_rounded;
+      case 'Mock Interview':
+        return Icons.record_voice_over_rounded;
+      case 'Resume Review':
+        return Icons.description_outlined;
       case 'Webinar':
         return Icons.how_to_reg_rounded;
       case 'Package':

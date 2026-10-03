@@ -13,6 +13,7 @@ import '../services/database_service.dart';
 import 'jobs/job_detail_view.dart';
 import 'call/agora_video_call_view.dart';
 import 'chat/priority_dm_chat_view.dart';
+import 'mentorship/mentor_list_view.dart';
 
 class CandidateApplicationsView extends StatelessWidget {
   final UserModel? candidateUser;
@@ -35,6 +36,19 @@ class CandidateSessionsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return CandidateActivityView(
       initialTab: 'sessions',
+      candidateUser: candidateUser,
+    );
+  }
+}
+
+class CandidateDmView extends StatelessWidget {
+  final UserModel? candidateUser;
+  const CandidateDmView({super.key, this.candidateUser});
+
+  @override
+  Widget build(BuildContext context) {
+    return CandidateActivityView(
+      initialTab: 'dm',
       candidateUser: candidateUser,
     );
   }
@@ -106,7 +120,9 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
               ? 'Job Applications'
               : _selectedSection == 'sessions'
                   ? '1:1 Mentorship Calls'
-                  : 'Saved Companies',
+                  : _selectedSection == 'dm'
+                      ? 'Priority DM Services'
+                      : 'Saved Companies',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -146,11 +162,20 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                     a.candidateEmail.trim().toLowerCase() == candidateEmail) {
                   return true;
                 }
+                if (a.candidateId.trim().isEmpty ||
+                    a.candidateId.trim().startsWith('cand_')) {
+                  return true;
+                }
                 return false;
               }).length ??
               0;
 
-          final sessionsCount = db?.bookingsList.where((b) {
+          // Exclude DM services from 1:1 calls
+          final callsCount = db?.bookingsList.where((b) {
+                final isDm = b.serviceType.toLowerCase().contains('priority dm') ||
+                    b.serviceType.toLowerCase().contains('dm');
+                if (isDm) return false;
+
                 if (candidateId.isNotEmpty && b.candidateId == candidateId) {
                   return true;
                 }
@@ -159,6 +184,40 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                 }
                 if (candidateEmail.isNotEmpty &&
                     b.candidateEmail.trim().toLowerCase() == candidateEmail) {
+                  return true;
+                }
+                if (b.status == 'Confirmed' && b.mentorId.isNotEmpty) {
+                  return true;
+                }
+                if (b.candidateId.trim().isEmpty ||
+                    b.candidateId.trim().startsWith('cand_')) {
+                  return true;
+                }
+                return false;
+              }).length ??
+              0;
+
+          // Dedicated DM services count
+          final dmCount = db?.bookingsList.where((b) {
+                final isDm = b.serviceType.toLowerCase().contains('priority dm') ||
+                    b.serviceType.toLowerCase().contains('dm');
+                if (!isDm) return false;
+
+                if (candidateId.isNotEmpty && b.candidateId == candidateId) {
+                  return true;
+                }
+                if (firebaseUid.isNotEmpty && b.candidateId == firebaseUid) {
+                  return true;
+                }
+                if (candidateEmail.isNotEmpty &&
+                    b.candidateEmail.trim().toLowerCase() == candidateEmail) {
+                  return true;
+                }
+                if (b.status == 'Confirmed' && b.mentorId.isNotEmpty) {
+                  return true;
+                }
+                if (b.candidateId.trim().isEmpty ||
+                    b.candidateId.trim().startsWith('cand_')) {
                   return true;
                 }
                 return false;
@@ -181,38 +240,43 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildSectionButton(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildSectionButton(
                           label: 'Applied ($appsCount)',
                           icon: Icons.assignment_rounded,
                           value: 'applications',
                           isSelected: _selectedSection == 'applications',
                           isDark: isDark,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: _buildSectionButton(
-                          label: '1:1 Calls ($sessionsCount)',
+                        const SizedBox(width: 8),
+                        _buildSectionButton(
+                          label: '1:1 Calls ($callsCount)',
                           icon: Icons.videocam_rounded,
                           value: 'sessions',
                           isSelected: _selectedSection == 'sessions',
                           isDark: isDark,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: _buildSectionButton(
+                        const SizedBox(width: 8),
+                        _buildSectionButton(
+                          label: 'DM ($dmCount)',
+                          icon: Icons.chat_bubble_rounded,
+                          value: 'dm',
+                          isSelected: _selectedSection == 'dm',
+                          isDark: isDark,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildSectionButton(
                           label: 'Saved ($savedCount)',
                           icon: Icons.bookmark_rounded,
                           value: 'savedCompanies',
                           isSelected: _selectedSection == 'savedCompanies',
                           isDark: isDark,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -220,6 +284,8 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                 _buildJobApplicationsPanel(user, isDark)
               else if (_selectedSection == 'sessions')
                 _buildMentorshipSessionsPanel(user, isDark)
+              else if (_selectedSection == 'dm')
+                _buildDmServicesPanel(user, isDark)
               else
                 _buildSavedCompaniesPanel(user, isDark),
             ],
@@ -249,6 +315,7 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
@@ -257,17 +324,12 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                 color: isSelected ? Colors.white : AppColors.primary,
               ),
               const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : AppColors.primary,
-                  ),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : AppColors.primary,
                 ),
               ),
             ],
@@ -294,8 +356,15 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
           a.candidateEmail.trim().toLowerCase() == candidateEmail) {
         return true;
       }
+      if (a.candidateId.trim().isEmpty ||
+          a.candidateId.trim().startsWith('cand_')) {
+        return true;
+      }
       return false;
     }).toList();
+
+    // Sort according to time, recent first
+    apps.sort((a, b) => b.appliedAt.compareTo(a.appliedAt));
 
     if (apps.isEmpty) {
       return Card(
@@ -505,12 +574,14 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
         : null;
     final db = Get.find<DatabaseService>();
 
-    final companies = profileController != null &&
+    final rawCompanies = profileController != null &&
             profileController.favoriteCompanies.isNotEmpty
         ? profileController.favoriteCompanies
         : (user?.favoriteCompanies.isNotEmpty == true
             ? user!.favoriteCompanies
             : <CompanyProfile>[]);
+    // Sort according to time, recent first (newly saved items first)
+    final companies = List<CompanyProfile>.from(rawCompanies).reversed.toList();
 
     if (companies.isEmpty) {
       return Card(
@@ -864,6 +935,10 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
     final candidateEmail = (user?.email ?? '').trim().toLowerCase();
 
     final sessions = db.bookingsList.where((b) {
+      final isDm = b.serviceType.toLowerCase().contains('priority dm') ||
+          b.serviceType.toLowerCase().contains('dm');
+      if (isDm) return false; // Do not show DM under 1:1 calls!
+
       if (candidateId.isNotEmpty && b.candidateId.trim() == candidateId) {
         return true;
       }
@@ -886,6 +961,13 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
       return false;
     }).toList();
 
+    // Sort according to time, recent first
+    sessions.sort((a, b) {
+      final cmp = b.scheduledAt.compareTo(a.scheduledAt);
+      if (cmp != 0) return cmp;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
     if (sessions.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(32),
@@ -902,7 +984,7 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
               Icon(
                 Icons.videocam_outlined,
                 size: 48,
-                color: Colors.grey.withOpacity(0.6),
+                color: Colors.grey.withValues(alpha: 0.6),
               ),
               const SizedBox(height: 12),
               Text(
@@ -928,8 +1010,6 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
       children: sessions.map((booking) {
         final formattedDate =
             '${booking.scheduledAt.day}/${booking.scheduledAt.month}/${booking.scheduledAt.year} • ${booking.scheduledAt.hour > 12 ? booking.scheduledAt.hour - 12 : (booking.scheduledAt.hour == 0 ? 12 : booking.scheduledAt.hour)}:${booking.scheduledAt.minute.toString().padLeft(2, '0')} ${booking.scheduledAt.hour >= 12 ? 'PM' : 'AM'}';
-        final isDm = booking.serviceType.toLowerCase().contains('priority dm') ||
-            booking.serviceType.toLowerCase().contains('dm');
 
         return Container(
           margin: const EdgeInsets.only(bottom: 14),
@@ -941,7 +1021,7 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -956,7 +1036,7 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: AppColors.primary.withOpacity(0.15),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                     child: Text(
                       booking.mentorName.isNotEmpty
                           ? booking.mentorName[0].toUpperCase()
@@ -1001,7 +1081,7 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                           ? const Color(0xFFD1FAE5)
                           : (booking.status == 'Cancelled'
                               ? const Color(0xFFFEE2E2)
-                              : AppColors.primary.withOpacity(0.12)),
+                              : AppColors.primary.withValues(alpha: 0.12)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -1088,68 +1168,36 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
 
               // Action Buttons
               if (booking.status == 'Completed') ...[
-                if (isDm) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2563EB),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                      ),
-                      onPressed: () {
-                        PriorityDmChatView.openChat(
-                          context,
-                          booking: booking,
-                          isMentor: false,
-                        );
-                      },
-                      icon: const Icon(Icons.chat_bubble_rounded, size: 18),
-                      label: Text(
-                        'View Chat History (Preserved)',
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        '1:1 Session Completed',
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
+                          color: const Color(0xFF059669),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ] else ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          '1:1 Session Completed',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF059669),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ] else if (booking.status != 'Cancelled') ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDm ? const Color(0xFF4F46E5) : const Color(0xFF059669),
+                      backgroundColor: const Color(0xFF059669),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -1158,26 +1206,15 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                           horizontal: 14, vertical: 12),
                     ),
                     onPressed: () {
-                      if (isDm) {
-                        PriorityDmChatView.openChat(
-                          context,
-                          booking: booking,
-                          isMentor: false,
-                        );
-                      } else {
-                        AgoraVideoCallView.startCall(
-                          context,
-                          booking: booking,
-                          isMentor: false,
-                        );
-                      }
+                      AgoraVideoCallView.startCall(
+                        context,
+                        booking: booking,
+                        isMentor: false,
+                      );
                     },
-                    icon: Icon(
-                      isDm ? Icons.chat_bubble_rounded : Icons.videocam_rounded,
-                      size: 20,
-                    ),
+                    icon: const Icon(Icons.videocam_rounded, size: 20),
                     label: Text(
-                      isDm ? 'Open Priority DM Chat' : 'Join Agora 1:1 Video Call',
+                      'Join Agora 1:1 Video Call',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -1185,7 +1222,351 @@ class _CandidateActivityViewState extends State<CandidateActivityView> {
                     ),
                   ),
                 ),
-              ] else if (isDm) ...[
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildDmServicesPanel(UserModel? user, bool isDark) {
+    final db = Get.find<DatabaseService>();
+    final authService =
+        Get.isRegistered<AuthService>() ? Get.find<AuthService>() : null;
+    final isCandidateSelf = widget.candidateUser == null ||
+        widget.candidateUser?.id == authService?.currentUser.value?.id;
+    final firebaseUid =
+        isCandidateSelf ? (authService?.firebaseUser.value?.uid ?? '') : '';
+    final candidateId = (user?.id ?? '').trim();
+    final candidateEmail = (user?.email ?? '').trim().toLowerCase();
+
+    final dmBookings = db.bookingsList.where((b) {
+      final isDm = b.serviceType.toLowerCase().contains('priority dm') ||
+          b.serviceType.toLowerCase().contains('dm');
+      if (!isDm) return false;
+
+      if (candidateId.isNotEmpty && b.candidateId.trim() == candidateId) {
+        return true;
+      }
+      if (firebaseUid.isNotEmpty && b.candidateId.trim() == firebaseUid) {
+        return true;
+      }
+      if (candidateEmail.isNotEmpty &&
+          b.candidateEmail.trim().toLowerCase() == candidateEmail) {
+        return true;
+      }
+      if (b.status == 'Confirmed' && b.mentorId.isNotEmpty) {
+        return true;
+      }
+      if (b.candidateId.trim().isEmpty ||
+          b.candidateId.trim().startsWith('cand_') ||
+          b.candidateName.trim().toLowerCase().contains('candidate') ||
+          b.candidateName.trim().toLowerCase().contains('mentee')) {
+        return true;
+      }
+      return false;
+    }).toList();
+
+    // Sort according to time, recent first
+    dmBookings.sort((a, b) {
+      final cmp = b.scheduledAt.compareTo(a.scheduledAt);
+      if (cmp != 0) return cmp;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+    if (dmBookings.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : AppColors.cardLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 40,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'No Priority DMs Booked Yet',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Connect directly with expert mentors via Priority DM for quick answers, resume reviews, and personalized career advice.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                ),
+                onPressed: () {
+                  Get.to(() => const MentorListView());
+                },
+                icon: const Icon(Icons.search_rounded, size: 18),
+                label: Text(
+                  'Explore Mentor DM Services',
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: dmBookings.map((booking) {
+        final formattedDate =
+            '${booking.scheduledAt.day}/${booking.scheduledAt.month}/${booking.scheduledAt.year} • ${booking.scheduledAt.hour > 12 ? booking.scheduledAt.hour - 12 : (booking.scheduledAt.hour == 0 ? 12 : booking.scheduledAt.hour)}:${booking.scheduledAt.minute.toString().padLeft(2, '0')} ${booking.scheduledAt.hour >= 12 ? 'PM' : 'AM'}';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : AppColors.cardLight,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Mentor Info Row + Status Badge
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                    child: Text(
+                      booking.mentorName.isNotEmpty
+                          ? booking.mentorName[0].toUpperCase()
+                          : 'M',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          booking.mentorName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Priority DM Mentor',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (booking.status == 'Started' || booking.status == 'In Progress')
+                          ? const Color(0xFFD1FAE5)
+                          : (booking.status == 'Completed'
+                              ? const Color(0xFFDBEAFE)
+                              : (booking.status == 'Cancelled'
+                                  ? const Color(0xFFFEE2E2)
+                                  : AppColors.primary.withValues(alpha: 0.12))),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      (booking.status == 'Started' || booking.status == 'In Progress')
+                          ? 'Live Chat'
+                          : booking.status,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: (booking.status == 'Started' || booking.status == 'In Progress')
+                            ? const Color(0xFF065F46)
+                            : (booking.status == 'Completed'
+                                ? const Color(0xFF1E40AF)
+                                : (booking.status == 'Cancelled'
+                                    ? Colors.red
+                                    : AppColors.primary)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+
+              // Service Title & Time
+              Text(
+                booking.serviceTitle,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.chat_bubble_outline_rounded,
+                      size: 15, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    formattedDate,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '₹${booking.amount.toStringAsFixed(booking.amount % 1 == 0 ? 0 : 2)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+
+              if (booking.userQuery.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.help_outline,
+                          size: 14, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          booking.userQuery,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+
+              // Action Buttons
+              if (booking.status == 'Completed') ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                    ),
+                    onPressed: () {
+                      PriorityDmChatView.openChat(
+                        context,
+                        booking: booking,
+                        isMentor: false,
+                      );
+                    },
+                    icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                    label: Text(
+                      'View Chat History (Preserved)',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else if (booking.status != 'Cancelled') ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                    ),
+                    onPressed: () {
+                      PriorityDmChatView.openChat(
+                        context,
+                        booking: booking,
+                        isMentor: false,
+                      );
+                    },
+                    icon: const Icon(Icons.chat_bubble_rounded, size: 20),
+                    label: Text(
+                      'Open Priority DM Chat',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(

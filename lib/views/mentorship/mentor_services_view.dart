@@ -172,7 +172,15 @@ class MentorServicesView extends GetView<MentorshipController> {
   }
 
   Widget _buildFilterChips(bool isDark) {
-    final categories = ['All', '1:1 Call', 'Digital Product', 'Priority DM', 'Webinar', 'Package'];
+    final categories = [
+      'All',
+      '1:1 Call',
+      'Priority DM',
+      'Mock Interview',
+      'Resume Review',
+      'Webinar',
+      'Package',
+    ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -256,16 +264,26 @@ class MentorServicesView extends GetView<MentorshipController> {
             overflow: TextOverflow.ellipsis,
           ),
           const Divider(height: 20),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               // Active / Pause Switch
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Switch(
-                    value: service.isActive,
-                    activeColor: Colors.green,
-                    onChanged: (_) => controller.toggleServiceActive(service),
+                  Transform.scale(
+                    scale: 0.85,
+                    child: Switch(
+                      value: service.isActive,
+                      activeThumbColor: Colors.green,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onChanged: (_) => controller.toggleServiceActive(service),
+                    ),
                   ),
+                  const SizedBox(width: 4),
                   Text(
                     service.isActive ? 'Active' : 'Paused',
                     style: GoogleFonts.inter(
@@ -276,58 +294,96 @@ class MentorServicesView extends GetView<MentorshipController> {
                   ),
                 ],
               ),
-              const Spacer(),
-              if (service.serviceType == '1:1 Call') ...[
-                TextButton.icon(
-                  onPressed: () => controller.startServiceCallFromOffering(context, service),
-                  icon: const Icon(Icons.videocam_rounded, size: 16, color: Color(0xFF059669)),
-                  label: Text(
-                    'Start Call',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF059669),
+              // Action buttons (Start Call/Chat, Edit, Delete)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (service.serviceType == '1:1 Call') ...[
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF059669),
+                        side: const BorderSide(color: Color(0xFF059669)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => controller.startServiceCallFromOffering(context, service),
+                      icon: const Icon(Icons.videocam_rounded, size: 14),
+                      label: Text(
+                        'Start Call',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (service.serviceType == 'Priority DM') ...[
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF059669),
+                        side: const BorderSide(color: Color(0xFF059669)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => controller.startServicePriorityDmFromOffering(context, service),
+                      icon: const Icon(Icons.chat_bubble_rounded, size: 14),
+                      label: Text(
+                        'Start Chat',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                  // Edit button - compact with tapTargetSize shrinkWrap to avoid overflow
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => _showEditServiceDialog(context, service),
+                    icon: const Icon(Icons.edit_outlined, size: 14),
+                    label: Text(
+                      'Edit',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-              ],
-              if (service.serviceType == 'Priority DM') ...[
-                TextButton.icon(
-                  onPressed: () => controller.startServicePriorityDmFromOffering(context, service),
-                  icon: const Icon(Icons.chat_bubble_rounded, size: 16, color: Color(0xFF059669)),
-                  label: Text(
-                    'Start Chat',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF059669),
-                    ),
-                  ),
-                ),
-              ],
-              // Edit button
-              TextButton.icon(
-                onPressed: () => _showEditServiceDialog(context, service),
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Edit'),
-              ),
-              // Delete button
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                onPressed: () {
-                  Get.defaultDialog(
-                    title: 'Delete Offering?',
-                    middleText: 'Are you sure you want to remove "${service.title}"?',
-                    textConfirm: 'Delete',
-                    textCancel: 'Cancel',
-                    confirmTextColor: Colors.white,
-                    buttonColor: Colors.redAccent,
-                    onConfirm: () {
-                      controller.deleteService(service.id);
-                      Get.back();
+                  // Delete button
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                    tooltip: 'Delete Offering',
+                    onPressed: () {
+                      Get.defaultDialog(
+                        title: 'Delete Offering?',
+                        middleText: 'Are you sure you want to remove "${service.title}"?',
+                        textConfirm: 'Delete',
+                        textCancel: 'Cancel',
+                        confirmTextColor: Colors.white,
+                        buttonColor: Colors.redAccent,
+                        onConfirm: () {
+                          controller.deleteService(service.id);
+                          Get.back();
+                        },
+                      );
                     },
-                  );
-                },
+                  ),
+                ],
               ),
             ],
           ),
@@ -467,31 +523,43 @@ class MentorServicesView extends GetView<MentorshipController> {
 
   static IconData _iconForCategory(String category) {
     switch (category) {
-      case 'Digital Product':
-        return Icons.file_download_outlined;
+      case 'All':
+        return Icons.grid_view_rounded;
+      case '1:1 Call':
+        return Icons.video_call_rounded;
       case 'Priority DM':
         return Icons.bolt;
+      case 'Mock Interview':
+        return Icons.record_voice_over_rounded;
+      case 'Resume Review':
+        return Icons.description_outlined;
       case 'Webinar':
         return Icons.live_tv_rounded;
       case 'Package':
         return Icons.auto_awesome;
-      case '1:1 Call':
+      case 'Digital Product':
+        return Icons.file_download_outlined;
       default:
-        return Icons.video_call_rounded;
+        return Icons.category_outlined;
     }
   }
 
   static Color _colorForType(String type) {
     switch (type) {
-      case 'Digital Product':
-        return const Color(0xFF10B981);
+      case '1:1 Call':
+        return const Color(0xFF6366F1);
       case 'Priority DM':
         return const Color(0xFFF59E0B);
+      case 'Mock Interview':
+        return const Color(0xFF0EA5E9);
+      case 'Resume Review':
+        return const Color(0xFF14B8A6);
       case 'Webinar':
         return const Color(0xFFEC4899);
       case 'Package':
         return const Color(0xFF8B5CF6);
-      case '1:1 Call':
+      case 'Digital Product':
+        return const Color(0xFF10B981);
       default:
         return const Color(0xFF6366F1);
     }
