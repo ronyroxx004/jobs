@@ -22,6 +22,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    buildTypes {
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now so release APKs can be installed.
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
 }
 
 kotlin {
