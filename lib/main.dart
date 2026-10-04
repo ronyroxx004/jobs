@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
 import 'controllers/theme_controller.dart';
 import 'controllers/auth_controller.dart';
+import 'services/notification_service.dart';
 
 import 'firebase_options.dart';
 
@@ -16,6 +18,7 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
   }

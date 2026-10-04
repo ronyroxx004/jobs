@@ -385,7 +385,9 @@ class AdminPinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
 
 /// Opens the profile/edit screen for a user from any admin role screen.
 void adminEditUser(UserModel user) {
-  if (user.role == UserRole.candidate) {
+  if (user.role == UserRole.candidate ||
+      user.role == UserRole.recruiter ||
+      user.role == UserRole.mentor) {
     Get.to(
       () => CandidateProfileView(candidateUser: user, isAdminView: true),
       transition: Transition.rightToLeft,
@@ -487,7 +489,8 @@ void adminShowUserActions(
                     onPressed: () {
                       Get.back();
                       if (user.role == UserRole.candidate ||
-                          user.role == UserRole.recruiter) {
+                          user.role == UserRole.recruiter ||
+                          user.role == UserRole.mentor) {
                         Get.to(
                           () => CandidateProfileView(
                             candidateUser: user,
@@ -522,7 +525,9 @@ void adminShowUserActions(
                     label: const Text('Edit Profile'),
                     onPressed: () {
                       Get.back();
-                      if (user.role == UserRole.candidate) {
+                      if (user.role == UserRole.candidate ||
+                          user.role == UserRole.recruiter ||
+                          user.role == UserRole.mentor) {
                         Get.to(
                           () => EditProfileView(targetUser: user),
                           transition: Transition.rightToLeft,

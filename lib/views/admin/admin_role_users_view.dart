@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/admin_controller.dart';
 import '../../core/utils/constants.dart';
 import '../../models/user_model.dart';
+import '../profile/candidate_profile_view.dart';
 import './admin_user_profile_view.dart';
 
 class AdminRoleUsersView extends StatefulWidget {
@@ -282,11 +283,19 @@ class _AdminRoleUsersViewState extends State<AdminRoleUsersView> {
   }
 
   void _handleEditUser(UserModel user) {
-    // Navigate to admin user profile view for editing
-    Get.to(
-      () => AdminUserProfileView(user: user, role: user.role),
-      transition: Transition.rightToLeft,
-    );
+    if (user.role == UserRole.candidate ||
+        user.role == UserRole.recruiter ||
+        user.role == UserRole.mentor) {
+      Get.to(
+        () => CandidateProfileView(candidateUser: user, isAdminView: true),
+        transition: Transition.rightToLeft,
+      );
+    } else {
+      Get.to(
+        () => AdminUserProfileView(user: user, role: user.role),
+        transition: Transition.rightToLeft,
+      );
+    }
   }
 
   void _showFirstDeleteConfirmation(BuildContext context, UserModel user) {

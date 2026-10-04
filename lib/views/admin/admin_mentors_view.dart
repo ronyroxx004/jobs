@@ -8,6 +8,7 @@ import '../../core/utils/constants.dart';
 import '../../models/user_model.dart';
 import '../../models/service_model.dart';
 import '../../services/database_service.dart';
+import '../profile/candidate_profile_view.dart';
 import 'admin_shared.dart';
 
 /// Admin screen for mentors.
@@ -637,14 +638,25 @@ class _MentorCardState extends State<_MentorCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: Avatar, Info, Revenue
-            Row(
-              children: [
-                AdminUserAvatar(
-                  user: mentor,
-                  size: 52,
-                  accent: AppColors.secondary,
-                ),
+            // Top row: Avatar, Info, Revenue (Tap to view full profile)
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Get.to(
+                  () => CandidateProfileView(
+                    candidateUser: mentor,
+                    isAdminView: true,
+                  ),
+                  transition: Transition.rightToLeft,
+                );
+              },
+              child: Row(
+                children: [
+                  AdminUserAvatar(
+                    user: mentor,
+                    size: 52,
+                    accent: AppColors.secondary,
+                  ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -760,7 +772,8 @@ class _MentorCardState extends State<_MentorCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+          ),
+          const SizedBox(height: 14),
 
             // ONLY TWO BUTTONS: Posts and Bookings (and quick actions)
             Row(
@@ -1350,71 +1363,100 @@ class _AllThingsOfMentorSheetState extends State<_AllThingsOfMentorSheet> {
                       border: Border.all(
                           color: AppColors.secondary.withValues(alpha: 0.2)),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column(
                       children: [
-                        AdminUserAvatar(
-                          user: mentor,
-                          size: 64,
-                          accent: AppColors.secondary,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AdminUserAvatar(
+                              user: mentor,
+                              size: 64,
+                              accent: AppColors.secondary,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Flexible(
-                                    child: Text(
-                                      mentor.name,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          mentor.name,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                      if (mentor.isVerified) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.verified_rounded,
+                                            size: 18, color: AppColors.secondary),
+                                      ],
+                                    ],
                                   ),
-                                  if (mentor.isVerified) ...[
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.verified_rounded,
-                                        size: 18, color: AppColors.secondary),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                mentor.headline.isNotEmpty
-                                    ? mentor.headline
-                                    : 'Career Coach & Mentor',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: Colors.grey[700],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Icon(Icons.star_rounded,
-                                      size: 16, color: AppColors.warning),
-                                  const SizedBox(width: 3),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    mentor.rating.toStringAsFixed(1),
+                                    mentor.headline.isNotEmpty
+                                        ? mentor.headline
+                                        : 'Career Coach & Mentor',
                                     style: GoogleFonts.inter(
                                       fontSize: 13,
-                                      fontWeight: FontWeight.w700,
+                                      color: Colors.grey[700],
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  Text(
-                                    ' (${mentor.totalReviews} reviews)',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.star_rounded,
+                                          size: 16, color: AppColors.warning),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        mentor.rating.toStringAsFixed(1),
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        ' (${mentor.totalReviews} reviews)',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Get.to(
+                                () => CandidateProfileView(
+                                  candidateUser: mentor,
+                                  isAdminView: true,
+                                ),
+                                transition: Transition.rightToLeft,
+                              );
+                            },
+                            icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                            label: const Text('View Full Profile'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.secondary,
+                              side: const BorderSide(color: AppColors.secondary),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
                           ),
                         ),
                       ],

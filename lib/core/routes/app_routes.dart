@@ -20,4 +20,5 @@ abstract class AppRoutes {
   static const adminJobs = '/admin-jobs';
   static const adminApplications = '/admin-applications';
   static const adminMentors = '/admin-mentors';
+  static const adminNotificationHistory = '/admin-notification-history';
 }

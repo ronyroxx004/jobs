@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -13,7 +13,9 @@ import '../models/application_model.dart';
 import '../models/service_model.dart';
 import '../models/course_model.dart';
 import '../models/chat_model.dart';
+import '../models/broadcast_notification_model.dart';
 import '../core/utils/constants.dart';
+import 'notification_service.dart';
 
 class DatabaseService extends GetxService {
   /// Window for a Realtime Database read. Mobile connections frequently need
@@ -58,12 +60,18 @@ class DatabaseService extends GetxService {
   StreamSubscription? _jobsSubscription;
   StreamSubscription? _servicesSubscription;
 
+  /// Admin broadcast push notifications
+  final RxList<BroadcastNotificationModel> broadcastNotificationsList =
+      <BroadcastNotificationModel>[].obs;
+  StreamSubscription? _broadcastNotificationsSubscription;
+
   @override
   void onInit() {
     super.onInit();
     fetchAllData();
     _setupRealtimeListeners();
     _setupDeletedUsersListener();
+    _setupBroadcastNotificationsListener();
   }
 
   @override
@@ -71,6 +79,7 @@ class DatabaseService extends GetxService {
     _deletedUsersSubscription?.cancel();
     _jobsSubscription?.cancel();
     _servicesSubscription?.cancel();
+    _broadcastNotificationsSubscription?.cancel();
     super.onClose();
   }
 
@@ -229,6 +238,8 @@ class DatabaseService extends GetxService {
         fetchApplications().timeout(readTimeout, onTimeout: () => applicationsList),
         fetchUsers().timeout(readTimeout, onTimeout: () => usersList),
         fetchDeletedUsers().timeout(readTimeout, onTimeout: () => deletedUsersList),
+        fetchBroadcastNotifications()
+            .timeout(readTimeout, onTimeout: () => broadcastNotificationsList),
       ]);
     } catch (_) {}
     _scheduleMentorshipDataRetry();
@@ -251,6 +262,162 @@ class DatabaseService extends GetxService {
         debugPrint('Mentorship data retry failed: $e');
       }
     });
+  }
+
+  // ============================================================================
+  // BROADCAST PUSH NOTIFICATIONS
+  // ============================================================================
+
+  void _setupBroadcastNotificationsListener() {
+    try {
+      _broadcastNotificationsSubscription?.cancel();
+      _broadcastNotificationsSubscription =
+          _db?.ref(DatabaseKeys.broadcastNotifications).onValue.listen(
+        (event) {
+          if (event.snapshot.exists && event.snapshot.value != null) {
+            final parsed = _parseBroadcastNotifications(event.snapshot.value);
+            broadcastNotificationsList.assignAll(parsed);
+          } else {
+            broadcastNotificationsList.clear();
+          }
+        },
+        onError: (err) {
+          debugPrint('Broadcast notifications listener: $err');
+        },
+      );
+    } catch (_) {}
+  }
+
+  List<BroadcastNotificationModel> _parseBroadcastNotifications(dynamic value) {
+    final list = <BroadcastNotificationModel>[];
+    if (value is Map) {
+      value.forEach((key, entry) {
+        if (entry != null && entry is Map) {
+          try {
+            list.add(BroadcastNotificationModel.fromMap(
+                Map<String, dynamic>.from(entry), key.toString()));
+          } catch (e) {
+            debugPrint('Failed to parse broadcast notification $key: $e');
+          }
+        }
+      });
+    } else if (value is List) {
+      for (int i = 0; i < value.length; i++) {
+        final entry = value[i];
+        if (entry != null && entry is Map) {
+          try {
+            list.add(BroadcastNotificationModel.fromMap(
+                Map<String, dynamic>.from(entry), i.toString()));
+          } catch (e) {
+            debugPrint('Failed to parse broadcast notification at index $i: $e');
+          }
+        }
+      }
+    }
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  }
+
+  Future<List<BroadcastNotificationModel>> fetchBroadcastNotifications() async {
+    try {
+      final db = _db;
+      if (db == null) return broadcastNotificationsList;
+      final snapshot = await db
+          .ref(DatabaseKeys.broadcastNotifications)
+          .get()
+          .timeout(readTimeout);
+      if (snapshot.exists && snapshot.value != null) {
+        final parsed = _parseBroadcastNotifications(snapshot.value);
+        broadcastNotificationsList.assignAll(parsed);
+        return parsed;
+      }
+    } catch (e) {
+      debugPrint('Error fetching broadcast notifications: $e');
+    }
+    return broadcastNotificationsList;
+  }
+
+  Future<bool> sendBroadcastNotification(
+      BroadcastNotificationModel notification) async {
+    try {
+      final db = _db;
+      if (db == null) return false;
+      await db
+          .ref(DatabaseKeys.broadcastNotifications)
+          .child(notification.id)
+          .set(notification.toMap());
+
+      // If push is enabled, also queue for logging and dispatch via Google FCM Topic (No Blaze Plan required)
+      if (notification.sendPush) {
+        try {
+          await db
+              .ref('push_notifications_queue')
+              .child(notification.id)
+              .set({
+            ...notification.toMap(),
+            'queuedAt': DateTime.now().toIso8601String(),
+          });
+        } catch (_) {}
+
+        if (Get.isRegistered<NotificationService>()) {
+          try {
+            await NotificationService.to.sendFreeFcmPush(
+              title: notification.title,
+              body: notification.body,
+              targetAudience: notification.targetAudience,
+              notificationId: notification.id,
+            );
+          } catch (fcmErr) {
+            debugPrint('Free FCM push note: $fcmErr');
+          }
+        }
+      }
+
+      // Trigger status bar notification directly on device
+      if (Get.isRegistered<NotificationService>()) {
+        try {
+          await NotificationService.to.showStatusNotification(
+            title: notification.title,
+            body: notification.body,
+          );
+        } catch (_) {}
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error sending broadcast notification: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateBroadcastNotification(
+      BroadcastNotificationModel notification) async {
+    try {
+      final db = _db;
+      if (db == null) return false;
+      await db
+          .ref(DatabaseKeys.broadcastNotifications)
+          .child(notification.id)
+          .update(notification.toMap());
+      return true;
+    } catch (e) {
+      debugPrint('Error updating broadcast notification: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteBroadcastNotification(String id) async {
+    try {
+      final db = _db;
+      if (db == null) return false;
+      await db
+          .ref(DatabaseKeys.broadcastNotifications)
+          .child(id)
+          .remove();
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting broadcast notification: $e');
+      return false;
+    }
   }
 
   Future<List<UserModel>> fetchUsers() async {
@@ -928,20 +1095,44 @@ class DatabaseService extends GetxService {
 
     applicationsList.removeWhere((item) => item.id == application.id);
     applicationsList.insert(0, application);
+
+    // Send push notification to the candidate confirming their application submission
+    if (application.candidateId.isNotEmpty &&
+        Get.isRegistered<NotificationService>()) {
+      try {
+        final job = application.jobTitle.isNotEmpty ? application.jobTitle : 'Job Application';
+        final company = application.companyName.isNotEmpty ? application.companyName : 'the company';
+        await NotificationService.to.sendUserPush(
+          userId: application.candidateId,
+          title: 'Application Submitted! 🚀',
+          body: 'You successfully applied for "$job" at $company. We will notify you once reviewed.',
+          referenceId: application.id,
+          type: 'job_application',
+        );
+      } catch (e) {
+        debugPrint('Error sending apply push to candidate: $e');
+      }
+    }
   }
 
   Future<void> updateApplicationStatus(
       String appId, ApplicationStatus status) async {
+    ApplicationModel? targetApp;
+    final idx = applicationsList.indexWhere((a) => a.id == appId);
+    if (idx != -1) {
+      targetApp = applicationsList[idx];
+    }
+
     try {
       await _db
           ?.ref(DatabaseKeys.applications)
           .child(appId)
           .update({'status': status.name});
     } catch (_) {}
-    final idx = applicationsList.indexWhere((a) => a.id == appId);
-    if (idx != -1) {
-      final a = applicationsList[idx];
-      applicationsList[idx] = ApplicationModel(
+
+    if (idx != -1 && targetApp != null) {
+      final a = targetApp;
+      final updated = ApplicationModel(
         id: a.id,
         jobId: a.jobId,
         jobTitle: a.jobTitle,
@@ -962,6 +1153,60 @@ class DatabaseService extends GetxService {
         status: status,
         appliedAt: a.appliedAt,
       );
+      applicationsList[idx] = updated;
+      targetApp = updated;
+    } else {
+      try {
+        final snap = await _db?.ref(DatabaseKeys.applications).child(appId).get();
+        if (snap != null && snap.exists && snap.value is Map) {
+          targetApp = ApplicationModel.fromMap(
+              Map<String, dynamic>.from(snap.value as Map), appId);
+        }
+      } catch (_) {}
+    }
+
+    // Send push notification to the candidate about their updated application stage
+    if (targetApp != null &&
+        targetApp.candidateId.isNotEmpty &&
+        Get.isRegistered<NotificationService>()) {
+      try {
+        String title;
+        String body;
+        final job = targetApp.jobTitle.isNotEmpty ? targetApp.jobTitle : 'Job Application';
+        final company = targetApp.companyName.isNotEmpty ? targetApp.companyName : 'the company';
+
+        switch (status) {
+          case ApplicationStatus.shortlisted:
+            title = 'Application Shortlisted! 🎉';
+            body = 'Great news! You have been shortlisted for $job at $company.';
+            break;
+          case ApplicationStatus.interviewing:
+            title = 'Interview Scheduled 📅';
+            body = 'An interview has been scheduled for your application for $job at $company.';
+            break;
+          case ApplicationStatus.offered:
+            title = 'Job Offer Received! 🚀';
+            body = 'Congratulations! You received a job offer for $job at $company.';
+            break;
+          case ApplicationStatus.rejected:
+            title = 'Application Update';
+            body = 'Your application for $job at $company has been updated to Not Selected.';
+            break;
+          case ApplicationStatus.applied:
+            title = 'Application Status Updated';
+            body = 'Your application for $job at $company is marked as Applied.';
+            break;
+        }
+
+        await NotificationService.to.sendCandidatePush(
+          candidateId: targetApp.candidateId,
+          title: title,
+          body: body,
+          appId: appId,
+        );
+      } catch (e) {
+        debugPrint('Error sending status push to candidate: $e');
+      }
     }
   }
 
@@ -1163,6 +1408,29 @@ class DatabaseService extends GetxService {
           .set(booking.toMap());
     } catch (_) {}
     bookingsList.insert(0, booking);
+
+    // Send push notification to the mentor about the new booking
+    if (booking.mentorId.isNotEmpty &&
+        Get.isRegistered<NotificationService>()) {
+      try {
+        final candidate = booking.candidateName.isNotEmpty
+            ? booking.candidateName
+            : 'A candidate';
+        final service = booking.serviceTitle.isNotEmpty
+            ? booking.serviceTitle
+            : 'Mentorship Session';
+
+        await NotificationService.to.sendUserPush(
+          userId: booking.mentorId,
+          title: 'New Mentorship Booking! 📅',
+          body: '$candidate has booked a session with you for "$service". Tap to review details.',
+          referenceId: booking.id,
+          type: 'mentor_booking',
+        );
+      } catch (e) {
+        debugPrint('Error sending new booking push to mentor: $e');
+      }
+    }
   }
 
   Future<List<BookingModel>> fetchBookings() async {
@@ -1202,6 +1470,20 @@ class DatabaseService extends GetxService {
     String? mentorNotes,
     DateTime? rescheduledAt,
   }) async {
+    BookingModel? targetBooking;
+    final idx = bookingsList.indexWhere((b) => b.id == bookingId);
+    if (idx != -1) {
+      targetBooking = bookingsList[idx];
+    } else {
+      try {
+        final snap = await _db?.ref(DatabaseKeys.bookings).child(bookingId).get();
+        if (snap != null && snap.exists && snap.value is Map) {
+          targetBooking = BookingModel.fromMap(
+              Map<String, dynamic>.from(snap.value as Map), bookingId);
+        }
+      } catch (_) {}
+    }
+
     try {
       final updates = <String, dynamic>{'status': status};
       if (mentorNotes != null) updates['mentorNotes'] = mentorNotes;
@@ -1210,14 +1492,67 @@ class DatabaseService extends GetxService {
       }
       await _db?.ref(DatabaseKeys.bookings).child(bookingId).update(updates);
     } catch (_) {}
-    final idx = bookingsList.indexWhere((b) => b.id == bookingId);
-    if (idx != -1) {
-      final current = bookingsList[idx];
-      bookingsList[idx] = current.copyWith(
+
+    if (idx != -1 && targetBooking != null) {
+      final current = targetBooking;
+      final updated = current.copyWith(
         status: status,
         mentorNotes: mentorNotes ?? current.mentorNotes,
         scheduledAt: rescheduledAt ?? current.scheduledAt,
       );
+      bookingsList[idx] = updated;
+      targetBooking = updated;
+    }
+
+    // Send push notification to candidate when mentor updates booking (video call started, completed, cancelled)
+    if (targetBooking != null &&
+        targetBooking.candidateId.isNotEmpty &&
+        Get.isRegistered<NotificationService>()) {
+      try {
+        final mentor = targetBooking.mentorName.isNotEmpty
+            ? targetBooking.mentorName
+            : 'Your mentor';
+        final service = targetBooking.serviceTitle.isNotEmpty
+            ? targetBooking.serviceTitle
+            : (targetBooking.serviceType.isNotEmpty
+                ? targetBooking.serviceType
+                : 'Mentorship Session');
+
+        String title;
+        String body;
+
+        switch (status) {
+          case 'Started':
+            title = 'Mentor is calling! 📹';
+            body = '$mentor has started your video call session for "$service". Tap to join now!';
+            break;
+          case 'Completed':
+            title = 'Session Completed ✅';
+            body = 'Your mentorship session with $mentor for "$service" has been marked as completed.';
+            break;
+          case 'Cancelled':
+            title = 'Session Cancelled ⚠️';
+            body = 'Your mentorship session with $mentor for "$service" has been cancelled.';
+            break;
+          case 'Rescheduled':
+            title = 'Session Rescheduled 📅';
+            body = 'Your session with $mentor for "$service" has been rescheduled.';
+            break;
+          default:
+            title = 'Session Update';
+            body = 'Your session with $mentor for "$service" status is now $status.';
+            break;
+        }
+
+        await NotificationService.to.sendCandidatePush(
+          candidateId: targetBooking.candidateId,
+          title: title,
+          body: body,
+          appId: bookingId,
+        );
+      } catch (e) {
+        debugPrint('Error sending booking notification to candidate: $e');
+      }
     }
   }
 

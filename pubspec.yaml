@@ -30,6 +30,10 @@ dependencies:
   cloud_functions: ^5.6.2
   agora_rtc_engine: ^6.6.4
   permission_handler: ^13.0.2
+  firebase_messaging: ^15.2.10
+  http: ^1.6.0
+  flutter_local_notifications: ^22.3.1
+  googleapis_auth: ^2.3.4
 
 dev_dependencies:
   flutter_test:

@@ -11,6 +11,7 @@ import '../models/job_model.dart';
 import '../models/application_model.dart';
 import '../models/course_model.dart';
 import '../models/service_model.dart';
+import '../models/broadcast_notification_model.dart';
 
 class AdminController extends GetxController {
   final DatabaseService _dbService = Get.find<DatabaseService>();
@@ -35,6 +36,8 @@ class AdminController extends GetxController {
   int get totalCourses => _dbService.coursesList.length;
 
   List<UserModel> get allUsers => _dbService.usersList;
+  RxList<BroadcastNotificationModel> get broadcastNotifications =>
+      _dbService.broadcastNotificationsList;
 
   List<UserModel> get recruiters {
     final currentAdminId = _authService.currentUser.value?.id;
@@ -905,5 +908,114 @@ Future<String> describeAdminAccess() async {
       backgroundColor: AppColors.primary,
       colorText: Colors.white,
     );
+  }
+
+  // ============================================================================
+  // BROADCAST NOTIFICATIONS MANAGEMENT
+  // ============================================================================
+
+  Future<bool> sendBroadcastNotification({
+    required String title,
+    required String body,
+    String targetAudience = 'All Users',
+    bool sendPush = true,
+  }) async {
+    final notification = BroadcastNotificationModel(
+      id: 'bcast_${DateTime.now().millisecondsSinceEpoch}',
+      title: title.trim(),
+      body: body.trim(),
+      targetAudience: targetAudience,
+      sendPush: sendPush,
+      createdAt: DateTime.now(),
+      sentBy: _authService.currentUser.value?.name.isNotEmpty == true
+          ? _authService.currentUser.value!.name
+          : 'Admin',
+      recipientCount: _recipientCountForAudience(targetAudience),
+      status: 'Sent',
+    );
+    return await _dbService.sendBroadcastNotification(notification);
+  }
+
+  int _recipientCountForAudience(String audience) {
+    switch (audience) {
+      case 'Candidates':
+        return candidates.length;
+      case 'Recruiters':
+        return recruiters.length;
+      case 'Mentors':
+        return mentors.length;
+      default:
+        return _dbService.usersList.length;
+    }
+  }
+
+  Future<bool> updateBroadcastNotification(
+    BroadcastNotificationModel notification, {
+    required String title,
+    required String body,
+    String? targetAudience,
+    bool? sendPush,
+  }) async {
+    final updated = notification.copyWith(
+      title: title.trim(),
+      body: body.trim(),
+      targetAudience: targetAudience,
+      sendPush: sendPush,
+    );
+    final success = await _dbService.updateBroadcastNotification(updated);
+    if (success) {
+      Get.snackbar(
+        'Broadcast Updated',
+        'Notification changes saved successfully.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.primary,
+        colorText: Colors.white,
+      );
+    }
+    return success;
+  }
+
+  Future<bool> resendBroadcastNotification(
+    BroadcastNotificationModel notification, {
+    String? updatedTitle,
+    String? updatedBody,
+  }) async {
+    final resend = notification.copyWith(
+      id: 'bcast_${DateTime.now().millisecondsSinceEpoch}',
+      title: updatedTitle?.trim().isNotEmpty == true
+          ? updatedTitle!.trim()
+          : notification.title,
+      body: updatedBody?.trim().isNotEmpty == true
+          ? updatedBody!.trim()
+          : notification.body,
+      createdAt: DateTime.now(),
+      lastResentAt: DateTime.now(),
+      resendCount: notification.resendCount + 1,
+      recipientCount: _recipientCountForAudience(notification.targetAudience),
+      status: 'Sent',
+    );
+    final success = await _dbService.sendBroadcastNotification(resend);
+    if (success) {
+      Get.snackbar(
+        'Broadcast Resent',
+        'Notification was resent to ${notification.targetAudience}.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.secondary,
+        colorText: Colors.white,
+      );
+    }
+    return success;
+  }
+
+  Future<bool> deleteBroadcastNotification(String id) async {
+    final success = await _dbService.deleteBroadcastNotification(id);
+    if (success) {
+      Get.snackbar(
+        'Notification Deleted',
+        'Broadcast notification removed from history.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+    return success;
   }
 }

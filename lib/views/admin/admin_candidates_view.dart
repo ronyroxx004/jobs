@@ -267,20 +267,18 @@ Widget _buildFilterBar() {
         }
 
         return SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-          sliver: SliverGrid(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
-              (context, index) => _DeletedCandidateCard(
-                record: deleted[index],
-                controller: controller,
-              ),
-              childCount: deleted.length,
-            ),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 340,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              mainAxisExtent: 196,
+              (context, index) {
+                if (index.isOdd) return const SizedBox(height: 10);
+                final itemIndex = index ~/ 2;
+                return _DeletedCandidateCard(
+                  record: deleted[itemIndex],
+                  controller: controller,
+                );
+              },
+              childCount: deleted.isEmpty ? 0 : deleted.length * 2 - 1,
             ),
           ),
         );
@@ -300,18 +298,18 @@ Widget _buildFilterBar() {
       }
 
       return SliverPadding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-        sliver: SliverGrid(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) =>
-                _CandidateCard(user: users[index], controller: controller),
-            childCount: users.length,
-          ),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 340,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            mainAxisExtent: 196,
+            (context, index) {
+              if (index.isOdd) return const SizedBox(height: 10);
+              final itemIndex = index ~/ 2;
+              return _CandidateCard(
+                user: users[itemIndex],
+                controller: controller,
+              );
+            },
+            childCount: users.isEmpty ? 0 : users.length * 2 - 1,
           ),
         ),
       );
@@ -471,7 +469,7 @@ class _CandidateCard extends StatelessWidget {
                     ? '${user.experienceYears} yr experience'
                     : 'Fresher',
               ),
-              const Spacer(),
+              const SizedBox(height: 10),
               if (user.skills.isNotEmpty) ...[
                 Wrap(
                   spacing: 6,
@@ -698,7 +696,7 @@ class _DeletedCandidateCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

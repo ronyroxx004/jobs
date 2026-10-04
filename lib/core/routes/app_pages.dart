@@ -17,6 +17,7 @@ import '../../views/admin/admin_deleted_users_view.dart';
 import '../../views/admin/admin_jobs_view.dart';
 import '../../views/admin/admin_applications_view.dart';
 import '../../views/admin/admin_mentors_view.dart';
+import '../../views/admin/admin_notification_history_view.dart';
 import '../../controllers/job_controller.dart';
 import '../../controllers/admin_controller.dart';
 
@@ -104,6 +105,15 @@ class AppPages {
     GetPage(
       name: AppRoutes.adminMentors,
       page: () => const AdminMentorsView(showAppBar: true),
+      binding: BindingsBuilder(() {
+        if (!Get.isRegistered<AdminController>()) {
+          Get.lazyPut(() => AdminController(), fenix: true);
+        }
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.adminNotificationHistory,
+      page: () => const AdminNotificationHistoryView(),
       binding: BindingsBuilder(() {
         if (!Get.isRegistered<AdminController>()) {
           Get.lazyPut(() => AdminController(), fenix: true);

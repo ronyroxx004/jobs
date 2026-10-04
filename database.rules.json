@@ -73,6 +73,42 @@
           ".write": "auth != null && auth.uid === newData.child('senderId').val()"
         }
       }
+    },
+
+    "broadcast_notifications": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+    },
+
+    "push_notifications_queue": {
+      ".read": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+      ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+    },
+
+    "fcm_tokens": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "app_config": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+    },
+
+    "candidate_notifications": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null"
+      }
+    },
+
+    "user_notifications": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'admin@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null"
+      }
     }
   }
 }

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../core/utils/constants.dart';
 import 'database_service.dart';
+import 'notification_service.dart';
 
 class AuthService extends GetxService {
   static const String _sessionUserKey = 'jobs_saved_session_user';
@@ -34,6 +35,14 @@ class AuthService extends GetxService {
     super.onInit();
     _restoreLocalSession();
     _initAuthListener();
+
+    // Automatically sync role topic and personal topic with FCM
+    ever<UserModel?>(currentUser, (user) {
+      if (user != null && Get.isRegistered<NotificationService>()) {
+        NotificationService.to.updateRoleTopic(user.role.name);
+        NotificationService.to.syncUserSubscription(user.id);
+      }
+    });
   }
 
   Future<void> ensureSessionLoaded() async {
@@ -213,7 +222,6 @@ class AuthService extends GetxService {
       isLoading.value = true;
       UserModel? profile;
       final expectedRole = _detectRoleFromEmail(email);
-      final effectiveRole = requestedRole ?? expectedRole;
 
       if (_auth != null) {
         try {

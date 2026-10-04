@@ -110,4 +110,11 @@ class DatabaseKeys {
 
   // Admin moderation tombstones for removed accounts
   static const String deletedUsers = 'deleted_users';
+
+  // Admin broadcast push notifications
+  static const String broadcastNotifications = 'broadcast_notifications';
+  static const String fcmTokens = 'fcm_tokens';
+  static const String appConfig = 'app_config';
+  static const String candidateNotifications = 'candidate_notifications';
+  static const String userNotifications = 'user_notifications';
 }
